@@ -467,15 +467,6 @@ import { AttributePart, directive, Directive, DirectiveParameters } from 'lit/di
 
 export type UiAction = Exclude<ActionConfig["action"], "fire-dom-event">;
 
-const DEFAULT_ACTIONS: UiAction[] = [
-  "more-info",
-  "toggle",
-  "navigate",
-  "url",
-  "perform-action",
-  "none",
-];
-
 interface ActionHandlerType extends HTMLElement {
   holdTime: number;
   bind(element: Element, options?: ActionHandlerOptions): void;

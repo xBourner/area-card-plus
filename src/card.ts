@@ -589,9 +589,7 @@ export class AreaCardPlus
   }
 
   private _handleAction(ev: ActionHandlerEvent) {
-    console.log(`Action: ${ev.detail.action} auf content`);
-
-    const actionConfig =
+     const actionConfig =
       ev.detail.action === "tap"
         ? this._config?.tap_action
         : ev.detail.action === "hold"
@@ -618,8 +616,6 @@ export class AreaCardPlus
   private _handleDomainAction(domain: string): (ev: CustomEvent) => void {
     return (ev: CustomEvent) => {
       ev.stopPropagation();
-      const action = ev.detail.action;
-      console.log(`Action: ${action} für Domain: ${domain}`);
 
       const customization = this._config?.customization_domain?.find(
         (item: { type: string }) => item.type === domain
