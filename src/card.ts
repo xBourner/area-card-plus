@@ -46,7 +46,6 @@ export interface CardConfig extends LovelaceCardConfig {
   area: string;
   navigation_path?: string;
   columns?: number;
-  tap_action?: ActionConfig;
   hold_action?: ActionConfig;
   double_tap_action?: ActionConfig;
 }
@@ -882,9 +881,6 @@ export class AreaCardPlus
           </div>
           <div class="container"             @action=${this._handleAction}
             .actionHandler=${actionHandler({
-              hasTap: hasAction(this._config.tap_action) || 
-              (this._config.tap_action && this._config.tap_action.action === "more-info") || 
-              !this._config?.tap_action,
               hasHold: hasAction(this._config.hold_action),
               hasDoubleClick: hasAction(this._config.double_tap_action),
             })}>
@@ -1021,7 +1017,6 @@ export class AreaCardPlus
                             : ""}
                           @action=${this._handleDomainAction(domain)}
                           .actionHandler=${actionHandler({
-                            hasTap: hasAction(customization?.tap_action) || customization?.tap_action === "more-info" || !customization?.tap_action,
                             hasHold: hasAction(customization?.hold_action),
                             hasDoubleClick: hasAction(
                               customization?.double_tap_action
@@ -1096,7 +1091,6 @@ export class AreaCardPlus
                           : ""}
                         @action=${this._handleDomainAction(domain)}
                         .actionHandler=${actionHandler({
-                          hasTap: hasAction(customization?.tap_action) || customization?.tap_action === "more-info" || !customization?.tap_action,
                           hasHold: hasAction(customization?.hold_action),
                           hasDoubleClick: hasAction(
                             customization?.double_tap_action
@@ -1193,7 +1187,6 @@ export class AreaCardPlus
                             deviceClass
                           )}
                           .actionHandler=${actionHandler({
-                            hasTap: hasAction(customization?.tap_action) || customization?.tap_action === "none" || !customization?.tap_action,
                             hasHold: hasAction(customization?.hold_action),
                             hasDoubleClick: hasAction(
                               customization?.double_tap_action
@@ -1271,7 +1264,6 @@ export class AreaCardPlus
                         class="climate"
                         @action=${this._handleDomainAction(domain)}
                         .actionHandler=${actionHandler({
-                          hasTap: hasAction(customization?.tap_action) || customization?.tap_action === "more-info" || !customization?.tap_action,
                           hasHold: hasAction(customization?.hold_action),
                           hasDoubleClick: hasAction(
                             customization?.double_tap_action
@@ -1814,6 +1806,15 @@ export class AreaCardPlus
         top: 50%;
         transform: translateY(-50%);
       }
+      .mirrored .bottom.row {
+        flex-direction: row;
+        right: calc(var(--row-size, 3) * 20px + 25px) !important;
+        bottom: auto;
+        gap: 5px;
+        align-items: baseline;
+        top: 50%;
+        transform: translateY(-50%);
+      }        
       .mirrored .bottom {
         left: unset;
         right: 16px;

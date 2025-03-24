@@ -46,13 +46,13 @@ export class ItemEditor extends LitElement {
       selector: { ui_action: {actions} },
     },    
     {
-      name: "hold_action",
-      selector: { ui_action: {actions} },
-    },
-    {
       name: "double_tap_action",
       selector: { ui_action: {actions} },
     },
+    {
+      name: "hold_action",
+      selector: { ui_action: {actions} },
+    },    
   ];
 });
 
@@ -69,13 +69,13 @@ export class ItemEditor extends LitElement {
         selector: { ui_action: { actions } },
       },    
       {
-        name: "hold_action",
-        selector: { ui_action: { actions } },
-      },
-      {
         name: "double_tap_action",
         selector: { ui_action: { actions } },
       },
+      {
+        name: "hold_action",
+        selector: { ui_action: {actions} },
+      },      
     ];
   });
   
@@ -91,13 +91,13 @@ export class ItemEditor extends LitElement {
         selector: { ui_action: {actions} },
       },    
       {
-        name: "hold_action",
-        selector: { ui_action: {actions} },
-      },
-      {
         name: "double_tap_action",
         selector: { ui_action: {actions} },
       },
+      {
+        name: "hold_action",
+        selector: { ui_action: {actions} },
+      },      
     ];
   });
 

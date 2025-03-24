@@ -490,7 +490,6 @@ interface ActionHandlerElement extends HTMLElement {
 }
 
 export interface ActionHandlerOptions {
-  hasTap?: boolean;
   hasHold?: boolean;
   hasDoubleClick?: boolean;
   disabled?: boolean;

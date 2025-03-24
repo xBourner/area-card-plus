@@ -81,106 +81,62 @@ export class AreaCardPlusEditor
 
 
   private _schema = memoizeOne((showCamera: boolean) => {
-      const actions: UiAction[] = ["more-info", "navigate", "url", "perform-action", "none"];
-      const localize = (key: string) => this.hass!.localize(key) || key;
+    const localize = (key: string) => this.hass!.localize(key) || key;
+    const actions: UiAction[] = ["more-info", "navigate", "url", "perform-action", "none"];
+    
+    const icons = [
+      { value: "icon", label: localize("ui.panel.lovelace.editor.card.generic.icon") },
+      { value: "image", label: localize("ui.components.selectors.image.image") },
+      { 
+        value: "icon + image", 
+        label: `${localize("ui.panel.lovelace.editor.card.generic.icon")} & ${localize("ui.components.selectors.image.image")}` 
+      },
+    ];
 
-      const icons = [
-        { value: "icon", label: localize("ui.panel.lovelace.editor.card.generic.icon") },
-        { value: "image", label: localize("ui.components.selectors.image.image") },
-        { 
-          value: "icon + image", 
-          label: `${localize("ui.panel.lovelace.editor.card.generic.icon")} & ${localize("ui.components.selectors.image.image")}` 
-        },
-      ];
-
-
-      return [
-    { name: "area", selector: { area: {} } },
-    { name: "show_camera", required: false, selector: { boolean: {} } },
-    ...(showCamera
-      ? ([
-          {
-            name: "camera_view",
-            selector: { select: { options: ["auto", "live"] } },
-          },
-        ] as const)
-      : []),
-    {
-      name: "",
-      type: "grid",
-      schema: [
-        {
-          name: "tap_action",
-          selector: { ui_action: {actions} },
-        },    
-
-        { name: "theme", required: false, selector: { theme: {} } },
-      ],
-    },
-    {
-      name: "",
-      type: "grid",
-      schema: [
-        {
-          name: "double_tap_action",
-          selector: { ui_action: {actions} },
-        },    
-        {
-          name: "hold_action",
-          selector: { ui_action: {actions} },
-        },    
-      ],
-    },    
-    {
-      name: "appearance",
-      flatten: true,
-      type: "expandable",
-      icon: "mdi:palette",
-      schema: [
-        { name: "show_icon", selector: { select: {options: icons, mode: "dropdown"} } },
-        { name: "area_icon", selector: { icon: {} } },
-        {
-          name: "area_icon_color",
-          selector: {
-            ui_color: { default_color: "state", include_state: true },
-          },
-        },
-        { name: "area_name", selector: { text: {} } },
-        {
-          name: "area_name_color",
-          selector: {
-            ui_color: { default_color: "state", include_state: true },
-          },
-        },
-        {
-          name: "layout",
-          required: true,
-          selector: {
-            select: {
-              mode: "box",
-              options: [ "vertical", "horizontal"].map((value) => ({
-                label: localize(
-                  `ui.panel.lovelace.editor.card.tile.content_layout_options.${value}`
-                ),
-                value,
-              })),
+    return [
+      { name: "area", selector: { area: {} } },
+      
+      {
+        name: "appearance",
+        flatten: true,
+        type: "expandable",
+        icon: "mdi:palette",
+        schema: [
+          { name: "theme", required: false, selector: { theme: { } } },
+          { name: "layout", required: true, selector: { select: { mode: "box",
+            options: [ "vertical", "horizontal"].map((value) => ({
+            label: localize( `ui.panel.lovelace.editor.card.tile.content_layout_options.${value}`),
+            value})),
+              },
             },
           },
-        },
-        { name: "mirrored", selector: { boolean: { } } },
-        {
-          name: "css",
-          flatten: true,
-          type: "expandable",
-          icon: "mdi:palette",
-          schema: [ 
-            { name: "icon_css", selector: { template: {} } },
-            { name: "name_css", selector: { template: {} } },
-          ], },
-      ],
-    },
-  ];
-});
+          { name: "mirrored", selector: { boolean: { } } },
+          { name: "show_camera", required: false, selector: { boolean: {} } },
+          ...(showCamera
+            ? ([
+                {
+                  name: "camera_view",
+                  selector: { select: { options: ["auto", "live"] } },
+                },
+              ] as const)
+            : []),  
+          { name: "show_icon", selector: { select: {options: icons, mode: "dropdown"} } },
+          { name: "area_icon", selector: { icon: { } } },
+          { name: "area_icon_color", selector: { ui_color: { default_color: "state", include_state: true } } },
+          { name: "area_name", selector: { text: { } } },
+          { name: "area_name_color", selector: { ui_color: { default_color: "state", include_state: true } } },
+          { name: "css", flatten: true, type: "expandable", icon: "mdi:palette",
+            schema: [ 
+              { name: "icon_css", selector: { template: {} } },
+              { name: "name_css", selector: { template: {} } },
+            ], },
+          { name: "tap_action", selector: { ui_action: {actions} } },    
+          { name: "double_tap_action", selector: { ui_action: {actions} }},    
+          { name: "hold_action", selector: { ui_action: {actions} } },
+        ],
+      },
+    ];
+  });
 
   private _binaryschema = memoizeOne((binaryClasses: SelectOption[]) => [
     {
@@ -683,6 +639,7 @@ export class AreaCardPlusEditor
         case "tap_action":
         case "hold_action":
         case "double_tap_action":
+        case "camera_view":  
           return this.hass!.localize(
                 `ui.panel.lovelace.editor.card.generic.${schema.name}`
           );       
