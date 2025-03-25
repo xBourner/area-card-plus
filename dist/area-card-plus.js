@@ -190,8 +190,6 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        
-
         z-index: 1;
       }
       .icon-container {
@@ -340,7 +338,6 @@
       }
 
       @media (max-width: 768px) {
-
         .name {
           font-weight: bold;
           margin-bottom: 5px;

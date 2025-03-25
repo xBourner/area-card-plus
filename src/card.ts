@@ -15,7 +15,6 @@ import {
   LovelaceCard,
   LovelaceCardConfig,
   computeDomain,
-  navigate,
   applyThemesOnElement,
   formatNumber,
   hasAction,
@@ -1714,8 +1713,6 @@ export class AreaCardPlus
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        
-
         z-index: 1;
       }
       .icon-container {
@@ -1864,7 +1861,6 @@ export class AreaCardPlus
       }
 
       @media (max-width: 768px) {
-
         .name {
           font-weight: bold;
           margin-bottom: 5px;
