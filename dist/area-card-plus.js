@@ -30,63 +30,62 @@
           <div class="${ye({right:!0,row:b})}">
 
           <div class="${ye({alerts:!0,row:b})}">
-            ${xi.map((e=>e in p?this._deviceClasses[e].map((t=>{var s,n,i,o;const r=p[e].filter((e=>(e.attributes.device_class||"default")===t&&"on"===e.state)),a=null===(n=null===(s=this._config)||void 0===s?void 0:s.customization_alert)||void 0===n?void 0:n.find((e=>e.type===t)),c=(null==a?void 0:a.color)||(null===(i=this._config)||void 0===i?void 0:i.alert_color),l=null==a?void 0:a.icon,u=r.length;return u>0?q`
+            ${xi.map((e=>e in p?this._deviceClasses[e].map((t=>{var s,n,i,o,r;const a=p[e].filter((e=>(e.attributes.device_class||"default")===t&&"on"===e.state)),c=null===(n=null===(s=this._config)||void 0===s?void 0:s.customization_alert)||void 0===n?void 0:n.find((e=>e.type===t)),l=(null==c?void 0:c.color)||(null===(i=this._config)||void 0===i?void 0:i.alert_color),u=null==c?void 0:c.icon,h=a.length;return h>0?q`
                       <div
                         class="icon-with-count"
-                        style=${(null===(o=this._config)||void 0===o?void 0:o.alert_css)?this._config.alert_css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}
+                          style=${(null==c?void 0:c.css)||(null===(o=this._config)||void 0===o?void 0:o.alert_css)?((null==c?void 0:c.css)||(null===(r=this._config)||void 0===r?void 0:r.alert_css)).split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}
                         @action=${this._handleAlertAction(e,t)}
-                        .actionHandler=${it({hasHold:je(null==a?void 0:a.hold_action),hasDoubleClick:je(null==a?void 0:a.double_tap_action)})}
+                        .actionHandler=${it({hasHold:je(null==c?void 0:c.hold_action),hasDoubleClick:je(null==c?void 0:c.double_tap_action)})}
                       >
                         <ha-state-icon
                           class="alert"
-                          style=${c?`color: var(--${c}-color);`:V}
-                          .icon=${l||this._getIcon(e,u>0,t)}
+                          style=${l?`color: var(--${l}-color);`:V}
+                          .icon=${u||this._getIcon(e,h>0,t)}
                         ></ha-state-icon>
                         <span
-                          class="active-count  text-small${u>0?"on":"off"}"
-                          >${u}</span
+                          class="active-count  text-small${h>0?"on":"off"}"
+                          >${h}</span
                         >
                       </div>
                     `:V})):V))}
           </div>          
 
           <div class="${ye({buttons:!0,row:b})}">
-            ${this._config.show_active?null===(c=this._config.toggle_domains)||void 0===c?void 0:c.map((e=>{var t,s,n,i;if(!(e in p))return V;if("climate"===e)return V;const o=null===(s=null===(t=this._config)||void 0===t?void 0:t.customization_domain)||void 0===s?void 0:s.find((t=>t.type===e)),r=(null==o?void 0:o.color)||(null===(n=this._config)||void 0===n?void 0:n.domain_color),a=null==o?void 0:o.icon,c=p[e].filter((e=>!Si.includes(e.state)&&!Ei.includes(e.state))).length;return c>0?q`
+            ${this._config.show_active?null===(c=this._config.toggle_domains)||void 0===c?void 0:c.map((e=>{var t,s,n,i,o;if(!(e in p))return V;if("climate"===e)return V;const r=null===(s=null===(t=this._config)||void 0===t?void 0:t.customization_domain)||void 0===s?void 0:s.find((t=>t.type===e)),a=(null==r?void 0:r.color)||(null===(n=this._config)||void 0===n?void 0:n.domain_color),c=null==r?void 0:r.icon,l=p[e].filter((e=>!Si.includes(e.state)&&!Ei.includes(e.state))).length;return l>0?q`
                         <div
-                          class="icon-with-count hover"
-                          style=${(null===(i=this._config)||void 0===i?void 0:i.domain_css)?this._config.domain_css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}
+                          style=${(null==r?void 0:r.css)||(null===(i=this._config)||void 0===i?void 0:i.domain_css)?((null==r?void 0:r.css)||(null===(o=this._config)||void 0===o?void 0:o.domain_css)).split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}
                           @action=${this._handleDomainAction(e)}
-                          .actionHandler=${it({hasHold:je(null==o?void 0:o.hold_action),hasDoubleClick:je(null==o?void 0:o.double_tap_action)})}
+                          .actionHandler=${it({hasHold:je(null==r?void 0:r.hold_action),hasDoubleClick:je(null==r?void 0:r.double_tap_action)})}
                         >
                           <ha-state-icon
-                            style=${r?`color: var(--${r}-color);`:V}
-                            class=${c>0?"toggle-on":"toggle-off"}
+                            style=${a?`color: var(--${a}-color);`:V}
+                            class=${l>0?"toggle-on":"toggle-off"}
                             .domain=${e}
-                            .icon=${a||this._getIcon(e,c>0)}
+                            .icon=${c||this._getIcon(e,l>0)}
                           ></ha-state-icon>
                           <span
-                            class="active-count text-small ${c>0?"on":"off"}"
+                            class="active-count text-small ${l>0?"on":"off"}"
                           >
-                            ${c}
+                            ${l}
                           </span>
                         </div>
-                      `:V})):null===(l=this._config.toggle_domains)||void 0===l?void 0:l.map((e=>{var t,s,n,i;if(!(e in p))return V;if("climate"===e)return V;const o=null===(s=null===(t=this._config)||void 0===t?void 0:t.customization_domain)||void 0===s?void 0:s.find((t=>t.type===e)),r=null==o?void 0:o.color,a=null==o?void 0:o.icon,c=p[e].filter((e=>!Si.includes(e.state)&&!Ei.includes(e.state))).length;return q`
+                      `:V})):null===(l=this._config.toggle_domains)||void 0===l?void 0:l.map((e=>{var t,s,n,i,o;if(!(e in p))return V;if("climate"===e)return V;const r=null===(s=null===(t=this._config)||void 0===t?void 0:t.customization_domain)||void 0===s?void 0:s.find((t=>t.type===e)),a=null==r?void 0:r.color,c=null==r?void 0:r.icon,l=p[e].filter((e=>!Si.includes(e.state)&&!Ei.includes(e.state))).length;return q`
                       <div
                         class="icon-with-count hover"
-                        style=${(null===(n=this._config)||void 0===n?void 0:n.domain_css)?this._config.domain_css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}
+                        style=${(null==r?void 0:r.css)||(null===(n=this._config)||void 0===n?void 0:n.domain_css)?((null==r?void 0:r.css)||(null===(i=this._config)||void 0===i?void 0:i.domain_css)).split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}
                         @action=${this._handleDomainAction(e)}
-                        .actionHandler=${it({hasHold:je(null==o?void 0:o.hold_action),hasDoubleClick:je(null==o?void 0:o.double_tap_action)})}
+                        .actionHandler=${it({hasHold:je(null==r?void 0:r.hold_action),hasDoubleClick:je(null==r?void 0:r.double_tap_action)})}
                       >
                         <ha-state-icon
-                          style=${r?`color: var(--${r}-color);`:(null===(i=this._config)||void 0===i?void 0:i.domain_color)?`color: ${this._config.domain_color};`:V}
-                          class=${c>0?"toggle-on":"toggle-off"}
+                          style=${a?`color: var(--${a}-color);`:(null===(o=this._config)||void 0===o?void 0:o.domain_color)?`color: ${this._config.domain_color};`:V}
+                          class=${l>0?"toggle-on":"toggle-off"}
                           .domain=${e}
-                          .icon=${a||this._getIcon(e,c>0)}
+                          .icon=${c||this._getIcon(e,l>0)}
                         ></ha-state-icon>
                         <span
-                          class="active-count text-small ${c>0?"on":"off"}"
+                          class="active-count text-small ${l>0?"on":"off"}"
                         >
-                          ${c}
+                          ${l}
                         </span>
                       </div>
                     `}))}
@@ -105,7 +104,7 @@
                           class="sensor-value"
                           @action=${this._handleSensorAction(e,t)}
                           .actionHandler=${it({hasHold:je(null==c?void 0:c.hold_action),hasDoubleClick:je(null==c?void 0:c.double_tap_action)})}
-                          style=${l?`color: var(--${l}-color);`:V}
+                          style=${`\n                            ${l?`color: var(--${l}-color);`:""}\n                            ${(null==c?void 0:c.css)?c.css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}\n                          `}
                         >
                           ${s>0?" - ":""}${a}
                         </span>
@@ -416,7 +415,7 @@
         color: var(--secondary-text-color);
         padding-left: 4px;
       }
-    `}}Hi([fe({attribute:!1})],qi.prototype,"hass",void 0),Hi([fe({type:Array})],qi.prototype,"SelectOptions",void 0);let Fi=class extends qi{constructor(){super(...arguments),this.customizationChangedEvent="config-changed"}get customization(){return this.customization_domain}};Hi([fe({attribute:!1})],Fi.prototype,"customization_domain",void 0),Fi=Hi([ue("domain-items-editor")],Fi);let Vi=class extends qi{constructor(){super(...arguments),this.customizationChangedEvent="config-changed"}get customization(){return this.customization_alert}};Hi([fe({attribute:!1})],Vi.prototype,"customization_alert",void 0),Vi=Hi([ue("alert-items-editor")],Vi);let Wi=class extends qi{constructor(){super(...arguments),this.customizationChangedEvent="config-changed"}get customization(){return this.customization_sensor}};Hi([fe({attribute:!1})],Wi.prototype,"customization_sensor",void 0),Wi=Hi([ue("sensor-items-editor")],Wi);let Yi=class extends qi{constructor(){super(...arguments),this.customizationChangedEvent="config-changed"}get customization(){return this.customization_popup}};Hi([fe({attribute:!1})],Yi.prototype,"customization_popup",void 0),Yi=Hi([ue("popup-items-editor")],Yi);var Ji=function(e,t,s,n){var i,o=arguments.length,r=o<3?t:null===n?n=Object.getOwnPropertyDescriptor(t,s):n;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(e,t,s,n);else for(var a=e.length-1;a>=0;a--)(i=e[a])&&(r=(o<3?i(r):o>3?i(t,s,r):i(t,s))||r);return o>3&&r&&Object.defineProperty(t,s,r),r};let Gi=class extends ce{constructor(){super(...arguments),this.useSensorSchema=!1,this._schemadomain=Ae((()=>{const e=["more-info","toggle","navigate","url","perform-action","none"];return[{name:"icon",selector:{icon:{}}},{name:"color",selector:{ui_color:{default_color:"state",include_state:!0}}},{name:"tap_action",selector:{ui_action:{actions:e}}},{name:"double_tap_action",selector:{ui_action:{actions:e}}},{name:"hold_action",selector:{ui_action:{actions:e}}}]})),this._schemaalert=Ae((()=>{const e=["more-info","navigate","url","perform-action","none"];return[{name:"icon",selector:{icon:{}}},{name:"color",selector:{ui_color:{default_color:"state",include_state:!0}}},{name:"tap_action",selector:{ui_action:{actions:e}}},{name:"double_tap_action",selector:{ui_action:{actions:e}}},{name:"hold_action",selector:{ui_action:{actions:e}}}]})),this._schemasensor=Ae((()=>{const e=["more-info","navigate","url","perform-action","none"];return[{name:"color",selector:{ui_color:{default_color:"state",include_state:!0}}},{name:"tap_action",selector:{ui_action:{actions:e}}},{name:"double_tap_action",selector:{ui_action:{actions:e}}},{name:"hold_action",selector:{ui_action:{actions:e}}}]})),this._computeLabelCallback=e=>{switch(e.name){case"color":return this.hass.localize("ui.panel.lovelace.editor.card.tile.color");case"enable_popup_view":return this.hass.localize("ui.common.enable")+" "+this.hass.localize("ui.panel.lovelace.editor.action-editor.actions.more-info");case"disable_toggle_action":return this.hass.localize("ui.common.disable")+" "+this.hass.localize("ui.panel.lovelace.editor.card.generic.tap_action");case"icon":case"tap_action":case"hold_action":case"double_tap_action":return this.hass.localize(`ui.panel.lovelace.editor.card.generic.${e.name}`);default:return this.hass.localize(`ui.panel.lovelace.editor.card.area.${e.name}`)}}}updated(e){e.has("config")&&this.config&&(this._config=Object.assign({},this.config))}render(){if(!this.hass||!this.config)return q``;let e;switch(this._config||(this._config=Object.assign(Object.assign({},this.config),{area:this.config.area||""})),this.getSchema){case"sensor":e=this._schemasensor();break;case"domain":e=this._schemadomain();break;case"alert":e=this._schemaalert()}const t=Object.assign({},this._config);return q`
+    `}}Hi([fe({attribute:!1})],qi.prototype,"hass",void 0),Hi([fe({type:Array})],qi.prototype,"SelectOptions",void 0);let Fi=class extends qi{constructor(){super(...arguments),this.customizationChangedEvent="config-changed"}get customization(){return this.customization_domain}};Hi([fe({attribute:!1})],Fi.prototype,"customization_domain",void 0),Fi=Hi([ue("domain-items-editor")],Fi);let Vi=class extends qi{constructor(){super(...arguments),this.customizationChangedEvent="config-changed"}get customization(){return this.customization_alert}};Hi([fe({attribute:!1})],Vi.prototype,"customization_alert",void 0),Vi=Hi([ue("alert-items-editor")],Vi);let Wi=class extends qi{constructor(){super(...arguments),this.customizationChangedEvent="config-changed"}get customization(){return this.customization_sensor}};Hi([fe({attribute:!1})],Wi.prototype,"customization_sensor",void 0),Wi=Hi([ue("sensor-items-editor")],Wi);let Yi=class extends qi{constructor(){super(...arguments),this.customizationChangedEvent="config-changed"}get customization(){return this.customization_popup}};Hi([fe({attribute:!1})],Yi.prototype,"customization_popup",void 0),Yi=Hi([ue("popup-items-editor")],Yi);var Ji=function(e,t,s,n){var i,o=arguments.length,r=o<3?t:null===n?n=Object.getOwnPropertyDescriptor(t,s):n;if("object"==typeof Reflect&&"function"==typeof Reflect.decorate)r=Reflect.decorate(e,t,s,n);else for(var a=e.length-1;a>=0;a--)(i=e[a])&&(r=(o<3?i(r):o>3?i(t,s,r):i(t,s))||r);return o>3&&r&&Object.defineProperty(t,s,r),r};let Gi=class extends ce{constructor(){super(...arguments),this.useSensorSchema=!1,this._schemadomain=Ae((()=>{const e=["more-info","toggle","navigate","url","perform-action","none"];return[{name:"icon",selector:{icon:{}}},{name:"color",selector:{ui_color:{default_color:"state",include_state:!0}}},{name:"css",selector:{template:{}}},{name:"tap_action",selector:{ui_action:{actions:e}}},{name:"double_tap_action",selector:{ui_action:{actions:e}}},{name:"hold_action",selector:{ui_action:{actions:e}}}]})),this._schemaalert=Ae((()=>{const e=["more-info","navigate","url","perform-action","none"];return[{name:"icon",selector:{icon:{}}},{name:"color",selector:{ui_color:{default_color:"state",include_state:!0}}},{name:"css",selector:{template:{}}},{name:"tap_action",selector:{ui_action:{actions:e}}},{name:"double_tap_action",selector:{ui_action:{actions:e}}},{name:"hold_action",selector:{ui_action:{actions:e}}}]})),this._schemasensor=Ae((()=>{const e=["more-info","navigate","url","perform-action","none"];return[{name:"color",selector:{ui_color:{default_color:"state",include_state:!0}}},{name:"css",selector:{template:{}}},{name:"tap_action",selector:{ui_action:{actions:e}}},{name:"double_tap_action",selector:{ui_action:{actions:e}}},{name:"hold_action",selector:{ui_action:{actions:e}}}]})),this._computeLabelCallback=e=>{switch(e.name){case"color":return this.hass.localize("ui.panel.lovelace.editor.card.tile.color");case"enable_popup_view":return this.hass.localize("ui.common.enable")+" "+this.hass.localize("ui.panel.lovelace.editor.action-editor.actions.more-info");case"disable_toggle_action":return this.hass.localize("ui.common.disable")+" "+this.hass.localize("ui.panel.lovelace.editor.card.generic.tap_action");case"css":return"CSS";case"icon":case"tap_action":case"hold_action":case"double_tap_action":return this.hass.localize(`ui.panel.lovelace.editor.card.generic.${e.name}`);default:return this.hass.localize(`ui.panel.lovelace.editor.card.area.${e.name}`)}}}updated(e){e.has("config")&&this.config&&(this._config=Object.assign({},this.config))}render(){if(!this.hass||!this.config)return q``;let e;switch(this._config||(this._config=Object.assign(Object.assign({},this.config),{area:this.config.area||""})),this.getSchema){case"sensor":e=this._schemasensor();break;case"domain":e=this._schemadomain();break;case"alert":e=this._schemaalert()}const t=Object.assign({},this._config);return q`
       <ha-form
         .hass=${this.hass}
         .data=${t}

@@ -918,18 +918,16 @@ export class AreaCardPlus
                   ? html`
                       <div
                         class="icon-with-count"
-                        style=${this._config?.alert_css
-                          ? this._config.alert_css
-                              .split("\n")
-                              .map((line: string) => line.trim())
-                              .filter(
-                                (line: string) => line && line.includes(":")
-                              )
-                              .map((line: string) =>
-                                line.endsWith(";") ? line : `${line};`
-                              )
-                              .join(" ")
-                          : ""}
+                          style=${
+                            (customization?.css || this._config?.alert_css)
+                              ? (customization?.css || this._config?.alert_css)
+                                  .split("\n")
+                                  .map((line: string) => line.trim())
+                                  .filter((line: string) => line && line.includes(":"))
+                                  .map((line: string) => (line.endsWith(";") ? line : `${line};`))
+                                  .join(" ")
+                              : ""
+                          }
                         @action=${this._handleAlertAction(domain, deviceClass)}
                         .actionHandler=${actionHandler({
                           hasHold: hasAction(customization?.hold_action),
@@ -997,19 +995,16 @@ export class AreaCardPlus
                     if (activeCount > 0) {
                       return html`
                         <div
-                          class="icon-with-count hover"
-                          style=${this._config?.domain_css
-                            ? this._config.domain_css
-                                .split("\n")
-                                .map((line: string) => line.trim())
-                                .filter(
-                                  (line: string) => line && line.includes(":")
-                                )
-                                .map((line: string) =>
-                                  line.endsWith(";") ? line : `${line};`
-                                )
-                                .join(" ")
-                            : ""}
+                          style=${
+                            (customization?.css || this._config?.domain_css)
+                              ? (customization?.css || this._config?.domain_css)
+                                  .split("\n")
+                                  .map((line: string) => line.trim())
+                                  .filter((line: string) => line && line.includes(":"))
+                                  .map((line: string) => (line.endsWith(";") ? line : `${line};`))
+                                  .join(" ")
+                              : ""
+                          }
                           @action=${this._handleDomainAction(domain)}
                           .actionHandler=${actionHandler({
                             hasHold: hasAction(customization?.hold_action),
@@ -1072,18 +1067,16 @@ export class AreaCardPlus
                     return html`
                       <div
                         class="icon-with-count hover"
-                        style=${this._config?.domain_css
-                          ? this._config.domain_css
-                              .split("\n")
-                              .map((line: string) => line.trim())
-                              .filter(
-                                (line: string) => line && line.includes(":")
-                              )
-                              .map((line: string) =>
-                                line.endsWith(";") ? line : `${line};`
-                              )
-                              .join(" ")
-                          : ""}
+                        style=${
+                          (customization?.css || this._config?.domain_css)
+                            ? (customization?.css || this._config?.domain_css)
+                                .split("\n")
+                                .map((line: string) => line.trim())
+                                .filter((line: string) => line && line.includes(":"))
+                                .map((line: string) => (line.endsWith(";") ? line : `${line};`))
+                                .join(" ")
+                            : ""
+                        }
                         @action=${this._handleDomainAction(domain)}
                         .actionHandler=${actionHandler({
                           hasHold: hasAction(customization?.hold_action),
@@ -1187,9 +1180,18 @@ export class AreaCardPlus
                               customization?.double_tap_action
                             ),
                           })}
-                          style=${sensorColor
-                            ? `color: var(--${sensorColor}-color);`
-                            : nothing}
+                          style=${`
+                            ${sensorColor ? `color: var(--${sensorColor}-color);` : ""}
+                            ${customization?.css
+                              ? customization.css
+                                  .split("\n")
+                                  .map((line: string) => line.trim())
+                                  .filter((line: string) => line && line.includes(":"))
+                                  .map((line: string) => (line.endsWith(";") ? line : `${line};`))
+                                  .join(" ")
+                              : ""
+                            }
+                          `}
                         >
                           ${index > 0 ? " - " : ""}${average}
                         </span>
