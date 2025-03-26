@@ -42,6 +42,7 @@ export class ItemEditor extends LitElement {
       selector: { ui_color: { default_color: "state", include_state: true } },
     },
     { name: "css", selector: { template: {} } },
+    { name: "icon_css", selector: { template: {} } },
     {
       name: "tap_action",
       selector: { ui_action: {actions} },
@@ -66,6 +67,7 @@ export class ItemEditor extends LitElement {
         selector: { ui_color: { default_color: "state", include_state: true } },
       },
       { name: "css", selector: { template: {} } },
+      { name: "icon_css", selector: { template: {} } },
       {
         name: "tap_action",
         selector: { ui_action: { actions } },
@@ -161,6 +163,8 @@ export class ItemEditor extends LitElement {
         );
       case "css":
         return "CSS";  
+      case "icon_css":
+        return this.hass!.localize("ui.panel.lovelace.editor.card.generic.icon") + " " + "CSS";   
       case "icon":
       case "tap_action":
       case "hold_action":

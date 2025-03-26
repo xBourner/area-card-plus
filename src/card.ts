@@ -936,18 +936,31 @@ export class AreaCardPlus
                           ),
                         })}
                       >
-                        <ha-state-icon
-                          class="alert"
-                          style=${alertColor
-                            ? `color: var(--${alertColor}-color);`
-                            : nothing}
+                      <ha-state-icon
+                        class="alert
+                        style=${
+                          (alertColor
+                            ? `color: var(--${alertColor}-color);`     
+                            : ""
+                          ) +
+                          " " +
+                          (customization?.icon_css
+                            ? customization.icon_css
+                                .split("\n")
+                                .map((line: string) => line.trim())
+                                .filter((line: string) => line && line.includes(":"))
+                                .map((line: string) => (line.endsWith(";") ? line : `${line};`))
+                                .join(" ")
+                            : ""
+                          )
+                        }
                           .icon=${alertIcon
                             ? alertIcon
                             : this._getIcon(
                                 domain as DomainType,
                                 activeCount > 0,
                                 deviceClass
-                              )}
+                              )}                              
                         ></ha-state-icon>
                         <span
                           class="active-count  text-small${activeCount > 0
@@ -1085,21 +1098,29 @@ export class AreaCardPlus
                           ),
                         })}
                       >
-                        <ha-state-icon
-                          style=${domainColor
+                      <ha-state-icon
+                        style=${
+                          (domainColor
                             ? `color: var(--${domainColor}-color);`
                             : this._config?.domain_color
                             ? `color: ${this._config.domain_color};`
-                            : nothing}
-                          class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
-                          .domain=${domain}
-                          .icon=${domainIcon
-                            ? domainIcon
-                            : this._getIcon(
-                                domain as DomainType,
-                                activeCount > 0
-                              )}
-                        ></ha-state-icon>
+                            : ""
+                          ) +
+                          " " +
+                          (customization?.icon_css
+                            ? customization.icon_css
+                                .split("\n")
+                                .map((line: string) => line.trim())
+                                .filter((line: string) => line && line.includes(":"))
+                                .map((line: string) => (line.endsWith(";") ? line : `${line};`))
+                                .join(" ")
+                            : ""
+                          )
+                        }
+                        class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
+                        .domain=${domain}
+                        .icon=${domainIcon ? domainIcon : this._getIcon(domain as DomainType, activeCount > 0)}
+                      ></ha-state-icon>
                         <span
                           class="active-count text-small ${activeCount > 0
                             ? "on"
@@ -1134,10 +1155,18 @@ export class AreaCardPlus
                       .join(" ")
                   : ""
               }`}
-          <div class="${classMap({
-            name: true,
-            row: layout, 
-          })} text-large on">
+              <div class="${classMap({
+                  name: true,
+                  row: layout,
+                  "text-large": true,
+                  on: true,
+                })}"
+                @action=${this._handleAction}
+                .actionHandler=${actionHandler({
+                  hasHold: hasAction(this._config.hold_action),
+                  hasDoubleClick: hasAction(this._config.double_tap_action),
+                })}
+              >
                 ${this._config.area_name || area.name}
               </div>
 
@@ -1158,7 +1187,20 @@ export class AreaCardPlus
                         return nothing;
                       }
 
-                      const average = this._average(domain, deviceClass);
+                      const areaSensorEntityId = (() => {
+                        switch (deviceClass) {
+                          case "temperature":
+                            return area.temperature_entity_id;
+                          case "humidity":
+                            return area.humidity_entity_id;
+                          default:
+                            return null;
+                        }
+                      })();
+
+                      const areaEntity = areaSensorEntityId
+                      ? this.hass.states[areaSensorEntityId]
+                      : undefined;
 
                       const customization =
                         this._config?.customization_sensor?.find(
@@ -1193,7 +1235,9 @@ export class AreaCardPlus
                             }
                           `}
                         >
-                          ${index > 0 ? " - " : ""}${average}
+                        ${index > 0 ? " - " : ""}                ${areaEntity
+                ? this.hass.formatEntityState(areaEntity)
+                : this._average(domain, deviceClass)}
                         </span>
                       `;
                     })
@@ -1273,7 +1317,6 @@ export class AreaCardPlus
                   })
                 : ""
             }
-            
             </div>
           </div>
           </div>
@@ -1837,6 +1880,7 @@ export class AreaCardPlus
       .icon-with-count > span {
         pointer-events: none;
       }
+
       .toggle-on {
         color: var(--primary-text-color);
       }

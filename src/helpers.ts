@@ -46,6 +46,8 @@ export interface AreaRegistryEntry extends RegistryEntry {
   icon: string | null;
   labels: string[];
   aliases: string[];
+  temperature_entity_id: string;
+  humidity_entity_id: string;
 }
 
 export interface DeviceRegistryEntry extends RegistryEntry {
