@@ -15,7 +15,7 @@ import {
   Settings,
   fireEvent,
   EntityRegistryEntry,
-  UiAction
+  UiAction,
 } from "./helpers";
 import {
   DEVICE_CLASSES,
@@ -31,7 +31,6 @@ import {
 } from "@mdi/js";
 import "./items-editor";
 import "./item-editor";
-
 
 export interface CardConfig extends LovelaceCardConfig {
   area: string;
@@ -49,7 +48,6 @@ interface Schema {
   selector?: any;
   required?: boolean;
 
-
   default?: any;
   type?: string;
 }
@@ -57,9 +55,6 @@ interface Schema {
 interface SubElementEditor {
   index?: number;
 }
-
-
-
 
 @customElement("area-card-plus-editor")
 export class AreaCardPlusEditor
@@ -76,41 +71,61 @@ export class AreaCardPlusEditor
     undefined;
   @state() private _subElementEditorSensor: SubElementConfig | undefined =
     undefined;
- //   @state() private _subElementEditorPopup: SubElementConfig | undefined = undefined;
-
-
+  //   @state() private _subElementEditorPopup: SubElementConfig | undefined = undefined;
 
   private _schema = memoizeOne((showCamera: boolean) => {
     const localize = (key: string) => this.hass!.localize(key) || key;
-    const actions: UiAction[] = ["more-info", "navigate", "url", "perform-action", "none"];
-    
+    const actions: UiAction[] = [
+      "more-info",
+      "navigate",
+      "url",
+      "perform-action",
+      "none",
+    ];
+
     const icons = [
-      { value: "icon", label: localize("ui.panel.lovelace.editor.card.generic.icon") },
-      { value: "image", label: localize("ui.components.selectors.image.image") },
-      { 
-        value: "icon + image", 
-        label: `${localize("ui.panel.lovelace.editor.card.generic.icon")} & ${localize("ui.components.selectors.image.image")}` 
+      {
+        value: "icon",
+        label: localize("ui.panel.lovelace.editor.card.generic.icon"),
+      },
+      {
+        value: "image",
+        label: localize("ui.components.selectors.image.image"),
+      },
+      {
+        value: "icon + image",
+        label: `${localize(
+          "ui.panel.lovelace.editor.card.generic.icon"
+        )} & ${localize("ui.components.selectors.image.image")}`,
       },
     ];
 
     return [
       { name: "area", selector: { area: {} } },
-      
+
       {
         name: "appearance",
         flatten: true,
         type: "expandable",
         icon: "mdi:palette",
         schema: [
-          { name: "theme", required: false, selector: { theme: { } } },
-          { name: "layout", required: true, selector: { select: { mode: "box",
-            options: [ "vertical", "horizontal"].map((value) => ({
-            label: localize( `ui.panel.lovelace.editor.card.tile.content_layout_options.${value}`),
-            value})),
+          { name: "theme", required: false, selector: { theme: {} } },
+          {
+            name: "layout",
+            required: true,
+            selector: {
+              select: {
+                mode: "box",
+                options: ["vertical", "horizontal"].map((value) => ({
+                  label: localize(
+                    `ui.panel.lovelace.editor.card.tile.content_layout_options.${value}`
+                  ),
+                  value,
+                })),
               },
             },
           },
-          { name: "mirrored", selector: { boolean: { } } },
+          { name: "mirrored", selector: { boolean: {} } },
           { name: "show_camera", required: false, selector: { boolean: {} } },
           ...(showCamera
             ? ([
@@ -119,20 +134,38 @@ export class AreaCardPlusEditor
                   selector: { select: { options: ["auto", "live"] } },
                 },
               ] as const)
-            : []),  
-          { name: "show_icon", selector: { select: {options: icons, mode: "dropdown"} } },
-          { name: "area_icon", selector: { icon: { } } },
-          { name: "area_icon_color", selector: { ui_color: { default_color: "state", include_state: true } } },
-          { name: "area_name", selector: { text: { } } },
-          { name: "area_name_color", selector: { ui_color: { default_color: "state", include_state: true } } },
-          { name: "css", flatten: true, type: "expandable", icon: "mdi:palette",
-            schema: [ 
+            : []),
+          {
+            name: "show_icon",
+            selector: { select: { options: icons, mode: "dropdown" } },
+          },
+          { name: "area_icon", selector: { icon: {} } },
+          {
+            name: "area_icon_color",
+            selector: {
+              ui_color: { default_color: "state", include_state: true },
+            },
+          },
+          { name: "area_name", selector: { text: {} } },
+          {
+            name: "area_name_color",
+            selector: {
+              ui_color: { default_color: "state", include_state: true },
+            },
+          },
+          {
+            name: "css",
+            flatten: true,
+            type: "expandable",
+            icon: "mdi:palette",
+            schema: [
               { name: "icon_css", selector: { template: {} } },
               { name: "name_css", selector: { template: {} } },
-            ], },
-          { name: "tap_action", selector: { ui_action: {actions} } },    
-          { name: "double_tap_action", selector: { ui_action: {actions} }},    
-          { name: "hold_action", selector: { ui_action: {actions} } },
+            ],
+          },
+          { name: "tap_action", selector: { ui_action: { actions } } },
+          { name: "double_tap_action", selector: { ui_action: { actions } } },
+          { name: "hold_action", selector: { ui_action: { actions } } },
         ],
       },
     ];
@@ -195,58 +228,60 @@ export class AreaCardPlusEditor
     { name: "show_active", selector: { boolean: {} } },
   ]);
 
-
-  private _popupschema = memoizeOne((allDomains: SelectOption[], allEntities: SelectOption	[]) => [
-    { name: "columns", selector: { number: { min: 1, max: 4, mode: "box" } } },
-    {
-      name: "popup_domains",
-      selector: {
-        select: {
-          reorder: true,
-          multiple: true,
-          custom_value: true,
-          options: allDomains,
+  private _popupschema = memoizeOne(
+    (allDomains: SelectOption[], allEntities: SelectOption[]) => [
+      {
+        name: "columns",
+        selector: { number: { min: 1, max: 4, mode: "box" } },
+      },
+      {
+        name: "popup_domains",
+        selector: {
+          select: {
+            reorder: true,
+            multiple: true,
+            custom_value: true,
+            options: allDomains,
+          },
         },
       },
-    },
-    {
-      name: "edit_filters",
-      flatten: true,
-      type: "expandable",
-      icon: "mdi:eye-plus",
-      schema: [
-        { name: "label", selector: { label: {multiple: true} } },
-      ],
-    },    
-    {
-      name: "hidden_entities",
-      flatten: true,
-      type: "expandable",
-      icon: "mdi:eye-off",
-      schema: [
-        {
-          name: "hidden_entities",
-          selector: {
-            select: {
-              reorder: true,
-              multiple: true,
-              options: allEntities,
+      {
+        name: "edit_filters",
+        flatten: true,
+        type: "expandable",
+        icon: "mdi:eye-plus",
+        schema: [{ name: "label", selector: { label: { multiple: true } } }],
+      },
+      {
+        name: "hidden_entities",
+        flatten: true,
+        type: "expandable",
+        icon: "mdi:eye-off",
+        schema: [
+          {
+            name: "hidden_entities",
+            selector: {
+              select: {
+                reorder: true,
+                multiple: true,
+                options: allEntities,
+              },
             },
           },
-        },  
-      ],
-    },
-    {
-      name: "extra_entities",
-      flatten: true,
-      type: "expandable",
-      icon: "mdi:eye-plus",
-      schema: [
-        { name: "extra_entities", selector: { entity: { multiple: true } } },
-      ],
-    },
-    { name: "hide_unavailable", selector: { boolean: {} } },
-  ]);
+        ],
+      },
+      {
+        name: "extra_entities",
+        flatten: true,
+        type: "expandable",
+        icon: "mdi:eye-plus",
+        schema: [
+          { name: "extra_entities", selector: { entity: { multiple: true } } },
+        ],
+      },
+      { name: "hide_unavailable", selector: { boolean: {} } },
+    ]
+  );
 
   protected async firstUpdated(): Promise<void> {
     if (
@@ -282,15 +317,13 @@ export class AreaCardPlusEditor
     this._classesForArea(area, "all")
   );
 
-
-
   private _classesForArea(
     area: string,
-    domain: "sensor" | "binary_sensor" | "toggle" | "all" , 
+    domain: "sensor" | "binary_sensor" | "toggle" | "all",
     numericDeviceClasses?: string[] | undefined
   ): string[] {
     let entities;
-  
+
     if (domain === "toggle") {
       entities = Object.values(this.hass!.entities).filter(
         (e) =>
@@ -300,24 +333,24 @@ export class AreaCardPlusEditor
           (e.area_id === area ||
             (e.device_id && this.hass!.devices[e.device_id]?.area_id === area))
       );
-  
+
       return [...new Set(entities.map((e) => computeDomain(e.entity_id)))];
     } else if (domain === "all") {
       const extraEntities = this._config?.extra_entities || [];
-  
+
       let entities = Object.values(this.hass!.entities).filter(
         (e) =>
           !e.hidden &&
           (e.area_id === area ||
             (e.device_id && this.hass!.devices[e.device_id]?.area_id === area))
       );
-  
+
       const extraEntityObjects = extraEntities
         .map((entityId: string) => this.hass!.states[entityId])
         .filter((stateObj: string) => stateObj !== undefined);
-  
+
       entities = [...entities, ...extraEntityObjects];
-  
+
       return [...new Set(entities.map((e) => computeDomain(e.entity_id)))];
     } else {
       entities = Object.values(this.hass!.entities).filter(
@@ -328,7 +361,7 @@ export class AreaCardPlusEditor
           (e.area_id === area ||
             (e.device_id && this.hass!.devices[e.device_id]?.area_id === area))
       );
-  
+
       const classes = entities
         .map(
           (e) => this.hass!.states[e.entity_id]?.attributes.device_class || ""
@@ -340,7 +373,7 @@ export class AreaCardPlusEditor
               !numericDeviceClasses ||
               numericDeviceClasses.includes(c))
         );
-  
+
       return [...new Set(classes)];
     }
   }
@@ -364,7 +397,6 @@ export class AreaCardPlusEditor
     (possibleClasses: string[], currentClasses: string[]): SelectOption[] =>
       this._buildOptions("all", possibleClasses, currentClasses)
   );
-
 
   private _buildOptions(
     type: "sensor" | "binary_sensor" | "toggle" | "all",
@@ -402,7 +434,7 @@ export class AreaCardPlusEditor
       customization_domain: config.customization_domain || [],
       customization_alert: config.customization_alert || [],
       customization_sensor: config.customization_sensor || [],
-  //    customization_popup: config.customization_popup || [],
+      //    customization_popup: config.customization_popup || [],
     };
   }
 
@@ -434,7 +466,7 @@ export class AreaCardPlusEditor
           currentExtraEntities.includes(entity)
         );
 
-        const popupDomainsChanged =
+      const popupDomainsChanged =
         previousPopupDomains.length !== currentPopupDomains.length ||
         !previousPopupDomains.every((entity: string) =>
           currentPopupDomains.includes(entity)
@@ -487,27 +519,28 @@ export class AreaCardPlusEditor
 
   private _updateEntityOptions(): void {
     if (!this._config || !this.hass) return;
-  
+
     const currentArea = this._config.area;
     const currentPopupDomains = this._config.popup_domains || [];
-  
+
     this._entityOptions = Object.values(this.hass.entities)
-      .filter(e => 
-        !e.hidden &&
-        currentPopupDomains.includes(computeDomain(e.entity_id)) &&
-        (e.area_id === currentArea ||
-          (e.device_id && this.hass!.devices[e.device_id]?.area_id === currentArea))
+      .filter(
+        (e) =>
+          !e.hidden &&
+          currentPopupDomains.includes(computeDomain(e.entity_id)) &&
+          (e.area_id === currentArea ||
+            (e.device_id &&
+              this.hass!.devices[e.device_id]?.area_id === currentArea))
       )
-      .map(e => ({
+      .map((e) => ({
         value: e.entity_id,
-        label: e.entity_id
+        label: e.entity_id,
       }))
       .sort((a, b) => a.value.localeCompare(b.value));
-  
+
     this._valueChanged({ detail: { value: this._config } } as CustomEvent);
   }
-  
-  
+
   private _valueChanged(event: CustomEvent) {
     this._config = event.detail.value;
     this.dispatchEvent(
@@ -560,15 +593,15 @@ export class AreaCardPlusEditor
           this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`)
         );
       case "css":
-        return "CSS";            
+        return "CSS";
       case "domain_css":
-        return "Domain CSS";  
+        return "Domain CSS";
       case "alert_css":
-        return "Alert CSS";      
+        return "Alert CSS";
       case "icon_css":
-        return "Icon CSS";    
+        return "Icon CSS";
       case "name_css":
-        return "Name CSS";                                      
+        return "Name CSS";
       case "mirrored":
         return "Mirror Card Layout";
       case "alert_color":
@@ -578,9 +611,11 @@ export class AreaCardPlusEditor
       case "columns":
         return this.hass!.localize(`ui.components.grid-size-picker.columns`);
       case "appearance":
-        return this.hass!.localize(
-          `ui.panel.lovelace.editor.card.tile.appearance`
-        ) || "Appearance";
+        return (
+          this.hass!.localize(
+            `ui.panel.lovelace.editor.card.tile.appearance`
+          ) || "Appearance"
+        );
       case "toggle_domains":
         return this.hass!.localize(
           `ui.panel.lovelace.editor.cardpicker.domain`
@@ -601,7 +636,7 @@ export class AreaCardPlusEditor
             `ui.panel.lovelace.editor.card.generic.entities`
           ) +
           ":"
-        );           
+        );
       case "hidden_entities":
         return (
           this.hass!.localize(`ui.common.hide`) +
@@ -629,20 +664,28 @@ export class AreaCardPlusEditor
             `component.binary_sensor.entity_component._.state.off`
           )
         );
-        case "edit_filters":
-          return  this.hass!.localize(`ui.panel.lovelace.editor.common.edit`) + " " + this.hass!.localize(`ui.components.subpage-data-table.filters`);
-        case "label_filter":
-          return this.hass!.localize("ui.components.label-picker.label") + " " + this.hass!.localize("ui.components.related-filter-menu.filter");
-        case "label":
-          return this.hass!.localize("ui.components.label-picker.label");   
-        case "show_icon":
-        case "tap_action":
-        case "hold_action":
-        case "double_tap_action":
-        case "camera_view":  
-          return this.hass!.localize(
-                `ui.panel.lovelace.editor.card.generic.${schema.name}`
-          );       
+      case "edit_filters":
+        return (
+          this.hass!.localize(`ui.panel.lovelace.editor.common.edit`) +
+          " " +
+          this.hass!.localize(`ui.components.subpage-data-table.filters`)
+        );
+      case "label_filter":
+        return (
+          this.hass!.localize("ui.components.label-picker.label") +
+          " " +
+          this.hass!.localize("ui.components.related-filter-menu.filter")
+        );
+      case "label":
+        return this.hass!.localize("ui.components.label-picker.label");
+      case "show_icon":
+      case "tap_action":
+      case "hold_action":
+      case "double_tap_action":
+      case "camera_view":
+        return this.hass!.localize(
+          `ui.panel.lovelace.editor.card.generic.${schema.name}`
+        );
       default:
         return this.hass!.localize(
           `ui.panel.lovelace.editor.card.area.${schema.name}`
@@ -766,7 +809,7 @@ export class AreaCardPlusEditor
       this._itemChangedSensor
     );
   }
-/*
+  /*
   private _renderSubElementEditorPopup() {
     return this._renderSubElementEditor(
       "popup",
@@ -787,7 +830,7 @@ export class AreaCardPlusEditor
     this._subElementEditorSensor = undefined;
   }
 
-/*  private _goBackPopup(): void {
+  /*  private _goBackPopup(): void {
     this._subElementEditorPopup = undefined;
   }
 */
@@ -847,7 +890,6 @@ export class AreaCardPlusEditor
     );
   }
 
-  
   public get binarySelectOptions(): SelectOption[] {
     return this._buildBinaryOptions(
       this._binaryClassesForArea(this._config!.area || ""),
@@ -864,12 +906,10 @@ export class AreaCardPlusEditor
     );
   }
 
-
   public get entityOptions(): SelectOption[] {
     return this._entityOptions;
   }
-  
- 
+
   protected render() {
     if (!this.hass || !this._config) {
       return nothing;
@@ -881,7 +921,7 @@ export class AreaCardPlusEditor
 
     const possibleDomains = this._allDomainsForArea(this._config.area || "");
 
-    const schema = this._schema(this._config.show_camera || false)
+    const schema = this._schema(this._config.show_camera || false);
 
     const binaryschema = this._binaryschema(this.binarySelectOptions);
 
@@ -889,7 +929,10 @@ export class AreaCardPlusEditor
 
     const toggleschema = this._toggleschema(this.toggleSelectOptions);
 
-    const popupschema = this._popupschema(this.AllSelectOptions, this.entityOptions);
+    const popupschema = this._popupschema(
+      this.AllSelectOptions,
+      this.entityOptions
+    );
 
     const data = {
       alert_classes: DEVICE_CLASSES.binary_sensor,
@@ -904,7 +947,7 @@ export class AreaCardPlusEditor
     if (this._subElementEditorAlert) return this._renderSubElementEditorAlert();
     if (this._subElementEditorSensor)
       return this._renderSubElementEditorSensor();
-//    if (this._subElementEditorPopup) return this._renderSubElementEditorPopup();
+    //    if (this._subElementEditorPopup) return this._renderSubElementEditorPopup();
 
     return html`
       <ha-form
@@ -1001,7 +1044,6 @@ export class AreaCardPlusEditor
             @value-changed=${this._valueChanged}
           ></ha-form>
         </div>
-      
       </ha-expansion-panel>
     `;
   }
@@ -1020,7 +1062,7 @@ export class AreaCardPlusEditor
           
 -->    
   */
- 
+
   static styles = css`
     :host {
       display: block;

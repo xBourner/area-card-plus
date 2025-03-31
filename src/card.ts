@@ -211,7 +211,6 @@ export class AreaCardPlus
   @state() private _entities?: EntityRegistryEntry[];
   @state() private _showPopup: boolean = false;
 
-
   private _ratio: {
     w: number;
     h: number;
@@ -588,7 +587,7 @@ export class AreaCardPlus
   }
 
   private _handleAction(ev: ActionHandlerEvent) {
-     const actionConfig =
+    const actionConfig =
       ev.detail.action === "tap"
         ? this._config?.tap_action
         : ev.detail.action === "hold"
@@ -817,10 +816,8 @@ export class AreaCardPlus
 
     return html`
       <ha-card class="${classMap(classes)}" style="${styleMap({
-        paddingBottom: ignoreAspectRatio
-          ? "0"
-          : "10em"  
-      })}">
+      paddingBottom: ignoreAspectRatio ? "0" : "10em",
+    })}">
         ${
           (this._config.show_camera && cameraEntityId) ||
           ((this._config.show_icon === "image" ||
@@ -843,7 +840,7 @@ export class AreaCardPlus
         <div class="content">
           <div class="${classMap({
             "icon-container": true,
-            row: layout, 
+            row: layout,
           })}">
             ${
               showIcon
@@ -882,12 +879,12 @@ export class AreaCardPlus
 
           <div class="${classMap({
             right: true,
-            row: layout, 
-          })}">
+            row: layout,
+          })}">  
 
           <div class="${classMap({
             alerts: true,
-            row: layout, 
+            row: layout,
           })}">
             ${ALERT_DOMAINS.map((domain) => {
               if (!(domain in entitiesByDomain)) {
@@ -918,16 +915,18 @@ export class AreaCardPlus
                   ? html`
                       <div
                         class="icon-with-count"
-                          style=${
-                            (customization?.css || this._config?.alert_css)
-                              ? (customization?.css || this._config?.alert_css)
-                                  .split("\n")
-                                  .map((line: string) => line.trim())
-                                  .filter((line: string) => line && line.includes(":"))
-                                  .map((line: string) => (line.endsWith(";") ? line : `${line};`))
-                                  .join(" ")
-                              : ""
-                          }
+                        style=${customization?.css || this._config?.alert_css
+                          ? (customization?.css || this._config?.alert_css)
+                              .split("\n")
+                              .map((line: string) => line.trim())
+                              .filter(
+                                (line: string) => line && line.includes(":")
+                              )
+                              .map((line: string) =>
+                                line.endsWith(";") ? line : `${line};`
+                              )
+                              .join(" ")
+                          : ""}
                         @action=${this._handleAlertAction(domain, deviceClass)}
                         .actionHandler=${actionHandler({
                           hasHold: hasAction(customization?.hold_action),
@@ -936,32 +935,33 @@ export class AreaCardPlus
                           ),
                         })}
                       >
-                      <ha-state-icon
-                        class="alert
-                        style=${
-                          (alertColor
-                            ? `color: var(--${alertColor}-color);`     
-                            : ""
-                          ) +
+                        <ha-state-icon
+                          class="alert"
+                          style="${(alertColor
+                            ? `color: var(--${alertColor}-color);`
+                            : "") +
                           " " +
                           (customization?.icon_css
                             ? customization.icon_css
                                 .split("\n")
                                 .map((line: string) => line.trim())
-                                .filter((line: string) => line && line.includes(":"))
-                                .map((line: string) => (line.endsWith(";") ? line : `${line};`))
+                                .filter(
+                                  (line: string) => line && line.includes(":")
+                                )
+                                .map((line: string) =>
+                                  line.endsWith(";") ? line : `${line};`
+                                )
                                 .join(" ")
-                            : ""
-                          )
-                        }
-                          .icon=${alertIcon
+                            : "")}"
+                          .icon="${alertIcon
                             ? alertIcon
                             : this._getIcon(
                                 domain as DomainType,
                                 activeCount > 0,
                                 deviceClass
-                              )}                              
+                              )}"
                         ></ha-state-icon>
+
                         <span
                           class="active-count  text-small${activeCount > 0
                             ? "on"
@@ -977,7 +977,7 @@ export class AreaCardPlus
 
           <div class="${classMap({
             buttons: true,
-            row: layout, 
+            row: layout,
           })}">
             ${
               this._config.show_active
@@ -1008,16 +1008,18 @@ export class AreaCardPlus
                     if (activeCount > 0) {
                       return html`
                         <div
-                          style=${
-                            (customization?.css || this._config?.domain_css)
-                              ? (customization?.css || this._config?.domain_css)
-                                  .split("\n")
-                                  .map((line: string) => line.trim())
-                                  .filter((line: string) => line && line.includes(":"))
-                                  .map((line: string) => (line.endsWith(";") ? line : `${line};`))
-                                  .join(" ")
-                              : ""
-                          }
+                          style=${customization?.css || this._config?.domain_css
+                            ? (customization?.css || this._config?.domain_css)
+                                .split("\n")
+                                .map((line: string) => line.trim())
+                                .filter(
+                                  (line: string) => line && line.includes(":")
+                                )
+                                .map((line: string) =>
+                                  line.endsWith(";") ? line : `${line};`
+                                )
+                                .join(" ")
+                            : ""}
                           @action=${this._handleDomainAction(domain)}
                           .actionHandler=${actionHandler({
                             hasHold: hasAction(customization?.hold_action),
@@ -1080,16 +1082,18 @@ export class AreaCardPlus
                     return html`
                       <div
                         class="icon-with-count hover"
-                        style=${
-                          (customization?.css || this._config?.domain_css)
-                            ? (customization?.css || this._config?.domain_css)
-                                .split("\n")
-                                .map((line: string) => line.trim())
-                                .filter((line: string) => line && line.includes(":"))
-                                .map((line: string) => (line.endsWith(";") ? line : `${line};`))
-                                .join(" ")
-                            : ""
-                        }
+                        style=${customization?.css || this._config?.domain_css
+                          ? (customization?.css || this._config?.domain_css)
+                              .split("\n")
+                              .map((line: string) => line.trim())
+                              .filter(
+                                (line: string) => line && line.includes(":")
+                              )
+                              .map((line: string) =>
+                                line.endsWith(";") ? line : `${line};`
+                              )
+                              .join(" ")
+                          : ""}
                         @action=${this._handleDomainAction(domain)}
                         .actionHandler=${actionHandler({
                           hasHold: hasAction(customization?.hold_action),
@@ -1098,29 +1102,34 @@ export class AreaCardPlus
                           ),
                         })}
                       >
-                      <ha-state-icon
-                        style=${
-                          (domainColor
+                        <ha-state-icon
+                          style=${(domainColor
                             ? `color: var(--${domainColor}-color);`
                             : this._config?.domain_color
                             ? `color: ${this._config.domain_color};`
-                            : ""
-                          ) +
+                            : "") +
                           " " +
                           (customization?.icon_css
                             ? customization.icon_css
                                 .split("\n")
                                 .map((line: string) => line.trim())
-                                .filter((line: string) => line && line.includes(":"))
-                                .map((line: string) => (line.endsWith(";") ? line : `${line};`))
+                                .filter(
+                                  (line: string) => line && line.includes(":")
+                                )
+                                .map((line: string) =>
+                                  line.endsWith(";") ? line : `${line};`
+                                )
                                 .join(" ")
-                            : ""
-                          )
-                        }
-                        class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
-                        .domain=${domain}
-                        .icon=${domainIcon ? domainIcon : this._getIcon(domain as DomainType, activeCount > 0)}
-                      ></ha-state-icon>
+                            : "")}
+                          class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
+                          .domain=${domain}
+                          .icon=${domainIcon
+                            ? domainIcon
+                            : this._getIcon(
+                                domain as DomainType,
+                                activeCount > 0
+                              )}
+                        ></ha-state-icon>
                         <span
                           class="active-count text-small ${activeCount > 0
                             ? "on"
@@ -1137,7 +1146,7 @@ export class AreaCardPlus
           </div>
           <div class="${classMap({
             bottom: true,
-            row: layout, 
+            row: layout,
           })}">
               <div style=${`${
                 this._config?.area_name_color
@@ -1156,11 +1165,11 @@ export class AreaCardPlus
                   : ""
               }`}
               <div class="${classMap({
-                  name: true,
-                  row: layout,
-                  "text-large": true,
-                  on: true,
-                })}"
+                name: true,
+                row: layout,
+                "text-large": true,
+                on: true,
+              })}"
                 @action=${this._handleAction}
                 .actionHandler=${actionHandler({
                   hasHold: hasAction(this._config.hold_action),
@@ -1199,8 +1208,8 @@ export class AreaCardPlus
                       })();
 
                       const areaEntity = areaSensorEntityId
-                      ? this.hass.states[areaSensorEntityId]
-                      : undefined;
+                        ? this.hass.states[areaSensorEntityId]
+                        : undefined;
 
                       const customization =
                         this._config?.customization_sensor?.find(
@@ -1223,21 +1232,32 @@ export class AreaCardPlus
                             ),
                           })}
                           style=${`
-                            ${sensorColor ? `color: var(--${sensorColor}-color);` : ""}
-                            ${customization?.css
-                              ? customization.css
-                                  .split("\n")
-                                  .map((line: string) => line.trim())
-                                  .filter((line: string) => line && line.includes(":"))
-                                  .map((line: string) => (line.endsWith(";") ? line : `${line};`))
-                                  .join(" ")
-                              : ""
+                            ${
+                              sensorColor
+                                ? `color: var(--${sensorColor}-color);`
+                                : ""
+                            }
+                            ${
+                              customization?.css
+                                ? customization.css
+                                    .split("\n")
+                                    .map((line: string) => line.trim())
+                                    .filter(
+                                      (line: string) =>
+                                        line && line.includes(":")
+                                    )
+                                    .map((line: string) =>
+                                      line.endsWith(";") ? line : `${line};`
+                                    )
+                                    .join(" ")
+                                : ""
                             }
                           `}
                         >
-                        ${index > 0 ? " - " : ""}                ${areaEntity
-                ? this.hass.formatEntityState(areaEntity)
-                : this._average(domain, deviceClass)}
+                          ${index > 0 ? " - " : ""}
+                          ${areaEntity
+                            ? this.hass.formatEntityState(areaEntity)
+                            : this._average(domain, deviceClass)}
                         </span>
                       `;
                     })
@@ -1769,7 +1789,7 @@ export class AreaCardPlus
       .icon-container.row {
         top: 50%;
         transform: translateY(-50%);
-      }        
+      }
       .mirrored .icon-container {
         left: unset;
         right: 16px;
@@ -1777,7 +1797,7 @@ export class AreaCardPlus
       @supports (--row-size: 1) {
         .icon-container ha-icon {
           --mdc-icon-size: calc(var(--row-size, 3) * 20px);
-        } 
+        }
       }
       .container {
         display: flex;
@@ -1803,7 +1823,7 @@ export class AreaCardPlus
       .right.row {
         top: 50%;
         transform: translateY(-50%);
-      }  
+      }
       .mirrored .right {
         right: unset;
         left: 8px;
@@ -1818,7 +1838,7 @@ export class AreaCardPlus
       }
       .alerts.row {
         flex-direction: row-reverse;
-      }  
+      }
       .buttons {
         display: flex;
         flex-direction: column;
@@ -1852,7 +1872,7 @@ export class AreaCardPlus
         align-items: baseline;
         top: 50%;
         transform: translateY(-50%);
-      }        
+      }
       .mirrored .bottom {
         left: unset;
         right: 16px;

@@ -27,21 +27,22 @@
           <div class="container"             @action=${this._handleAction}
             .actionHandler=${it({hasHold:je(this._config.hold_action),hasDoubleClick:je(this._config.double_tap_action)})}>
 
-          <div class="${ye({right:!0,row:b})}">
+          <div class="${ye({right:!0,row:b})}">  
 
           <div class="${ye({alerts:!0,row:b})}">
             ${xi.map((e=>e in p?this._deviceClasses[e].map((t=>{var s,n,i,o,r;const a=p[e].filter((e=>(e.attributes.device_class||"default")===t&&"on"===e.state)),c=null===(n=null===(s=this._config)||void 0===s?void 0:s.customization_alert)||void 0===n?void 0:n.find((e=>e.type===t)),l=(null==c?void 0:c.color)||(null===(i=this._config)||void 0===i?void 0:i.alert_color),u=null==c?void 0:c.icon,h=a.length;return h>0?q`
                       <div
                         class="icon-with-count"
-                          style=${(null==c?void 0:c.css)||(null===(o=this._config)||void 0===o?void 0:o.alert_css)?((null==c?void 0:c.css)||(null===(r=this._config)||void 0===r?void 0:r.alert_css)).split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}
+                        style=${(null==c?void 0:c.css)||(null===(o=this._config)||void 0===o?void 0:o.alert_css)?((null==c?void 0:c.css)||(null===(r=this._config)||void 0===r?void 0:r.alert_css)).split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}
                         @action=${this._handleAlertAction(e,t)}
                         .actionHandler=${it({hasHold:je(null==c?void 0:c.hold_action),hasDoubleClick:je(null==c?void 0:c.double_tap_action)})}
                       >
-                      <ha-state-icon
-                        class="alert
-                        style=${(l?`color: var(--${l}-color);`:"")+" "+((null==c?void 0:c.icon_css)?c.icon_css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):"")}
-                          .icon=${u||this._getIcon(e,h>0,t)}                              
+                        <ha-state-icon
+                          class="alert"
+                          style="${(l?`color: var(--${l}-color);`:"")+" "+((null==c?void 0:c.icon_css)?c.icon_css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):"")}"
+                          .icon="${u||this._getIcon(e,h>0,t)}"
                         ></ha-state-icon>
+
                         <span
                           class="active-count  text-small${h>0?"on":"off"}"
                           >${h}</span
@@ -76,12 +77,12 @@
                         @action=${this._handleDomainAction(e)}
                         .actionHandler=${it({hasHold:je(null==r?void 0:r.hold_action),hasDoubleClick:je(null==r?void 0:r.double_tap_action)})}
                       >
-                      <ha-state-icon
-                        style=${(a?`color: var(--${a}-color);`:(null===(o=this._config)||void 0===o?void 0:o.domain_color)?`color: ${this._config.domain_color};`:"")+" "+((null==r?void 0:r.icon_css)?r.icon_css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):"")}
-                        class=${l>0?"toggle-on":"toggle-off"}
-                        .domain=${e}
-                        .icon=${c||this._getIcon(e,l>0)}
-                      ></ha-state-icon>
+                        <ha-state-icon
+                          style=${(a?`color: var(--${a}-color);`:(null===(o=this._config)||void 0===o?void 0:o.domain_color)?`color: ${this._config.domain_color};`:"")+" "+((null==r?void 0:r.icon_css)?r.icon_css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):"")}
+                          class=${l>0?"toggle-on":"toggle-off"}
+                          .domain=${e}
+                          .icon=${c||this._getIcon(e,l>0)}
+                        ></ha-state-icon>
                         <span
                           class="active-count text-small ${l>0?"on":"off"}"
                         >
@@ -109,7 +110,8 @@
                           .actionHandler=${it({hasHold:je(null==l?void 0:l.hold_action),hasDoubleClick:je(null==l?void 0:l.double_tap_action)})}
                           style=${`\n                            ${u?`color: var(--${u}-color);`:""}\n                            ${(null==l?void 0:l.css)?l.css.split("\n").map((e=>e.trim())).filter((e=>e&&e.includes(":"))).map((e=>e.endsWith(";")?e:`${e};`)).join(" "):""}\n                          `}
                         >
-                        ${s>0?" - ":""}                ${c?this.hass.formatEntityState(c):this._average(e,t)}
+                          ${s>0?" - ":""}
+                          ${c?this.hass.formatEntityState(c):this._average(e,t)}
                         </span>
                       `})).filter((e=>e!==V));return 0===t.length?V:q`
                     <div class="sensor text-medium off">${t}</div>
@@ -202,7 +204,7 @@
       .icon-container.row {
         top: 50%;
         transform: translateY(-50%);
-      }        
+      }
       .mirrored .icon-container {
         left: unset;
         right: 16px;
@@ -210,7 +212,7 @@
       @supports (--row-size: 1) {
         .icon-container ha-icon {
           --mdc-icon-size: calc(var(--row-size, 3) * 20px);
-        } 
+        }
       }
       .container {
         display: flex;
@@ -236,7 +238,7 @@
       .right.row {
         top: 50%;
         transform: translateY(-50%);
-      }  
+      }
       .mirrored .right {
         right: unset;
         left: 8px;
@@ -251,7 +253,7 @@
       }
       .alerts.row {
         flex-direction: row-reverse;
-      }  
+      }
       .buttons {
         display: flex;
         flex-direction: column;
@@ -285,7 +287,7 @@
         align-items: baseline;
         top: 50%;
         transform: translateY(-50%);
-      }        
+      }
       .mirrored .bottom {
         left: unset;
         right: 16px;
@@ -563,7 +565,6 @@
             @value-changed=${this._valueChanged}
           ></ha-form>
         </div>
-      
       </ha-expansion-panel>
     `}};Zi.styles=o`
     :host {

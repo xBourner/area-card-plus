@@ -1,6 +1,10 @@
 import { LitElement, TemplateResult, html, css, CSSResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { HomeAssistant, ActionConfig, LovelaceCardConfig } from "custom-card-helpers";
+import {
+  HomeAssistant,
+  ActionConfig,
+  LovelaceCardConfig,
+} from "custom-card-helpers";
 import { Settings } from "./helpers";
 import { CardConfig } from "./editor";
 import memoizeOne from "memoize-one";
@@ -13,9 +17,7 @@ interface Schema {
   type?: string;
 }
 
-interface ItemConfig extends LovelaceCardConfig {
-}
-
+interface ItemConfig extends LovelaceCardConfig {}
 
 export type UiAction = Exclude<ActionConfig["action"], "fire-dom-event">;
 
@@ -28,38 +30,20 @@ export class ItemEditor extends LitElement {
   @state() private _config?: ItemConfig;
 
   updated(changedProperties: any) {
-    if (changedProperties.has('config') && this.config) {
-      this._config = { ...this.config,};
+    if (changedProperties.has("config") && this.config) {
+      this._config = { ...this.config };
     }
   }
 
   private _schemadomain = memoizeOne(() => {
-    const actions: UiAction[] = ["more-info", "toggle", "navigate", "url", "perform-action", "none"];
-    return [
-    { name: "icon", selector: { icon: {} } },
-    {
-      name: "color",
-      selector: { ui_color: { default_color: "state", include_state: true } },
-    },
-    { name: "css", selector: { template: {} } },
-    { name: "icon_css", selector: { template: {} } },
-    {
-      name: "tap_action",
-      selector: { ui_action: {actions} },
-    },    
-    {
-      name: "double_tap_action",
-      selector: { ui_action: {actions} },
-    },
-    {
-      name: "hold_action",
-      selector: { ui_action: {actions} },
-    },    
-  ];
-});
-
-  private _schemaalert = memoizeOne(() => {
-    const actions: UiAction[] = ["more-info", "navigate", "url", "perform-action", "none"];
+    const actions: UiAction[] = [
+      "more-info",
+      "toggle",
+      "navigate",
+      "url",
+      "perform-action",
+      "none",
+    ];
     return [
       { name: "icon", selector: { icon: {} } },
       {
@@ -71,20 +55,57 @@ export class ItemEditor extends LitElement {
       {
         name: "tap_action",
         selector: { ui_action: { actions } },
-      },    
+      },
       {
         name: "double_tap_action",
         selector: { ui_action: { actions } },
       },
       {
         name: "hold_action",
-        selector: { ui_action: {actions} },
-      },      
+        selector: { ui_action: { actions } },
+      },
     ];
   });
-  
+
+  private _schemaalert = memoizeOne(() => {
+    const actions: UiAction[] = [
+      "more-info",
+      "navigate",
+      "url",
+      "perform-action",
+      "none",
+    ];
+    return [
+      { name: "icon", selector: { icon: {} } },
+      {
+        name: "color",
+        selector: { ui_color: { default_color: "state", include_state: true } },
+      },
+      { name: "css", selector: { template: {} } },
+      { name: "icon_css", selector: { template: {} } },
+      {
+        name: "tap_action",
+        selector: { ui_action: { actions } },
+      },
+      {
+        name: "double_tap_action",
+        selector: { ui_action: { actions } },
+      },
+      {
+        name: "hold_action",
+        selector: { ui_action: { actions } },
+      },
+    ];
+  });
+
   private _schemasensor = memoizeOne(() => {
-    const actions: UiAction[] = ["more-info", "navigate", "url", "perform-action", "none"];
+    const actions: UiAction[] = [
+      "more-info",
+      "navigate",
+      "url",
+      "perform-action",
+      "none",
+    ];
     return [
       {
         name: "color",
@@ -93,16 +114,16 @@ export class ItemEditor extends LitElement {
       { name: "css", selector: { template: {} } },
       {
         name: "tap_action",
-        selector: { ui_action: {actions} },
-      },    
+        selector: { ui_action: { actions } },
+      },
       {
         name: "double_tap_action",
-        selector: { ui_action: {actions} },
+        selector: { ui_action: { actions } },
       },
       {
         name: "hold_action",
-        selector: { ui_action: {actions} },
-      },      
+        selector: { ui_action: { actions } },
+      },
     ];
   });
 
@@ -114,7 +135,7 @@ export class ItemEditor extends LitElement {
     if (!this._config) {
       this._config = { ...this.config, area: this.config.area || "" };
     }
-  
+
     let schema;
     switch (this.getSchema) {
       case "sensor":
@@ -127,9 +148,9 @@ export class ItemEditor extends LitElement {
         schema = this._schemaalert();
         break;
     }
-  
+
     const data = { ...this._config };
-  
+
     return html`
       <ha-form
         .hass=${this.hass}
@@ -140,7 +161,7 @@ export class ItemEditor extends LitElement {
       ></ha-form>
     `;
   }
-  
+
   private _computeLabelCallback = (schema: Schema): string => {
     switch (schema.name) {
       case "color":
@@ -162,16 +183,20 @@ export class ItemEditor extends LitElement {
           )
         );
       case "css":
-        return "CSS";  
+        return "CSS";
       case "icon_css":
-        return this.hass!.localize("ui.panel.lovelace.editor.card.generic.icon") + " " + "CSS";   
+        return (
+          this.hass!.localize("ui.panel.lovelace.editor.card.generic.icon") +
+          " " +
+          "CSS"
+        );
       case "icon":
       case "tap_action":
       case "hold_action":
       case "double_tap_action":
         return this.hass!.localize(
-              `ui.panel.lovelace.editor.card.generic.${schema.name}`
-        );  
+          `ui.panel.lovelace.editor.card.generic.${schema.name}`
+        );
       default:
         return this.hass!.localize(
           `ui.panel.lovelace.editor.card.area.${schema.name}`
