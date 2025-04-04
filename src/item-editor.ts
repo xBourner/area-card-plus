@@ -145,6 +145,7 @@ export class ItemEditor extends LitElement {
         schema = this._schemadomain();
         break;
       case "alert":
+      case "cover":
         schema = this._schemaalert();
         break;
     }

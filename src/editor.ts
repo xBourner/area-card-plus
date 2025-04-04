@@ -25,6 +25,7 @@ import {
 } from "./card";
 import {
   mdiAlert,
+  mdiGarage,
   mdiChartBoxMultiple,
   mdiCube,
   mdiViewDashboardVariant,
@@ -68,6 +69,8 @@ export class AreaCardPlusEditor
   @state() private _subElementEditorDomain: SubElementConfig | undefined =
     undefined;
   @state() private _subElementEditorAlert: SubElementConfig | undefined =
+    undefined;
+  @state() private _subElementEditorCover: SubElementConfig | undefined =
     undefined;
   @state() private _subElementEditorSensor: SubElementConfig | undefined =
     undefined;
@@ -190,6 +193,25 @@ export class AreaCardPlusEditor
     { name: "alert_css", selector: { template: {} } },
   ]);
 
+  private _coverschema = memoizeOne((CoverClasses: SelectOption[]) => [
+    {
+      name: "cover_classes",
+      selector: {
+        select: {
+          reorder: true,
+          multiple: true,
+          custom_value: true,
+          options: CoverClasses,
+        },
+      },
+    },
+    {
+      name: "cover_color",
+      selector: { ui_color: { default_color: "state", include_state: true } },
+    },
+    { name: "cover_css", selector: { template: {} } },
+  ]);
+
   private _sensorschema = memoizeOne((sensorClasses: SelectOption[]) => [
     {
       name: "sensor_classes",
@@ -304,6 +326,10 @@ export class AreaCardPlusEditor
     this._classesForArea(area, "binary_sensor")
   );
 
+  private _coverClassesForArea = memoizeOne((area: string): string[] =>
+    this._classesForArea(area, "cover")
+  );
+
   private _sensorClassesForArea = memoizeOne(
     (area: string, numericDeviceClasses?: string[]): string[] =>
       this._classesForArea(area, "sensor", numericDeviceClasses)
@@ -319,7 +345,7 @@ export class AreaCardPlusEditor
 
   private _classesForArea(
     area: string,
-    domain: "sensor" | "binary_sensor" | "toggle" | "all",
+    domain: "sensor" | "binary_sensor" | "cover" | "toggle" | "all",
     numericDeviceClasses?: string[] | undefined
   ): string[] {
     let entities;
@@ -383,6 +409,11 @@ export class AreaCardPlusEditor
       this._buildOptions("binary_sensor", possibleClasses, currentClasses)
   );
 
+  private _buildCoverOptions = memoizeOne(
+    (possibleClasses: string[], currentClasses: string[]): SelectOption[] =>
+      this._buildOptions("cover", possibleClasses, currentClasses)
+  );
+
   private _buildSensorOptions = memoizeOne(
     (possibleClasses: string[], currentClasses: string[]): SelectOption[] =>
       this._buildOptions("sensor", possibleClasses, currentClasses)
@@ -399,7 +430,7 @@ export class AreaCardPlusEditor
   );
 
   private _buildOptions(
-    type: "sensor" | "binary_sensor" | "toggle" | "all",
+    type: "sensor" | "binary_sensor" | "cover" | "toggle" | "all",
     possibleClasses: string[],
     currentClasses: string[]
   ): SelectOption[] {
@@ -433,6 +464,7 @@ export class AreaCardPlusEditor
       mirrored: config.mirrored || false,
       customization_domain: config.customization_domain || [],
       customization_alert: config.customization_alert || [],
+      customization_cover: config.customization_cover || [],
       customization_sensor: config.customization_sensor || [],
       //    customization_popup: config.customization_popup || [],
     };
@@ -474,6 +506,8 @@ export class AreaCardPlusEditor
 
       if (previousArea !== undefined && previousArea !== currentArea) {
         const possibleToggleDomains = this._toggleDomainsForArea(currentArea);
+        const possibleAlertClasses = this._binaryClassesForArea(currentArea);
+        const possibleCoverClasses = this._coverClassesForArea(currentArea);
         const possibleDomains = this._allDomainsForArea(currentArea);
 
         const sortedToggleDomains = possibleToggleDomains.sort(
@@ -485,9 +519,12 @@ export class AreaCardPlusEditor
         );
 
         this._config.toggle_domains = [...sortedToggleDomains];
+        this._config.alert_classes = [...possibleAlertClasses];
+        this._config.cover_classes = [...possibleCoverClasses];
         this._config.popup_domains = [...sortedDomains];
         this._config.customization_domain = [];
         this._config.customization_alert = [];
+        this._config.customization_cover = [];
         this._config.customization_sensor = [];
 
         this.requestUpdate();
@@ -676,6 +713,8 @@ export class AreaCardPlusEditor
           " " +
           this.hass!.localize("ui.components.related-filter-menu.filter")
         );
+      case "cover_classes":
+        return this.hass!.localize(`component.cover.entity_component._.name`);
       case "label":
         return this.hass!.localize("ui.components.label-picker.label");
       case "show_icon":
@@ -695,7 +734,7 @@ export class AreaCardPlusEditor
 
   private _editItem(
     ev: CustomEvent<number>,
-    editorKey: "Domain" | "Alert" | "Sensor" //| "Popup"
+    editorKey: "Domain" | "Alert" | "Cover" | "Sensor" //| "Popup"
   ): void {
     ev.stopPropagation();
     if (!this._config || !this.hass) {
@@ -714,6 +753,10 @@ export class AreaCardPlusEditor
     this._editItem(ev, "Alert");
   }
 
+  private _edit_itemCover(ev: CustomEvent<number>): void {
+    this._editItem(ev, "Cover");
+  }
+
   private _edit_itemSensor(ev: CustomEvent<number>): void {
     this._editItem(ev, "Sensor");
   }
@@ -725,7 +768,7 @@ export class AreaCardPlusEditor
 */
   private _customizationChanged(
     ev: CustomEvent<Settings[]>,
-    customizationKey: "domain" | "alert" | "sensor" //| "popup"
+    customizationKey: "domain" | "alert" | "cover" | "sensor" //| "popup"
   ): void {
     ev.stopPropagation();
     if (!this._config || !this.hass) {
@@ -747,6 +790,10 @@ export class AreaCardPlusEditor
     this._customizationChanged(ev, "alert");
   }
 
+  private _customizationChangedCover(ev: CustomEvent<Settings[]>): void {
+    this._customizationChanged(ev, "cover");
+  }
+
   private _customizationChangedSensor(ev: CustomEvent<Settings[]>): void {
     this._customizationChanged(ev, "sensor");
   }
@@ -757,7 +804,7 @@ export class AreaCardPlusEditor
   }
 */
   private _renderSubElementEditor(
-    editorKey: "domain" | "alert" | "sensor" /*| "popup"*/,
+    editorKey: "domain" | "alert" | "cover" | "sensor" /*| "popup"*/,
     goBackHandler: () => void,
     itemChangedHandler: (ev: CustomEvent<Settings>) => void
   ) {
@@ -802,6 +849,14 @@ export class AreaCardPlusEditor
     );
   }
 
+  private _renderSubElementEditorCover() {
+    return this._renderSubElementEditor(
+      "cover",
+      this._goBackCover,
+      this._itemChangedCover
+    );
+  }
+
   private _renderSubElementEditorSensor() {
     return this._renderSubElementEditor(
       "sensor",
@@ -826,6 +881,10 @@ export class AreaCardPlusEditor
     this._subElementEditorAlert = undefined;
   }
 
+  private _goBackCover(): void {
+    this._subElementEditorCover = undefined;
+  }
+
   private _goBackSensor(): void {
     this._subElementEditorSensor = undefined;
   }
@@ -840,6 +899,7 @@ export class AreaCardPlusEditor
     customizationKey:
       | "customization_domain"
       | "customization_alert"
+      | "customization_cover"
       | "customization_sensor"
     //  | "customization_popup"
   ): void {
@@ -863,6 +923,10 @@ export class AreaCardPlusEditor
 
   private _itemChangedAlert(ev: CustomEvent<Settings>): void {
     this._itemChanged(ev, this._subElementEditorAlert, "customization_alert");
+  }
+
+  private _itemChangedCover(ev: CustomEvent<Settings>): void {
+    this._itemChanged(ev, this._subElementEditorCover, "customization_cover");
   }
 
   private _itemChangedSensor(ev: CustomEvent<Settings>): void {
@@ -898,6 +962,14 @@ export class AreaCardPlusEditor
     );
   }
 
+  public get coverSelectOptions(): SelectOption[] {
+    return this._buildCoverOptions(
+      this._coverClassesForArea(this._config!.area || ""),
+      this._config?.cover_classes ||
+        this._coverClassesForArea(this._config!.area || "")
+    );
+  }
+
   public get sensorSelectOptions(): SelectOption[] {
     return this._buildSensorOptions(
       this._sensorClassesForArea(this._config!.area || ""),
@@ -919,11 +991,20 @@ export class AreaCardPlusEditor
       this._config.area || ""
     );
 
+    const possibleAlertClasses = this._binaryClassesForArea(
+      this._config.area || ""
+    );
+    const possibleCoverClasses = this._coverClassesForArea(
+      this._config.area || ""
+    );
+
     const possibleDomains = this._allDomainsForArea(this._config.area || "");
 
     const schema = this._schema(this._config.show_camera || false);
 
     const binaryschema = this._binaryschema(this.binarySelectOptions);
+
+    const coverschema = this._coverschema(this.coverSelectOptions);
 
     const sensorschema = this._sensorschema(this.sensorSelectOptions);
 
@@ -935,7 +1016,8 @@ export class AreaCardPlusEditor
     );
 
     const data = {
-      alert_classes: DEVICE_CLASSES.binary_sensor,
+      alert_classes: possibleAlertClasses,
+      cover_classes: possibleCoverClasses,
       sensor_classes: DEVICE_CLASSES.sensor,
       toggle_domains: possibleToggleDomains,
       popup_domains: possibleDomains,
@@ -945,6 +1027,7 @@ export class AreaCardPlusEditor
     if (this._subElementEditorDomain)
       return this._renderSubElementEditorDomain();
     if (this._subElementEditorAlert) return this._renderSubElementEditorAlert();
+    if (this._subElementEditorCover) return this._renderSubElementEditorCover();
     if (this._subElementEditorSensor)
       return this._renderSubElementEditorSensor();
     //    if (this._subElementEditorPopup) return this._renderSubElementEditorPopup();
@@ -979,6 +1062,30 @@ export class AreaCardPlusEditor
             @config-changed=${this._customizationChangedAlert}
           >
           </alert-items-editor>
+        </div>
+      </ha-expansion-panel>
+
+      <ha-expansion-panel outlined class="main">
+        <div slot="header" role="heading" aria-level="3">
+          <ha-svg-icon .path=${mdiGarage}></ha-svg-icon>
+          ${this._computeLabelCallback({ name: "cover_classes" })}
+        </div>
+        <div class="content">
+          <ha-form
+            .hass=${this.hass}
+            .data=${data}
+            .schema=${coverschema}
+            .computeLabel=${this._computeLabelCallback}
+            @value-changed=${this._valueChanged}
+          ></ha-form>
+          <cover-items-editor
+            .hass=${this.hass}
+            .customization_cover=${this._config.customization_cover}
+            .SelectOptions=${this.coverSelectOptions}
+            @edit-item=${this._edit_itemCover}
+            @config-changed=${this._customizationChangedCover}
+          >
+          </cover-items-editor>
         </div>
       </ha-expansion-panel>
 

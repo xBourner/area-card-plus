@@ -196,6 +196,15 @@ export class AlertItemsEditor extends BaseItemsEditor {
   }
 }
 
+@customElement("cover-items-editor")
+export class CoverItemsEditor extends BaseItemsEditor {
+  @property({ attribute: false }) customization_cover?: Settings[];
+  protected customizationChangedEvent = "config-changed";
+  protected get customization() {
+    return this.customization_cover;
+  }
+}
+
 @customElement("sensor-items-editor")
 export class SensorItemsEditor extends BaseItemsEditor {
   @property({ attribute: false }) customization_sensor?: Settings[];

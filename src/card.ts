@@ -73,6 +73,8 @@ const SENSOR_DOMAINS = ["sensor"];
 
 const ALERT_DOMAINS = ["binary_sensor"];
 
+const COVER_DOMAINS = ["cover"];
+
 export const CLIMATE_DOMAINS = ["climate"];
 
 export const TOGGLE_DOMAINS = [
@@ -82,6 +84,7 @@ export const TOGGLE_DOMAINS = [
   "media_player",
   "lock",
   "vacuum",
+  "cover",
 ];
 
 const OTHER_DOMAINS = ["camera"];
@@ -148,6 +151,7 @@ export const domainOrder = [
 export const DEVICE_CLASSES = {
   sensor: ["temperature", "humidity"],
   binary_sensor: ["motion", "window"],
+  cover: ["garage"],
 };
 
 type DomainType =
@@ -158,6 +162,7 @@ type DomainType =
   | "media_player"
   | "lock"
   | "vacuum"
+  | "cover"
   | "binary_sensor";
 
 const DOMAIN_ICONS = {
@@ -181,6 +186,34 @@ const DOMAIN_ICONS = {
     garage_door: "mdi:garage-open",
     problem: "mdi:alert-circle",
     smoke: "mdi:smoke-detector",
+    running: "mdi:play",
+    plug: "mdi:power-plug",
+    power: "mdi:power",
+    battery: "mdi:battery",
+    battery_charging: "mdi:battery-charging",
+    gas: "mdi:gas-cylinder",
+    carbon_monoxide: "mdi:molecule-co",
+    cold: "mdi:snowflake",
+    heat: "mdi:weather-sunny",
+    connectivity: "mdi:connection",
+    safety: "mdi:shield-alert",
+    sound: "mdi:volume-high",
+    update: "mdi:autorenew",
+    tamper: "mdi:shield-home",
+    light: "mdi:lightbulb",
+    moving: "mdi:car",
+  },
+  cover: {
+    garage: "mdi:garage",
+    door: "mdi:door-closed",
+    gate: "mdi:gate",
+    blind: "mdi:blinds",
+    curtain: "mdi:curtains-closed",
+    damper: "mdi:valve-closed",
+    awning: "mdi:awning-outline",
+    shutter: "mdi:window-shutter",
+    shade: "mdi:roller-shade-closed",
+    window: "mdi:window-closed",
   },
 };
 
@@ -227,7 +260,6 @@ export class AreaCardPlus
       states: HomeAssistant["states"]
     ) => {
       const hiddenEntities = this._config?.hidden_entities || [];
-      const configLabels = this._config?.label || [];
       const entitiesInArea = registryEntities
         .filter(
           (entry) =>
@@ -251,6 +283,7 @@ export class AreaCardPlus
           !TOGGLE_DOMAINS.includes(domain) &&
           !SENSOR_DOMAINS.includes(domain) &&
           !ALERT_DOMAINS.includes(domain) &&
+          !COVER_DOMAINS.includes(domain) &&
           !OTHER_DOMAINS.includes(domain) &&
           !CLIMATE_DOMAINS.includes(domain)
         ) {
@@ -263,7 +296,9 @@ export class AreaCardPlus
         }
 
         if (
-          (ALERT_DOMAINS.includes(domain) || SENSOR_DOMAINS.includes(domain)) &&
+          (ALERT_DOMAINS.includes(domain) ||
+            SENSOR_DOMAINS.includes(domain) ||
+            COVER_DOMAINS.includes(domain)) &&
           !deviceClasses[domain].includes(
             stateObj.attributes.device_class || ""
           )
@@ -429,9 +464,10 @@ export class AreaCardPlus
     )[domain].filter((entity) =>
       deviceClass ? entity.attributes.device_class === deviceClass : true
     );
-    if (!entities) {
+    if (!entities || entities.length === 0) {
       return undefined;
     }
+
     let uom: any;
     const values = entities.filter((entity) => {
       if (!isNumericState(entity) || isNaN(Number(entity.state))) {
@@ -443,18 +479,30 @@ export class AreaCardPlus
       }
       return entity.attributes.unit_of_measurement === uom;
     });
+
     if (!values.length) {
       return undefined;
     }
+
     const sum = values.reduce(
       (total, entity) => total + Number(entity.state),
       0
     );
-    return `${formatNumber(sum / values.length, this.hass!.locale as any, {
-      maximumFractionDigits: 1,
-    })}${uom ? blankBeforeUnit(uom, this.hass!.locale as any) : ""}${
-      uom || ""
-    }`;
+
+    // Bei "power" wird die Summe ausgegeben, ansonsten der Durchschnitt.
+    if (deviceClass === "power") {
+      return `${formatNumber(sum, this.hass!.locale as any, {
+        maximumFractionDigits: 1,
+      })}${uom ? blankBeforeUnit(uom, this.hass!.locale as any) : ""}${
+        uom || ""
+      }`;
+    } else {
+      return `${formatNumber(sum / values.length, this.hass!.locale as any, {
+        maximumFractionDigits: 1,
+      })}${uom ? blankBeforeUnit(uom, this.hass!.locale as any) : ""}${
+        uom || ""
+      }`;
+    }
   }
 
   private _area = memoizeOne(
@@ -525,6 +573,9 @@ export class AreaCardPlus
     }
     if (config.alert_classes) {
       this._deviceClasses.binary_sensor = config.alert_classes;
+    }
+    if (config.cover_classes) {
+      this._deviceClasses.cover = config.cover_classes;
     }
   }
 
@@ -727,6 +778,46 @@ export class AreaCardPlus
     };
   }
 
+  private _handleCoverAction(
+    domain: string,
+    deviceClass: string
+  ): (ev: CustomEvent) => void {
+    return (ev: CustomEvent) => {
+      ev.stopPropagation();
+
+      const customization = this._config?.customization_cover?.find(
+        (item: { type: string }) => item.type === deviceClass
+      );
+
+      const actionConfig =
+        ev.detail.action === "tap"
+          ? customization?.tap_action
+          : ev.detail.action === "hold"
+          ? customization?.hold_action
+          : ev.detail.action === "double_tap"
+          ? customization?.double_tap_action
+          : null;
+
+      const isMoreInfo =
+        actionConfig === "more-info" || actionConfig?.action === "more-info";
+
+      if (isMoreInfo || actionConfig === undefined) {
+        if (domain === "cover") {
+          this._showPopupForDomain(domain, deviceClass);
+        }
+        return;
+      }
+
+      const config = {
+        tap_action: customization?.tap_action,
+        hold_action: customization?.hold_action,
+        double_tap_action: customization?.double_tap_action,
+      };
+
+      handleAction(this, this.hass!, config, ev.detail.action!);
+    };
+  }
+
   private _handleSensorAction(
     domain: string,
     deviceClass: string
@@ -882,6 +973,101 @@ export class AreaCardPlus
             row: layout,
           })}">  
 
+
+                              <div class="${classMap({
+                                covers: true,
+                                row: layout,
+                              })}">
+            ${COVER_DOMAINS.map((domain) => {
+              if (!(domain in entitiesByDomain)) {
+                return nothing;
+              }
+
+              return this._deviceClasses[domain].map((deviceClass) => {
+                const activeEntities = entitiesByDomain[domain].filter(
+                  (entity) => {
+                    const entityDeviceClass =
+                      entity.attributes.device_class || "default";
+                    return (
+                      entityDeviceClass === deviceClass &&
+                      !STATES_OFF.includes(entity.state)
+                    );
+                  }
+                );
+
+                const customization = this._config?.customization_cover?.find(
+                  (item: { type: string }) => item.type === deviceClass
+                );
+                const coverColor =
+                  customization?.color || this._config?.cover_color;
+                const coverIcon = customization?.icon;
+
+                const activeCount = activeEntities.length;
+
+                return activeCount > 0
+                  ? html`
+                      <div
+                        class="icon-with-count"
+                        style=${customization?.css || this._config?.cover_css
+                          ? (customization?.css || this._config?.cover_css)
+                              .split("\n")
+                              .map((line: string) => line.trim())
+                              .filter(
+                                (line: string) => line && line.includes(":")
+                              )
+                              .map((line: string) =>
+                                line.endsWith(";") ? line : `${line};`
+                              )
+                              .join(" ")
+                          : ""}
+                        @action=${this._handleCoverAction(domain, deviceClass)}
+                        .actionHandler=${actionHandler({
+                          hasHold: hasAction(customization?.hold_action),
+                          hasDoubleClick: hasAction(
+                            customization?.double_tap_action
+                          ),
+                        })}
+                      >
+                        <ha-state-icon
+                          class="cover"
+                          style="${(coverColor
+                            ? `color: var(--${coverColor}-color);`
+                            : "") +
+                          " " +
+                          (customization?.icon_css
+                            ? customization.icon_css
+                                .split("\n")
+                                .map((line: string) => line.trim())
+                                .filter(
+                                  (line: string) => line && line.includes(":")
+                                )
+                                .map((line: string) =>
+                                  line.endsWith(";") ? line : `${line};`
+                                )
+                                .join(" ")
+                            : "")}"
+                          .icon="${coverIcon
+                            ? coverIcon
+                            : this._getIcon(
+                                domain as DomainType,
+                                activeCount > 0,
+                                deviceClass
+                              )}"
+                        ></ha-state-icon>
+
+                        <span
+                          class="active-count  text-small${activeCount > 0
+                            ? "on"
+                            : "off"}"
+                          >${activeCount}</span
+                        >
+                      </div>
+                    `
+                  : nothing;
+              });
+            })}
+          </div>        
+
           <div class="${classMap({
             alerts: true,
             row: layout,
@@ -974,6 +1160,10 @@ export class AreaCardPlus
               });
             })}
           </div>          
+
+
+
+  
 
           <div class="${classMap({
             buttons: true,
@@ -1392,6 +1582,12 @@ export class AreaCardPlus
     on: boolean,
     deviceClass?: string
   ): string {
+    // Falls die Domain "cover" ist und keine deviceClass angegeben wurde,
+    // wird standardmäßig "mdi:garage" zurückgegeben.
+    if (domain === "cover" && !deviceClass) {
+      return "mdi:garage";
+    }
+
     if (domain in DOMAIN_ICONS) {
       const icons = DOMAIN_ICONS[domain];
 
@@ -1419,7 +1615,11 @@ export class AreaCardPlus
       return "Scene";
     }
 
-    if (domain === "binary_sensor" || domain === "sensor") {
+    if (
+      domain === "binary_sensor" ||
+      domain === "sensor" ||
+      domain === "cover"
+    ) {
       return deviceClass
         ? this.hass!.localize(
             `component.${domain}.entity_component.${deviceClass}.name`
@@ -1627,7 +1827,9 @@ export class AreaCardPlus
             ([domain, entities]) => html`
               <div class="domain-group">
                 <h4>
-                  ${domain === "binary_sensor" || domain === "sensor"
+                  ${domain === "binary_sensor" ||
+                  domain === "sensor" ||
+                  domain === "cover"
                     ? this._getDomainName(domain, this._selectedDeviceClass)
                     : this._getDomainName(domain)}
                 </h4>
@@ -1829,14 +2031,17 @@ export class AreaCardPlus
         left: 8px;
         flex-direction: row-reverse;
       }
-      .alerts {
+      .alerts,
+      .covers {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         margin-right: -3px;
+        gap: 2px;
       }
-      .alerts.row {
+      .alerts.row,
+      .covers.row {
         flex-direction: row-reverse;
       }
       .buttons {
