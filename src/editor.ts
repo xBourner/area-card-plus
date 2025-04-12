@@ -76,7 +76,7 @@ export class AreaCardPlusEditor
     undefined;
   //   @state() private _subElementEditorPopup: SubElementConfig | undefined = undefined;
 
-  private _schema = memoizeOne((showCamera: boolean) => {
+  private _schema = memoizeOne((showCamera: boolean, designVersion: string) => {
     const localize = (key: string) => this.hass!.localize(key) || key;
     const actions: UiAction[] = [
       "more-info",
@@ -105,7 +105,6 @@ export class AreaCardPlusEditor
 
     return [
       { name: "area", selector: { area: {} } },
-
       {
         name: "appearance",
         flatten: true,
@@ -128,6 +127,22 @@ export class AreaCardPlusEditor
               },
             },
           },
+          {
+            name: "design",
+            selector: {
+              select: { mode: "box", options: ["V1", "V2"] },
+            },
+          },
+          ...(designVersion === "V2"
+            ? ([
+                {
+                  name: "v2_color",
+                  selector: {
+                    color_rgb: { default_color: "state", include_state: true },
+                  },
+                },
+              ] as const)
+            : []),
           { name: "mirrored", selector: { boolean: {} } },
           { name: "show_camera", required: false, selector: { boolean: {} } },
           ...(showCamera
@@ -629,10 +644,14 @@ export class AreaCardPlusEditor
           " " +
           this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`)
         );
+      case "v2_color":
+        return this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
       case "css":
         return "CSS";
       case "domain_css":
         return "Domain CSS";
+      case "cover_css":
+        return "Cover CSS";
       case "alert_css":
         return "Alert CSS";
       case "icon_css":
@@ -1000,7 +1019,10 @@ export class AreaCardPlusEditor
 
     const possibleDomains = this._allDomainsForArea(this._config.area || "");
 
-    const schema = this._schema(this._config.show_camera || false);
+    const schema = this._schema(
+      this._config.show_camera || false,
+      this._config.design || "V1"
+    );
 
     const binaryschema = this._binaryschema(this.binarySelectOptions);
 

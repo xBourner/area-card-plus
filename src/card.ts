@@ -869,6 +869,12 @@ export class AreaCardPlus
       return nothing;
     }
 
+    if (this._config?.design === "V2") {
+      this.setAttribute("design", "V2");
+    } else {
+      this.removeAttribute("design");
+    }
+
     const entitiesByDomain = this._entitiesByDomain(
       this._config.area,
       this._devicesInArea(this._config.area, this._devices),
@@ -1198,6 +1204,7 @@ export class AreaCardPlus
                     if (activeCount > 0) {
                       return html`
                         <div
+                          class="icon-with-count hover"
                           style=${customization?.css || this._config?.domain_css
                             ? (customization?.css || this._config?.domain_css)
                                 .split("\n")
@@ -1556,6 +1563,12 @@ export class AreaCardPlus
 
     const oldHass = changedProps.get("hass") as HomeAssistant | undefined;
     const oldConfig = changedProps.get("_config") as CardConfig | undefined;
+
+    const rgb = this._config.v2_color;
+    if (Array.isArray(rgb) && rgb.length === 3) {
+      const rgbString = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+      this.style.setProperty("--v2-color", rgbString);
+    }
 
     if (
       (changedProps.has("hass") &&
@@ -1961,182 +1974,258 @@ export class AreaCardPlus
   }
 
   static get styles() {
-    return css`
-      ha-card {
-        overflow: hidden;
-        position: relative;
-        height: 100%;
-      }
-      hui-image {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 0;
-      }
-      .content {
-        padding: 16px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        z-index: 1;
-      }
-      .icon-container {
-        position: absolute;
-        top: 16px;
-        left: 16px;
-        color: var(--primary-color);
-      }
-      .icon-container.row {
-        top: 50%;
-        transform: translateY(-50%);
-      }
-      .mirrored .icon-container {
-        left: unset;
-        right: 16px;
-      }
-      @supports (--row-size: 1) {
-        .icon-container ha-icon {
-          --mdc-icon-size: calc(var(--row-size, 3) * 20px);
+    return [
+      css`
+        ha-card {
+          overflow: hidden;
+          position: relative;
+          height: 100%;
         }
-      }
-      .container {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        cursor: pointer;
-      }
-      .right {
-        display: flex;
-        flex-direction: row;
-        justify-content: flex-end;
-        align-items: flex-start;
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        gap: 7px;
-      }
-      .right.row {
-        top: 50%;
-        transform: translateY(-50%);
-      }
-      .mirrored .right {
-        right: unset;
-        left: 8px;
-        flex-direction: row-reverse;
-      }
-      .alerts,
-      .covers {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        margin-right: -3px;
-        gap: 2px;
-      }
-      .alerts.row,
-      .covers.row {
-        flex-direction: row-reverse;
-      }
-      .buttons {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .buttons.row {
-        flex-direction: row-reverse;
-      }
-      .bottom {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        position: absolute;
-        bottom: 8px;
-        left: 16px;
-      }
-      .bottom.row {
-        flex-direction: row;
-        left: calc(var(--row-size, 3) * 20px + 25px);
-        bottom: auto;
-        gap: 5px;
-        align-items: baseline;
-        top: 50%;
-        transform: translateY(-50%);
-      }
-      .mirrored .bottom.row {
-        flex-direction: row;
-        right: calc(var(--row-size, 3) * 20px + 25px) !important;
-        bottom: auto;
-        gap: 5px;
-        align-items: baseline;
-        top: 50%;
-        transform: translateY(-50%);
-      }
-      .mirrored .bottom {
-        left: unset;
-        right: 16px;
-        text-align: end;
-        align-items: end;
-      }
-      .name {
-        font-weight: bold;
-        margin-bottom: 8px;
-      }
-      .name.row {
-        margin-bottom: 0;
-      }
-      .icon-with-count {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        background: none;
-        border: solid 0.025rem rgba(var(--rgb-primary-text-color), 0.15);
-        padding: 1px;
-        border-radius: 5px;
-        --mdc-icon-size: 20px;
-      }
-      .icon-with-count > ha-state-icon,
-      .icon-with-count > span {
-        pointer-events: none;
-      }
-
-      .toggle-on {
-        color: var(--primary-text-color);
-      }
-      .toggle-off {
-        color: var(--secondary-text-color) !important;
-      }
-      .off {
-        color: var(--secondary-text-color);
-      }
-      .navigate {
-        cursor: pointer;
-      }
-      .hover:hover {
-        background-color: rgba(var(--rgb-primary-text-color), 0.15);
-      }
-      .text-small {
-        font-size: 0.9em;
-      }
-      .text-medium {
-        font-size: 1em;
-      }
-      .text-large {
-        font-size: 1.3em;
-      }
-
-      @media (max-width: 768px) {
+        hui-image {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          z-index: 0;
+        }
+        .content {
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          z-index: 1;
+        }
+        .icon-container {
+          position: absolute;
+          top: 16px;
+          left: 16px;
+          color: var(--primary-color);
+        }
+        .icon-container.row {
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        .mirrored .icon-container {
+          left: unset;
+          right: 16px;
+        }
+        @supports (--row-size: 1) {
+          .icon-container ha-icon {
+            --mdc-icon-size: calc(var(--row-size, 3) * 20px);
+          }
+        }
+        .container {
+          display: flex;
+          flex-direction: row;
+          justify-content: space-between;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          cursor: pointer;
+        }
+        .right {
+          display: flex;
+          flex-direction: row;
+          justify-content: flex-end;
+          align-items: flex-start;
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          gap: 7px;
+        }
+        .right.row {
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        .mirrored .right {
+          right: unset;
+          left: 8px;
+          flex-direction: row-reverse;
+        }
+        .alerts,
+        .covers {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          margin-right: -3px;
+          gap: 2px;
+        }
+        .alerts.row,
+        .covers.row {
+          flex-direction: row-reverse;
+        }
+        .buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .buttons.row {
+          flex-direction: row-reverse;
+        }
+        .bottom {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          position: absolute;
+          bottom: 8px;
+          left: 16px;
+        }
+        .bottom.row {
+          flex-direction: row;
+          left: calc(var(--row-size, 3) * 20px + 25px);
+          bottom: auto;
+          gap: 5px;
+          align-items: baseline;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        .mirrored .bottom.row {
+          flex-direction: row;
+          right: calc(var(--row-size, 3) * 20px + 25px) !important;
+          bottom: auto;
+          gap: 5px;
+          align-items: baseline;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        .mirrored .bottom {
+          left: unset;
+          right: 16px;
+          text-align: end;
+          align-items: end;
+        }
         .name {
           font-weight: bold;
-          margin-bottom: 5px;
+          margin-bottom: 8px;
         }
-      }
-    `;
+        .name.row {
+          margin-bottom: 0;
+        }
+        .icon-with-count {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          background: none;
+          border: solid 0.025rem rgba(var(--rgb-primary-text-color), 0.15);
+          padding: 1px;
+          border-radius: 5px;
+          --mdc-icon-size: 20px;
+        }
+        .icon-with-count > ha-state-icon,
+        .icon-with-count > span {
+          pointer-events: none;
+        }
+
+        .toggle-on {
+          color: var(--primary-text-color);
+        }
+        .toggle-off {
+          color: var(--secondary-text-color) !important;
+        }
+        .off {
+          color: var(--secondary-text-color);
+        }
+        .navigate {
+          cursor: pointer;
+        }
+        .hover:hover {
+          background-color: rgba(var(--rgb-primary-text-color), 0.15);
+        }
+        .text-small {
+          font-size: 0.9em;
+        }
+        .text-medium {
+          font-size: 1em;
+        }
+        .text-large {
+          font-size: 1.3em;
+        }
+
+        @media (max-width: 768px) {
+          .name {
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+        }
+      `,
+      css`
+        /* V2-Design: Überschreibt viele der Standardstile */
+        :host([design="V2"]) .right {
+          bottom: 0px;
+          left: 0px;
+          right: 0px;
+          padding: 9px 8px;
+          top: unset;
+          background: var(--v2-color, var(--primary-color));
+          transform: unset;
+        }
+        :host([design="V2"]) .covers {
+          flex-direction: row-reverse;
+        }
+        :host([design="V2"]) .mirrored .covers {
+          flex-direction: row;
+        }
+        :host([design="V2"]) .icon-container {
+          top: 8px;
+          left: 8px;
+          transform: unset;
+        }
+        :host([design="V2"]) .alerts {
+          flex-direction: row-reverse;
+        }
+        :host([design="V2"]) .mirrored .areas {
+          flex-direction: row;
+        }
+        :host([design="V2"]) .buttons {
+          flex-direction: row-reverse;
+        }
+        :host([design="V2"]) .mirrored .buttons {
+          flex-direction: row;
+        }
+        :host([design="V2"]) .mirrored .bottom {
+          text-align: end;
+          align-items: end;
+          right: 105px !important;
+        }
+        :host([design="V2"]) .mirrored .bottom.row {
+          flex-direction: row-reverse;
+        }
+        @supports (--row-size: 1) {
+          :host([design="V2"]) .icon-container ha-icon {
+            --mdc-icon-size: calc(var(--row-size, 3) * 15px);
+            background: var(--v2-color, var(--primary-color));
+            border-radius: 50%;
+            display: flex;
+            padding: 16px;
+          }
+          :host([design="V2"]) .right {
+            bottom: 0px;
+            left: 0px;
+            right: 0px;
+            padding: calc(var(--row-size, 3) * 3px) 8px;
+            top: unset;
+            background: var(--v2-color, var(--primary-color));
+            transform: unset;
+            min-height: 24px;
+          }
+          :host([design="V2"]) .bottom {
+            left: calc(var(--row-size, 3) * 15px + 55px);
+            top: calc(var(--row-size, 3) * 5px + 4px);
+          }
+          :host([design="V2"]) .bottom.row {
+            top: calc(var(--row-size, 3) * 8px + 12px);
+            left: calc(var(--row-size, 3) * 15px + 55px);
+            transform: unset;
+          }
+          :host([design="V2"]) .name {
+            margin-bottom: calc(var(--row-size, 3) * 1.5px + 1px);
+          }
+        }
+      `,
+    ];
   }
 }
