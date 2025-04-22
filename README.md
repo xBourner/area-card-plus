@@ -1,44 +1,64 @@
-[![stars - status-card](https://img.shields.io/github/stars/xBourner/area-card?style=for-the-badge)](https://github.com/xBourner/area-card)
-[![forks - status-card](https://img.shields.io/github/forks/xBourner/area-card?style=for-the-badge)](https://github.com/xBourner/area-card)
+<a name="top"></a>
+
+# Area Card Plus
+
 [![GitHub release](https://img.shields.io/github/release/xBourner/area-card?style=for-the-badge)](https://github.com/xBourner/area-card/releases/)
+[![stars - status-card](https://img.shields.io/github/stars/xBourner/area-card?style=for-the-badge)](https://github.com/xBourner/area-card)
 [![GitHub issues](https://img.shields.io/github/issues/xBourner/area-card?style=for-the-badge)](https://github.com/xBourner/area-card/issues)
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-card-header.png" alt="Area Card Plus Header" width="100%">
+
+# Support my work
+
+If you like my work it would be nice if you support it. You don't have to but this will keep me motivated and i will appreciate it much! <br>
+You can also join my Discord Server to leave a feedback, get help or contribute with ideas :) 
 
 [![Discord](https://img.shields.io/discord/1341456711835455609?style=for-the-badge&logo=discord&logoColor=%237289da&label=Discord&color=%237289da)](https://discord.gg/RfVx7hmZD3)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?&logo=buy-me-a-coffee&logoColor=black&style=for-the-badge)](https://www.buymeacoffee.com/bourner)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor%20on%20GitHub-30363d?style=for-the-badge&logo=github&logoColor=white)](https://github.com/sponsors/xBourner)
 [![PayPal](https://img.shields.io/badge/PayPal-003087?logo=paypal&logoColor=fff&style=for-the-badge)](https://www.paypal.me/gibgas123)
 
+# Overview
 
-# area-card-plus
+An **Area Card** for your Home Assistant Dashboard
 
-#### An Area card for your Home Assistant Dashboard
-This card is heavily inspired by the default area card and the work of [@Dwains](https://github.com/dwainscheeren). <br>
-I always thought the area card has so much more potential so i made my own one.
-
+I always thought the area card has so much more potential so i made my own one. <br>
 The card will show all entities/devices grouped into domains or device classes that are linked to your area. <br>
 To make sure this card will work like it should please check if your relevant entities are assigned to the correct domain.
 
-## Overview
+This card i highly influenced by [Dwains Dashboard](https://github.com/dwainscheeren/dwains-lovelace-dashboard). So now you can use this great idea as a single card in all of your Dashboards
 
-![image](https://github.com/user-attachments/assets/fc20f7b0-c539-4144-b6f8-f4b84ab88a5e)
+<p align="center">
+  <img alt="Light" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-single-light.png" width="49%">
+&nbsp; 
+  <img alt="Dark" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-single-dark.png" width="49%">
+</p>
 
-![image](https://github.com/user-attachments/assets/f27c7847-abf3-43c6-a868-14f949af5113)
+<p align="center">
+  <img alt="Light" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-multi-light.png" width="49%">
+&nbsp; 
+  <img alt="Dark" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-multi-dark.png" width="49%">
+</p>
 
-Vetical Mode:
+<p align="center">
+  <img alt="Light" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-vertical-light.png" width="49%">
+&nbsp; 
+  <img alt="Dark" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-vertical-dark.png" width="49%">
+</p>
 
-![image](https://github.com/user-attachments/assets/61d2b972-db16-44fb-b5c4-ce9b5e88a3f8)
 
+### How it works
+ - 🤖 **Auto generating card** - Works when entities/devices are assigned to areas
+ - ✅ **Based on entity states** - Shows entities that are in a on/active state
+ - 📚 **Automatic Grouping** - Entities grouped by domain/device_class
+ - 📑 **Popup View** - Entities will render as Tile Cards in a new view
+ - 🧠 **GUI Editor** - No code or scripts needed
+ - 🔧 **Highly customizable** - almost everything customizable
+ - 📱 **Optimized for desktop and phones**
+ - 🌍 **Available in all HA languages**
 
+<br>
 
-### Card Features
-
-- based on default HA area card with more features and customization
-- show camera view/area picture/area icon or camera + icon/ area picture + area icon
-- works in section and mansonry view
-- added tap_action, double_tap_action and hold_action everywhere you can click
-- shows toggle domains (the ones on the right) which can be toggled to on/off
-- shows alert entities (motion, door, window) next to toggle domains
-- shows sensor entities (temperatur, humidity etc.) under the area icon
-- shows climate entities under the sensor entities
 
 ## Popup View
 
