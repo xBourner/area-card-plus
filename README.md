@@ -40,10 +40,18 @@ This card i highly influenced by [Dwains Dashboard](https://github.com/dwainsche
   <img alt="Dark" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-multi-dark.png" width="49%">
 </p>
 
+**Vertical Mode**
 <p align="center">
   <img alt="Light" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-vertical-light.png" width="49%">
 &nbsp; 
   <img alt="Dark" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-vertical-dark.png" width="49%">
+</p>
+
+**V2 Theme**
+<p align="center">
+  <img alt="Light" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-multi-light-v2.png" width="49%">
+&nbsp; 
+  <img alt="Dark" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-multi-dark-v2.png" width="49%">
 </p>
 
 
