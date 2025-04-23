@@ -65,6 +65,30 @@ This card i highly influenced by [Dwains Dashboard](https://github.com/dwainsche
   </a>
 </p>
 
+## Installation
+
+###  HACS Installation (Recommended)
+
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=xBourner&repository=status-card&category=plugin)
+
+#### Steps:
+
+1. Make sure **[HACS](https://hacs.xyz)** is installed.
+3. Go to **HACS → Custom Repositories**.
+4. Add this repository: `https://github.com/xBourner/status-card` as type `Dashboard`
+5. Install **Status Card**.
+6. **Clear your browser cache** and reload (F5) Home Assistant.
+
+For more info look at [How to add Custom Repositories](https://hacs.xyz/docs/faq/custom_repositories/)
+
+
+<p align="right">
+  <a href="#top">
+    <img src="https://github.com/xBourner/status-card/blob/main/.github/img/top.png" alt="Back to Top" width="4%">
+  </a>
+</p>
+
+
 ## Popup View
 
 The popup view will show all entities/devices that are assigned to the area.
@@ -138,15 +162,6 @@ You can change most things like icon, name of area and alert/toggle domains (bor
 
 
 </details>
-
-
-## Installation
-
-### HACS
-
-Add this repository via HACS Custom repositories ([How to add Custom Repositories](https://hacs.xyz/docs/faq/custom_repositories/))
-
-https://github.com/xBourner/area-card-plus
 
 
 # Settings
