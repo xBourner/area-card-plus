@@ -6,7 +6,7 @@
 [![stars - status-card](https://img.shields.io/github/stars/xBourner/area-card?style=for-the-badge)](https://github.com/xBourner/area-card)
 [![GitHub issues](https://img.shields.io/github/issues/xBourner/area-card?style=for-the-badge)](https://github.com/xBourner/area-card/issues)
 
-<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-card-headerv2.png" alt="Area Card Plus Header" width="100%">
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-card-header.png" alt="Area Card Plus Header" width="100%">
 
 # Support my work
 
