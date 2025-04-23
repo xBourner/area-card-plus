@@ -69,13 +69,13 @@ This card i highly influenced by [Dwains Dashboard](https://github.com/dwainsche
 
 ###  HACS Installation (Recommended)
 
-[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=xBourner&repository=status-card&category=plugin)
+[![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=xBourner&repository=area-card-plus&category=plugin)
 
 #### Steps:
 
 1. Make sure **[HACS](https://hacs.xyz)** is installed.
 3. Go to **HACS → Custom Repositories**.
-4. Add this repository: `https://github.com/xBourner/status-card` as type `Dashboard`
+4. Add this repository: `https://github.com/xBourner/area-card-plus` as type `Dashboard`
 5. Install **Status Card**.
 6. **Clear your browser cache** and reload (F5) Home Assistant.
 
