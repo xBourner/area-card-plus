@@ -95,7 +95,7 @@ For more info look at [How to add Custom Repositories](https://hacs.xyz/docs/faq
 The popup view will show all entities/devices that are assigned to the area.
 All cards will be shown as a default tile card with some having tile card features enabled. 
 
-![image](https://github.com/user-attachments/assets/83ff411a-932e-460a-96d7-df78a5011cf2)
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/popu-view.png" alt="Area Card Plus Header" width="100%">
 
 ## Customization
 Basically everything on the card can be customized/shown/hidden via gui. <br>
