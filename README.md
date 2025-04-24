@@ -54,9 +54,6 @@ This card i highly influenced by [Dwains Dashboard](https://github.com/dwainsche
   <img alt="Dark" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-multi-dark-v2.png" width="49%">
 </p>
 
-**Popup View**
-
-<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/popu-view.png" alt="Area Card Plus Header" width="100%">
 
 ### How it works
  - 🤖 **Auto generating card** - Works when entities/devices are assigned to areas
@@ -105,44 +102,94 @@ For more info look at [How to add Custom Repositories](https://hacs.xyz/docs/faq
 
 <details>
 <summary>Show Content</summary>
-  
-#### Change icon/image, area icon, area icon color, area name, area name color, mirror card layout
 
-![image](https://github.com/user-attachments/assets/ac1c4f24-cfca-40c0-9e62-8b05399516e9)
+### More Info/ Popup View
 
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/popup-view.png" alt="Area Card Plus Header" width="100%">
 
-#### Choose domain/device to show
-Here you can choose which domain/device class will be shown in the card. <br>
-Only domains that are assigned to your area can be choosen. <br>
-Drag & Drop is supported and will change the order in the card.
-
-![image](https://github.com/user-attachments/assets/4719032f-ed51-4436-a109-69b99674872c)
-
-#### Change color of domains/device classes
-Here you can change the color for all domains/device classes at once. <br>
-Inactive/off domains will still be shown as gray.
-
-![image](https://github.com/user-attachments/assets/fe02e382-6b65-4a7c-9b9e-00ecd5e29f43)
-
-#### Show only active domains for toggle_domains
-
-![image](https://github.com/user-attachments/assets/09a22006-566e-4f33-bb24-0a35e40ed9f2)
-
-### Customize Features
-These will allow you to edit and customize each domain/device class the way you want.
-  
-![image](https://github.com/user-attachments/assets/f9f28ada-7361-472b-93ff-08e5504df409)
-
-#### Change tap_action, double_tap action, hold_action icon or color
-You can choose between the default HA actions [more-info, toggle, navigate, URL, perform-action, nothing] <br>
-Toggle will toggle all entities of the clicked domain assigned to your area, more-info will show all entities of the clicked domain. <br>
-Evenrything else has default behavior. <br>
-You can select an individual icon & color for each domain if you want
-
-![image](https://github.com/user-attachments/assets/645b325d-7b93-448b-b0ca-6e340998feea)
+  - **Popup View** - Displays all entities in the area
+  - **Tile Cards** - Shows controllable cards at default
+  - **Columns** - Specify how many columns will be shown in the popup (still one on mobile view)
 
 
-### Change card in the popup view
+
+### Appearance
+
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/appearance_area.png" alt="Area Card Plus Appearance" width="40%">
+
+- **Theme** - Choose a theme for the card.
+- **Vertical/Horizontal** - Choose the layout of the card.
+- **V1/V2** - Choose the design of the card.
+- **Mirror Card Layout** - Display content on the right side instead of the left.
+- **Show Camera Feed instead of area picture** - Will show an assigned camera feed instead of icon/picture.
+- **Show Icon** - Choose if you want to see icon, picture of both. Also wotks when camera feed is shown.
+- **Area Icon** - Choose the icon to be shown. Default is the icon you specified in your HA area settings.
+- **Area Icon Color** - Choose the icon color. Default is the primary color of your theme.
+- **Area Name** - Choose a different name if you like. Default is the name in your HA area settings.
+- **Area Icon Color** - Choose the name color. Default is the primary text color of your theme.
+- **CSS** - You can add some CSS to the card directly. You can add css properties to the name and icon.
+- **Tap, Double Tap & Hold Behavior** - Specify which action will happen if you click the card.
+
+
+### Alert Classes
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/alert-classes.png" alt="Area Card Plus Alert Classes" width="40%">
+
+- **Alert Classes** - Specify the device_classes of binary sensors to show in the card. Default are all available classes of the area.
+- **Color** - Change all icon colors for device_classes (binary_sensor) at once.
+- **Alert CSS** - Change all CSS properties for device_classes (binary_sensor) at once. For example font-size.
+- **Add Feature** - See below for more information about Customization
+
+### Cover
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/cover.png" alt="Area Card Plus Cover" width="40%">
+
+- **Cover** - Specify the device_classes of covers to show in the card. Default are all available classes of the area.
+- **Color** - Change all icon colors for device_classes (covers) at once.
+- **Cover CSS** - Change all CSS properties for device_classes (cover) at once. For example font-size.
+- **Add Feature** - See below for more information about Customization
+
+### Sensor Classes
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/sensor.png" alt="Area Card Plus Sensor Classes" width="40%">
+
+- **Sensor Classes** - Specify the device_classes of sensors to show in the card. Default are all available classes of the area.
+- **Color** - Change all icon colors for device_classes (sensors) at once.
+- **Add Feature** - See below for more information about Customization
+
+### Domain
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/domain.png" alt="Area Card Plus Domain" width="40%">
+
+- **Domain** - Specify the domains to show in the card. Default are all available domains of the area.
+- **Color** - Change all icon colors for all domains at once.
+- **Domain CSS** - Change all CSS properties for all domains at once. For example font-size.
+- **Hide State Off** - Will hide the domains without an active entity to save some space.
+- **Add Feature** - See below for more information about Customization
+
+### Popup
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/popup.png" alt="Area Card Plus Popup" width="40%">
+
+- **Number of Columns** - Specify the amount of columns you will see in the popup
+- **Popup Domain** - Specify the domains to show in the popup. Default are all available domains of the area.
+- **Edit Filter** - Add filters to only show entities that have the same label.
+- **Hide Entities** - Lets you hide entities you dont want to show in the popup. All available entities from your chosen area should be listed here.
+- **Add Entities** - If you miss any entity or you can't assign them with the correct area. You can add it here to the popup.
+
+### Customization
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/customization-area.png" alt="Area Card Plus Customization" width="40%">
+
+- **Icon** - Choose a different icon for the individual domain/device_class.
+- **Color** - Choose a different icon color for the individual domain/device_class.
+- **CSS** - Apply some CSS to the complete box of the individual domain/device_class.
+- **Icon CSS** -  Apply some CSS to the icon only for the individual domain/device_class. For example animation for the icons.
+- **Tap, Double Tap & Hold Behavior** - Specify which action will happen if you click the individual domain/device_class.
+
+
+### Experimental
 This feature is experimental and YAML only (for now)
 
 Add this code
@@ -157,10 +204,6 @@ customization_popup:
       show_color_temp_control: true
       use_light_color: true
 ```
-### Changing CSS for some items
-You can change most things like icon, name of area and alert/toggle domains (border, color, size etc.)
-
-![image](https://github.com/user-attachments/assets/aced58a6-f4c8-481e-93f1-c227e05de080)
 
 <p align="right">
   <a href="#top">
