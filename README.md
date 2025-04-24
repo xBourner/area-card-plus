@@ -54,6 +54,9 @@ This card i highly influenced by [Dwains Dashboard](https://github.com/dwainsche
   <img alt="Dark" src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/area-multi-dark-v2.png" width="49%">
 </p>
 
+**Popup View**
+
+<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/popu-view.png" alt="Area Card Plus Header" width="100%">
 
 ### How it works
  - 🤖 **Auto generating card** - Works when entities/devices are assigned to areas
@@ -98,20 +101,10 @@ For more info look at [How to add Custom Repositories](https://hacs.xyz/docs/faq
 </p>
 
 
-## Popup View
-
-The popup view will show all entities/devices that are assigned to the area.
-All cards will be shown as a default tile card with some having tile card features enabled. 
-
-<img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/popu-view.png" alt="Area Card Plus Header" width="100%">
-
-## Customization
-Basically everything on the card can be customized/shown/hidden via gui. <br>
-Below are some screenshots that show what can be done.
+# Screenshots & Explanation
 
 <details>
-<summary>Click to see full options to customize</summary>
-  <br>
+<summary>Show Content</summary>
   
 #### Change icon/image, area icon, area icon color, area name, area name color, mirror card layout
 
@@ -169,6 +162,11 @@ You can change most things like icon, name of area and alert/toggle domains (bor
 
 ![image](https://github.com/user-attachments/assets/aced58a6-f4c8-481e-93f1-c227e05de080)
 
+<p align="right">
+  <a href="#top">
+    <img src="https://github.com/xBourner/status-card/blob/main/.github/img/top.png" alt="Back to Top" width="4%">
+  </a>
+</p>
 
 </details>
 
@@ -209,12 +207,22 @@ hide_unavailable: true         ### only shows entities that are NOT in state "un
 layout: vertical               ### choose horizontal/vertical layout (vertical works best in section view smaller 3)
 ```
 
+<p align="right">
+  <a href="#top">
+    <img src="https://github.com/xBourner/status-card/blob/main/.github/img/top.png" alt="Back to Top" width="4%">
+  </a>
+</p>
+
 # Feedback
 
 Thank you for using my custom cards. Please leave some feedback or a star.
 If you have any problems, suggestions for improvements or want to connect with me you can joing my discord: https://discord.gg/RfVx7hmZD3
 
-
+<p align="right">
+  <a href="#top">
+    <img src="https://github.com/xBourner/status-card/blob/main/.github/img/top.png" alt="Back to Top" width="4%">
+  </a>
+</p>
 
 
 
