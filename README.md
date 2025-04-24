@@ -119,11 +119,13 @@ For more info look at [How to add Custom Repositories](https://hacs.xyz/docs/faq
 <img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/appearance_area.png" alt="Area Card Plus Appearance" width="40%">
 
 - **Theme** - Choose a theme for the card.
-- **Vertical/Horizontal** - Choose the layout of the card.
-- **V1/V2** - Choose the design of the card.
-- **Mirror Card Layout** - Display content on the right side instead of the left.
+- **Vertical/Horizontal** - Choose the layout of the card. Default is vertical. See top screenshots.
+- **V1/V2** - Choose the design of the card. Default is V1. See top screenshots.
+- **Mirror Card Layout** - Display content on the right side instead of the left. <br>
+  <img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/mirror.png" alt="Area Card Plus Appearance" width="40%">
+- **Show Icon** - Choose if you want to see icon, picture of both. Also wotks when camera feed is shown. <br>
+  <img src="https://raw.githubusercontent.com/xbourner/area-card-plus/main/.github/img/image.png" alt="Area Card Plus Appearance" width="40%">
 - **Show Camera Feed instead of area picture** - Will show an assigned camera feed instead of icon/picture.
-- **Show Icon** - Choose if you want to see icon, picture of both. Also wotks when camera feed is shown.
 - **Area Icon** - Choose the icon to be shown. Default is the icon you specified in your HA area settings.
 - **Area Icon Color** - Choose the icon color. Default is the primary color of your theme.
 - **Area Name** - Choose a different name if you like. Default is the name in your HA area settings.
@@ -204,6 +206,28 @@ customization_popup:
       show_color_temp_control: true
       use_light_color: true
 ```
+
+#### Animations
+
+Add this (or other animation css code) to your yaml config.
+
+```yaml
+card_mod:
+  style: |
+    @keyframes rotation {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }}
+```
+
+And into one of the icon customizations:
+
+```yaml
+animation: rotation 1s linear infinite;
+  ```  
 
 <p align="right">
   <a href="#top">
