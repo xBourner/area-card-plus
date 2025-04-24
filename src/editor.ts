@@ -823,32 +823,70 @@ export class AreaCardPlusEditor
   }
 */
   private _renderSubElementEditor(
-    editorKey: "domain" | "alert" | "cover" | "sensor" /*| "popup"*/,
+    editorKey: "domain" | "alert" | "cover" | "sensor",
     goBackHandler: () => void,
     itemChangedHandler: (ev: CustomEvent<Settings>) => void
   ) {
-    const editorName = `_subElementEditor${
+    // 1) den Array-Namen zusammensetzen:
+    const listName = `customization_${editorKey}` as keyof Settings;
+    // 2) das korrekte Element (bei Mehrfach-Editoren nach index) holen:
+    const subConfigs = this._config?.[listName] as
+      | Array<{ type?: string }>
+      | undefined;
+    const editorKeyCapitalized = `_subElementEditor${
       editorKey.charAt(0).toUpperCase() + editorKey.slice(1)
     }` as keyof this;
-    const editor = this[editorName] as SubElementEditor | undefined;
+    const idx = (this[editorKeyCapitalized] as SubElementEditor)?.index ?? 0;
+    const rawType = subConfigs?.[idx]?.type ?? "unknown";
+
+    const match = rawType.match(/^(.+?)\s*-\s*(.+)$/);
+    let localizedType: string;
+
+    if (match) {
+      // —> 2-Teiler „Domain – DeviceClass“
+      const domainKey = match[1].toLowerCase().replace(" ", "_");
+      const devClassKey = match[2].toLowerCase();
+
+      const domainName =
+        this.hass!.localize(`component.${domainKey}.entity_component._.name`) ||
+        match[1];
+
+      let deviceClassName =
+        this.hass!.localize(
+          `ui.dialogs.entity_registry.editor.device_classes.${domainKey}.${devClassKey}`
+        ) || match[2];
+
+      // hier Großschreibung erzwingen
+      deviceClassName =
+        deviceClassName.charAt(0).toUpperCase() + deviceClassName.slice(1);
+
+      localizedType = `${domainName} – ${deviceClassName}`;
+    } else {
+      // —> nur ein einziger Teil (z. B. „window“)
+      let only =
+        this.hass!.localize(`component.${rawType}.entity_component._.name`) ||
+        rawType;
+
+      // auch hier erstes Zeichen groß
+      only = only.charAt(0).toUpperCase() + only.slice(1);
+      localizedType = only;
+    }
 
     return html`
       <div class="header">
         <div class="back-title">
           <mwc-icon-button @click=${goBackHandler}>
-            <ha-icon icon="mdi:arrow-left"></ha-icon>
+            <ha-icon icon="mdi:chevron-left"></ha-icon>
           </mwc-icon-button>
+          <span slot="title">${localizedType}</span>
         </div>
       </div>
       <item-editor
         .hass=${this.hass}
-        .config=${this._config?.[`customization_${editorKey}`]?.[
-          editor?.index ?? 0
-        ] ?? {}}
+        .config=${subConfigs?.[idx] || {}}
         .getSchema=${editorKey}
         @config-changed=${itemChangedHandler}
-      >
-      </item-editor>
+      ></item-editor>
     `;
   }
 
@@ -1213,6 +1251,18 @@ export class AreaCardPlusEditor
     }
     .content {
       padding: 12px 4px;
+    }
+    .back-title {
+      display: flex;
+      align-items: center;
+      font-size: 18px;
+      gap: 0.5em;
+    }
+    ha-icon {
+      display: flex;
+    }
+    .header {
+      margin-bottom: 0.5em;
     }
   `;
 }

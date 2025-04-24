@@ -1595,8 +1595,6 @@ export class AreaCardPlus
     on: boolean,
     deviceClass?: string
   ): string {
-    // Falls die Domain "cover" ist und keine deviceClass angegeben wurde,
-    // wird standardmäßig "mdi:garage" zurückgegeben.
     if (domain === "cover" && !deviceClass) {
       return "mdi:garage";
     }
@@ -2215,6 +2213,7 @@ export class AreaCardPlus
           :host([design="V2"]) .bottom {
             left: calc(var(--row-size, 3) * 15px + 55px);
             top: calc(var(--row-size, 3) * 5px + 4px);
+            bottom: unset;
           }
           :host([design="V2"]) .bottom.row {
             top: calc(var(--row-size, 3) * 8px + 12px);
