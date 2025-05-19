@@ -1564,10 +1564,15 @@ export class AreaCardPlus
     const oldHass = changedProps.get("hass") as HomeAssistant | undefined;
     const oldConfig = changedProps.get("_config") as CardConfig | undefined;
 
-    const rgb = this._config.v2_color;
-    if (Array.isArray(rgb) && rgb.length === 3) {
-      const rgbString = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
-      this.style.setProperty("--v2-color", rgbString);
+    const col = this._config.v2_color;
+    if (Array.isArray(col)) {
+      if (col.length === 3) {
+        const [r, g, b] = col;
+        this.style.setProperty("--v2-color", `rgb(${r}, ${g}, ${b})`);
+      } else if (col.length === 4) {
+        let [r, g, b, a] = col;
+        this.style.setProperty("--v2-color", `rgba(${r}, ${g}, ${b}, ${a})`);
+      }
     }
 
     if (
