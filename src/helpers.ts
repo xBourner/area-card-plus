@@ -833,3 +833,43 @@ export default function parseAspectRatio(input: string) {
   }
   return null;
 }
+
+export const applyThemesOnElement = (
+  element: any,
+  themes: any,
+  localTheme: any
+) => {
+  const selected = localTheme || themes.theme;
+
+  if (!element.__themes) {
+    element.__themes = { cacheKey: null, keys: {} };
+  }
+
+  if (!selected || selected === "default") {
+    // Default-Theme → alle Inline-CSS entfernen
+    element.removeAttribute("style");
+    element.__themes.cacheKey = "default";
+    return;
+  }
+
+  const themeDef = themes.themes?.[selected];
+  if (!themeDef) {
+    console.warn(`Theme "${selected}" not found.`);
+    element.removeAttribute("style");
+    element.__themes.cacheKey = "default";
+    return;
+  }
+
+  // Nur neu anwenden, wenn sich das Theme geändert hat
+  if (element.__themes.cacheKey === selected) {
+    return;
+  }
+
+  // Setze CSS-Variablen
+  for (const [key, value] of Object.entries(themeDef)) {
+    element.style.setProperty(`--${key}`, String(value));
+  }
+
+  // Cache aktualisieren
+  element.__themes.cacheKey = selected;
+};

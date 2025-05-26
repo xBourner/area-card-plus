@@ -15,7 +15,6 @@ import {
   LovelaceCard,
   LovelaceCardConfig,
   computeDomain,
-  applyThemesOnElement,
   formatNumber,
   hasAction,
   handleAction,
@@ -36,6 +35,7 @@ import {
   blankBeforeUnit,
   actionHandler,
   LovelaceGridOptions,
+  applyThemesOnElement,
 } from "./helpers";
 import parseAspectRatio from "./helpers";
 import { mdiClose } from "@mdi/js";
@@ -1986,10 +1986,6 @@ export class AreaCardPlus
         }
         hui-image {
           position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
           z-index: 0;
         }
         .content {
