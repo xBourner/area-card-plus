@@ -4,25 +4,27 @@ import {
   computeDomain,
   HomeAssistant,
   LovelaceCardEditor,
-  LovelaceCardConfig,
 } from "custom-card-helpers";
 import memoizeOne from "memoize-one";
 import {
   caseInsensitiveStringCompare,
   getSensorNumericDeviceClasses,
   HassCustomElement,
-  SubElementConfig,
+  SubElementEditor,
   Settings,
   fireEvent,
   EntityRegistryEntry,
   UiAction,
+  SelectOption,
+  CardConfig,
+  Schema,
 } from "./helpers";
 import {
   DEVICE_CLASSES,
   TOGGLE_DOMAINS,
   CLIMATE_DOMAINS,
   domainOrder,
-} from "./card";
+} from "./helpers";
 import {
   mdiAlert,
   mdiGarage,
@@ -32,49 +34,30 @@ import {
 } from "@mdi/js";
 import "./items-editor";
 import "./item-editor";
-
-export interface CardConfig extends LovelaceCardConfig {
-  area: string;
-  navigation_path?: string;
-}
-
-export interface SelectOption {
-  value: any;
-  label: string;
-  disabled?: boolean;
-}
-
-interface Schema {
-  name: string;
-  selector?: any;
-  required?: boolean;
-
-  default?: any;
-  type?: string;
-}
-
-interface SubElementEditor {
-  index?: number;
-}
+import { computeLabelCallback } from "./translations";
 
 @customElement("area-card-plus-editor")
 export class AreaCardPlusEditor
   extends LitElement
   implements LovelaceCardEditor
 {
-  @property({ attribute: false }) public hass?: HomeAssistant;
+  @property({ attribute: false }) public hass!: HomeAssistant;
   @state() private _config?: CardConfig;
   @state() public _entities?: EntityRegistryEntry[];
   @state() private _numericDeviceClasses?: string[];
-  @state() private _subElementEditorDomain: SubElementConfig | undefined =
+  @state() private _subElementEditorDomain: SubElementEditor | undefined =
     undefined;
-  @state() private _subElementEditorAlert: SubElementConfig | undefined =
+  @state() private _subElementEditorAlert: SubElementEditor | undefined =
     undefined;
-  @state() private _subElementEditorCover: SubElementConfig | undefined =
+  @state() private _subElementEditorCover: SubElementEditor | undefined =
     undefined;
-  @state() private _subElementEditorSensor: SubElementConfig | undefined =
+  @state() private _subElementEditorSensor: SubElementEditor | undefined =
     undefined;
-  //   @state() private _subElementEditorPopup: SubElementConfig | undefined = undefined;
+  //   @state() private _subElementEditorPopup: SubElementEditor | undefined = undefined;
+
+  private computeLabel = memoizeOne((schema: Schema): string => {
+    return computeLabelCallback(this.hass, schema);
+  });
 
   private _schema = memoizeOne((showCamera: boolean, designVersion: string) => {
     const localize = (key: string) => this.hass!.localize(key) || key;
@@ -229,6 +212,14 @@ export class AreaCardPlusEditor
 
   private _sensorschema = memoizeOne((sensorClasses: SelectOption[]) => [
     {
+      name: "",
+      type: "grid",
+      schema: [
+        { name: "show_sensor_icons", selector: { boolean: {} } },
+        { name: "wrap_sensor_icons", selector: { boolean: {} } },
+      ],
+    },
+    {
       name: "sensor_classes",
       selector: {
         select: {
@@ -295,6 +286,16 @@ export class AreaCardPlusEditor
         type: "expandable",
         icon: "mdi:eye-off",
         schema: [
+          {
+            name: "category_filter",
+            selector: {
+              select: {
+                options: ["config", "diagnostic", "config+diagnostic"],
+                mode: "dropdown",
+              },
+            },
+          },
+
           {
             name: "hidden_entities",
             selector: {
@@ -601,155 +602,6 @@ export class AreaCardPlusEditor
       })
     );
   }
-
-  private _computeLabelCallback = (schema: Schema): string => {
-    switch (schema.name) {
-      case "theme":
-        return `${this.hass!.localize(
-          "ui.panel.lovelace.editor.card.generic.theme"
-        )} (${this.hass!.localize(
-          "ui.panel.lovelace.editor.card.config.optional"
-        )})`;
-      case "area":
-        return this.hass!.localize("ui.panel.lovelace.editor.card.area.name");
-      case "navigation_path":
-        return this.hass!.localize(
-          "ui.panel.lovelace.editor.action-editor.navigation_path"
-        );
-      case "area_name":
-        return (
-          this.hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-          " " +
-          this.hass!.localize(`ui.panel.lovelace.editor.card.generic.name`)
-        );
-      case "area_icon":
-        return (
-          this.hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-          " " +
-          this.hass!.localize(`ui.panel.lovelace.editor.card.generic.icon`)
-        );
-      case "area_name_color":
-        return (
-          this.hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-          " " +
-          this.hass!.localize(`ui.panel.lovelace.editor.card.generic.name`) +
-          " " +
-          this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`)
-        );
-      case "area_icon_color":
-        return (
-          this.hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-          " " +
-          this.hass!.localize(`ui.panel.lovelace.editor.card.generic.icon`) +
-          " " +
-          this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`)
-        );
-      case "v2_color":
-        return this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
-      case "css":
-        return "CSS";
-      case "domain_css":
-        return "Domain CSS";
-      case "cover_css":
-        return "Cover CSS";
-      case "alert_css":
-        return "Alert CSS";
-      case "icon_css":
-        return "Icon CSS";
-      case "name_css":
-        return "Name CSS";
-      case "mirrored":
-        return "Mirror Card Layout";
-      case "alert_color":
-      case "sensor_color":
-      case "domain_color":
-        return this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
-      case "columns":
-        return this.hass!.localize(`ui.components.grid-size-picker.columns`);
-      case "appearance":
-        return (
-          this.hass!.localize(
-            `ui.panel.lovelace.editor.card.tile.appearance`
-          ) || "Appearance"
-        );
-      case "toggle_domains":
-        return this.hass!.localize(
-          `ui.panel.lovelace.editor.cardpicker.domain`
-        );
-      case "popup":
-        return "Popup";
-      case "popup_domains":
-        return (
-          "Popup" +
-          " " +
-          this.hass!.localize(`ui.panel.lovelace.editor.cardpicker.domain`)
-        );
-      case "extra_entities":
-        return (
-          this.hass!.localize(`ui.common.add`) +
-          " " +
-          this.hass!.localize(
-            `ui.panel.lovelace.editor.card.generic.entities`
-          ) +
-          ":"
-        );
-      case "hidden_entities":
-        return (
-          this.hass!.localize(`ui.common.hide`) +
-          " " +
-          this.hass!.localize(
-            `ui.panel.lovelace.editor.card.generic.entities`
-          ) +
-          ":"
-        );
-      case "hide_unavailable":
-        return (
-          this.hass!.localize(`ui.common.hide`) +
-          " " +
-          this.hass!.localize(`state.default.unavailable`)
-        );
-      case "show_active":
-        return (
-          this.hass!.localize(`ui.common.hide`) +
-          " " +
-          this.hass!.localize(
-            `ui.components.entity.entity-state-picker.state`
-          ) +
-          " " +
-          this.hass!.localize(
-            `component.binary_sensor.entity_component._.state.off`
-          )
-        );
-      case "edit_filters":
-        return (
-          this.hass!.localize(`ui.panel.lovelace.editor.common.edit`) +
-          " " +
-          this.hass!.localize(`ui.components.subpage-data-table.filters`)
-        );
-      case "label_filter":
-        return (
-          this.hass!.localize("ui.components.label-picker.label") +
-          " " +
-          this.hass!.localize("ui.components.related-filter-menu.filter")
-        );
-      case "cover_classes":
-        return this.hass!.localize(`component.cover.entity_component._.name`);
-      case "label":
-        return this.hass!.localize("ui.components.label-picker.label");
-      case "show_icon":
-      case "tap_action":
-      case "hold_action":
-      case "double_tap_action":
-      case "camera_view":
-        return this.hass!.localize(
-          `ui.panel.lovelace.editor.card.generic.${schema.name}`
-        );
-      default:
-        return this.hass!.localize(
-          `ui.panel.lovelace.editor.card.area.${schema.name}`
-        );
-    }
-  };
 
   private _editItem(
     ev: CustomEvent<number>,
@@ -1097,21 +949,21 @@ export class AreaCardPlusEditor
         .hass=${this.hass}
         .data=${data}
         .schema=${schema}
-        .computeLabel=${this._computeLabelCallback}
+        .computeLabel=${this.computeLabel}
         @value-changed=${this._valueChanged}
       ></ha-form>
 
       <ha-expansion-panel outlined class="main">
         <div slot="header" role="heading" aria-level="3">
           <ha-svg-icon .path=${mdiAlert}></ha-svg-icon>
-          ${this._computeLabelCallback({ name: "alert_classes" })}
+          ${this.computeLabel({ name: "alert_classes" })}
         </div>
         <div class="content">
           <ha-form
             .hass=${this.hass}
             .data=${data}
             .schema=${binaryschema}
-            .computeLabel=${this._computeLabelCallback}
+            .computeLabel=${this.computeLabel}
             @value-changed=${this._valueChanged}
           ></ha-form>
           <alert-items-editor
@@ -1128,14 +980,14 @@ export class AreaCardPlusEditor
       <ha-expansion-panel outlined class="main">
         <div slot="header" role="heading" aria-level="3">
           <ha-svg-icon .path=${mdiGarage}></ha-svg-icon>
-          ${this._computeLabelCallback({ name: "cover_classes" })}
+          ${this.computeLabel({ name: "cover_classes" })}
         </div>
         <div class="content">
           <ha-form
             .hass=${this.hass}
             .data=${data}
             .schema=${coverschema}
-            .computeLabel=${this._computeLabelCallback}
+            .computeLabel=${this.computeLabel}
             @value-changed=${this._valueChanged}
           ></ha-form>
           <cover-items-editor
@@ -1152,14 +1004,14 @@ export class AreaCardPlusEditor
       <ha-expansion-panel outlined class="main">
         <div slot="header" role="heading" aria-level="3">
           <ha-svg-icon .path=${mdiChartBoxMultiple}></ha-svg-icon>
-          ${this._computeLabelCallback({ name: "sensor_classes" })}
+          ${this.computeLabel({ name: "sensor_classes" })}
         </div>
         <div class="content">
           <ha-form
             .hass=${this.hass}
             .data=${data}
             .schema=${sensorschema}
-            .computeLabel=${this._computeLabelCallback}
+            .computeLabel=${this.computeLabel}
             @value-changed=${this._valueChanged}
           ></ha-form>
           <sensor-items-editor
@@ -1176,14 +1028,14 @@ export class AreaCardPlusEditor
       <ha-expansion-panel outlined class="main" .name="toggle_domains">
         <div slot="header" role="heading" aria-level="3">
           <ha-svg-icon .path=${mdiCube}></ha-svg-icon>
-          ${this._computeLabelCallback({ name: "toggle_domains" })}
+          ${this.computeLabel({ name: "toggle_domains" })}
         </div>
         <div class="content">
           <ha-form
             .hass=${this.hass}
             .data=${data}
             .schema=${toggleschema}
-            .computeLabel=${this._computeLabelCallback}
+            .computeLabel=${this.computeLabel}
             @value-changed=${this._valueChanged}
           ></ha-form>
           <domain-items-editor
@@ -1200,14 +1052,14 @@ export class AreaCardPlusEditor
       <ha-expansion-panel outlined class="main" .name="popup">
         <div slot="header" role="heading" aria-level="3">
           <ha-svg-icon .path=${mdiViewDashboardVariant}></ha-svg-icon>
-          ${this._computeLabelCallback({ name: "popup" })}
+          ${this.computeLabel({ name: "popup" })}
         </div>
         <div class="content">
           <ha-form
             .hass=${this.hass}
             .data=${data}
             .schema=${popupschema}
-            .computeLabel=${this._computeLabelCallback}
+            .computeLabel=${this.computeLabel}
             @value-changed=${this._valueChanged}
           ></ha-form>
         </div>

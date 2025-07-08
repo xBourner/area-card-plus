@@ -1,11 +1,4 @@
-import {
-  LitElement,
-  html,
-  css,
-  PropertyValues,
-  TemplateResult,
-  nothing,
-} from "lit";
+import { LitElement, html, css, PropertyValues, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { styleMap } from "lit/directives/style-map.js";
@@ -13,13 +6,11 @@ import memoizeOne from "memoize-one";
 import {
   HomeAssistant,
   LovelaceCard,
-  LovelaceCardConfig,
   computeDomain,
   formatNumber,
   hasAction,
   handleAction,
   ActionHandlerEvent,
-  ActionConfig,
 } from "custom-card-helpers";
 import type { HassEntity, UnsubscribeFunc } from "home-assistant-js-websocket";
 import {
@@ -36,188 +27,22 @@ import {
   actionHandler,
   LovelaceGridOptions,
   applyThemesOnElement,
+  CardConfig,
+  SENSOR_DOMAINS,
+  CLIMATE_DOMAINS,
+  TOGGLE_DOMAINS,
+  OTHER_DOMAINS,
+  COVER_DOMAINS,
+  ALERT_DOMAINS,
+  UNAVAILABLE_STATES,
+  STATES_OFF,
+  DEVICE_CLASSES,
+  DOMAIN_ICONS,
+  DEFAULT_ASPECT_RATIO,
+  DomainType,
 } from "./helpers";
+import { renderPopup } from "./popup";
 import parseAspectRatio from "./helpers";
-import { mdiClose } from "@mdi/js";
-import { parse } from "yaml";
-
-export interface CardConfig extends LovelaceCardConfig {
-  area: string;
-  navigation_path?: string;
-  columns?: number;
-  hold_action?: ActionConfig;
-  double_tap_action?: ActionConfig;
-}
-
-export interface VoiceCommandDialogParams {
-  pipeline_id: "last_used" | "preferred" | string;
-  start_listening?: boolean;
-}
-
-const UNAVAILABLE_STATES = ["unavailable", "unknown"];
-
-const STATES_OFF = [
-  "closed",
-  "locked",
-  "off",
-  "docked",
-  "idle",
-  "standby",
-  "paused",
-  "auto",
-  "not_home",
-  "disarmed",
-];
-
-const SENSOR_DOMAINS = ["sensor"];
-
-const ALERT_DOMAINS = ["binary_sensor"];
-
-const COVER_DOMAINS = ["cover"];
-
-export const CLIMATE_DOMAINS = ["climate"];
-
-export const TOGGLE_DOMAINS = [
-  "light",
-  "switch",
-  "fan",
-  "media_player",
-  "lock",
-  "vacuum",
-  "cover",
-];
-
-const OTHER_DOMAINS = ["camera"];
-
-export const domainOrder = [
-  "alarm_control_panel",
-  "siren",
-  "light",
-  "switch",
-  "media_player",
-  "climate",
-  "air_quality",
-  "humdifier",
-  "vacuum",
-  "lawn_mower",
-  "cover",
-  "lock",
-  "camera",
-  "fan",
-  "valve",
-  "water_heater",
-  "person",
-  "calendar",
-  "remote",
-  "scene",
-  "device_tracker",
-  "update",
-  "notifications",
-  "binary_sensor",
-  "sensor",
-  "script",
-  "tags",
-  "select",
-  "automation",
-  "button",
-  "number",
-  "conversation",
-  "assist_satellite",
-  "counter",
-  "event",
-  "group",
-  "image",
-  "image_processing",
-  "input_boolean",
-  "input_datetime",
-  "input_number",
-  "input_select",
-  "input_text",
-  "stt",
-  "sun",
-  "text",
-  "date",
-  "datetime",
-  "time",
-  "timer",
-  "todo",
-  "tts",
-  "wake_word",
-  "weather",
-  "zone",
-  "geo_location",
-];
-
-export const DEVICE_CLASSES = {
-  sensor: ["temperature", "humidity"],
-  binary_sensor: ["motion", "window"],
-  cover: ["garage"],
-};
-
-type DomainType =
-  | "light"
-  | "switch"
-  | "fan"
-  | "climate"
-  | "media_player"
-  | "lock"
-  | "vacuum"
-  | "cover"
-  | "binary_sensor";
-
-const DOMAIN_ICONS = {
-  light: { on: "mdi:lightbulb-multiple", off: "mdi:lightbulb-multiple-off" },
-  switch: { on: "mdi:toggle-switch", off: "mdi:toggle-switch-off" },
-  fan: { on: "mdi:fan", off: "mdi:fan-off" },
-  climate: { on: "mdi:fan", off: "mdi:fan-off" },
-  media_player: { on: "mdi:cast", off: "mdi:cast-off" },
-  lock: { on: "mdi:lock", off: "mdi:lock-open" },
-  vacuum: { on: "mdi:robot-vacuum", off: "mdi:robot-vacuum-off" },
-  binary_sensor: {
-    motion: "mdi:motion-sensor",
-    moisture: "mdi:water-alert",
-    window: "mdi:window-open",
-    door: "mdi:door-open",
-    lock: "mdi:lock",
-    presence: "mdi:home",
-    occupancy: "mdi:seat",
-    vibration: "mdi:vibrate",
-    opening: "mdi:shield-lock-open",
-    garage_door: "mdi:garage-open",
-    problem: "mdi:alert-circle",
-    smoke: "mdi:smoke-detector",
-    running: "mdi:play",
-    plug: "mdi:power-plug",
-    power: "mdi:power",
-    battery: "mdi:battery",
-    battery_charging: "mdi:battery-charging",
-    gas: "mdi:gas-cylinder",
-    carbon_monoxide: "mdi:molecule-co",
-    cold: "mdi:snowflake",
-    heat: "mdi:weather-sunny",
-    connectivity: "mdi:connection",
-    safety: "mdi:shield-alert",
-    sound: "mdi:volume-high",
-    update: "mdi:autorenew",
-    tamper: "mdi:shield-home",
-    light: "mdi:lightbulb",
-    moving: "mdi:car",
-  },
-  cover: {
-    garage: "mdi:garage",
-    door: "mdi:door-closed",
-    gate: "mdi:gate",
-    blind: "mdi:blinds",
-    curtain: "mdi:curtains-closed",
-    damper: "mdi:valve-closed",
-    awning: "mdi:awning-outline",
-    shutter: "mdi:window-shutter",
-    shade: "mdi:roller-shade-closed",
-    window: "mdi:window-closed",
-  },
-};
-
-export const DEFAULT_ASPECT_RATIO = "16:5";
 
 @customElement("area-card-plus")
 export class AreaCardPlus
@@ -234,15 +59,12 @@ export class AreaCardPlus
   }
 
   @property({ attribute: false }) public hass!: HomeAssistant;
-  @property({ attribute: false })
-  public layout?: string;
-
-  @state() private _config?: CardConfig;
-
-  @state() private _areas?: AreaRegistryEntry[];
-  @state() private _devices?: DeviceRegistryEntry[];
-  @state() private _entities?: EntityRegistryEntry[];
-  @state() private _showPopup: boolean = false;
+  @property({ attribute: false }) public layout?: string;
+  @state() public _config?: CardConfig;
+  @state() public _areas?: AreaRegistryEntry[];
+  @state() public _devices?: DeviceRegistryEntry[];
+  @state() public _entities?: EntityRegistryEntry[];
+  @state() public _showPopup: boolean = false;
 
   private _ratio: {
     w: number;
@@ -260,19 +82,21 @@ export class AreaCardPlus
       states: HomeAssistant["states"]
     ) => {
       const hiddenEntities = this._config?.hidden_entities || [];
-      const entitiesInArea = registryEntities
-        .filter(
-          (entry) =>
-            !entry.hidden_by &&
-            (entry.area_id
-              ? entry.area_id === areaId
-              : entry.device_id && devicesInArea.has(entry.device_id)) &&
-            (!this._config?.label ||
-              (entry.labels &&
-                entry.labels.some((l) => this._config?.label.includes(l))))
-        )
-        .map((entry) => entry.entity_id)
-        .filter((entity) => !hiddenEntities.includes(entity));
+      const entitiesInArea = registryEntities.reduce<string[]>((acc, entry) => {
+        if (
+          !entry.hidden_by &&
+          (entry.area_id
+            ? entry.area_id === areaId
+            : entry.device_id && devicesInArea.has(entry.device_id)) &&
+          (!this._config?.label ||
+            (entry.labels &&
+              entry.labels.some((l) => this._config?.label.includes(l)))) &&
+          !hiddenEntities.includes(entry.entity_id)
+        ) {
+          acc.push(entry.entity_id);
+        }
+        return acc;
+      }, []);
 
       const entitiesByDomain: { [domain: string]: HassEntity[] } = {};
 
@@ -313,120 +137,6 @@ export class AreaCardPlus
       }
 
       return entitiesByDomain;
-    }
-  );
-
-  private _entitiesByArea = memoizeOne(
-    (
-      areaId: string,
-      devicesInArea: Set<string>,
-      registryEntities: EntityRegistryEntry[],
-      states: HomeAssistant["states"]
-    ) => {
-      const popupDomains = this._config?.popup_domains || [];
-      const hiddenEntities = this._config?.hidden_entities || [];
-      const extraEntities = this._config?.extra_entities || [];
-
-      const entitiesInArea = registryEntities
-        .filter(
-          (entry) =>
-            !entry.hidden_by &&
-            (entry.area_id
-              ? entry.area_id === areaId
-              : entry.device_id && devicesInArea.has(entry.device_id)) &&
-            (!this._config?.label ||
-              (entry.labels &&
-                entry.labels.some((l) => this._config?.label.includes(l))))
-        )
-        .map((entry) => entry.entity_id)
-        .filter((entity) => !hiddenEntities.includes(entity))
-        .filter(
-          (entity) =>
-            !this._config?.hide_unavailable ||
-            !UNAVAILABLE_STATES.includes(states[entity]?.state)
-        );
-
-      const entitiesByArea: { [domain: string]: HassEntity[] } = {};
-
-      for (const entity of entitiesInArea) {
-        const domain = computeDomain(entity);
-
-        if (popupDomains.length > 0 && !popupDomains.includes(domain)) {
-          continue;
-        }
-
-        const stateObj: HassEntity | undefined = states[entity];
-        if (!stateObj) {
-          continue;
-        }
-
-        if (!(domain in entitiesByArea)) {
-          entitiesByArea[domain] = [];
-        }
-        entitiesByArea[domain].push(stateObj);
-      }
-
-      for (const extraEntity of extraEntities) {
-        const domain = computeDomain(extraEntity);
-
-        if (!(domain in entitiesByArea)) {
-          entitiesByArea[domain] = [];
-        }
-
-        const stateObj: HassEntity | undefined = states[extraEntity];
-        if (stateObj) {
-          entitiesByArea[domain].push(stateObj);
-        }
-      }
-
-      const sortOrder = popupDomains.length > 0 ? popupDomains : domainOrder;
-
-      const sortedEntitiesByArea = Object.entries(entitiesByArea)
-        .sort(([domainA], [domainB]) => {
-          const indexA = sortOrder.indexOf(domainA);
-          const indexB = sortOrder.indexOf(domainB);
-
-          const adjustedIndexA = indexA === -1 ? sortOrder.length : indexA;
-          const adjustedIndexB = indexB === -1 ? sortOrder.length : indexB;
-
-          return adjustedIndexA - adjustedIndexB;
-        })
-        .reduce((acc, [domain, entities]) => {
-          const sortedEntities = entities.sort((a, b) => {
-            const stateA = a.state;
-            const stateB = b.state;
-
-            const getGroup = (state: string) => {
-              if (
-                !STATES_OFF.includes(state) &&
-                !UNAVAILABLE_STATES.includes(state)
-              ) {
-                return 0;
-              } else if (
-                STATES_OFF.includes(state) &&
-                !UNAVAILABLE_STATES.includes(state)
-              ) {
-                return 1;
-              } else {
-                return 2;
-              }
-            };
-
-            const groupA = getGroup(stateA);
-            const groupB = getGroup(stateB);
-
-            if (groupA !== groupB) {
-              return groupA - groupB;
-            }
-
-            return a.entity_id.localeCompare(b.entity_id);
-          });
-
-          acc[domain] = sortedEntities;
-          return acc;
-        }, {} as { [domain: string]: HassEntity[] });
-
-      return sortedEntitiesByArea;
     }
   );
 
@@ -505,18 +215,19 @@ export class AreaCardPlus
     }
   }
 
-  private _area = memoizeOne(
+  public _area = memoizeOne(
     (areaId: string | undefined, areas: AreaRegistryEntry[]) =>
       areas.find((area) => area.area_id === areaId) || null
   );
 
-  private _devicesInArea = memoizeOne(
+  public _devicesInArea = memoizeOne(
     (areaId: string | undefined, devices: DeviceRegistryEntry[]) =>
       new Set(
         areaId
-          ? devices
-              .filter((device) => device.area_id === areaId)
-              .map((device) => device.id)
+          ? devices.reduce<string[]>((acc, device) => {
+              if (device.area_id === areaId) acc.push(device.id);
+              return acc;
+            }, [])
           : []
       )
   );
@@ -656,6 +367,7 @@ export class AreaCardPlus
       this._showPopup = true;
       this._selectedDomain = undefined;
       this._selectedDeviceClass = undefined;
+      this.requestUpdate();
       return;
     }
 
@@ -869,11 +581,23 @@ export class AreaCardPlus
       return nothing;
     }
 
-    if (this._config?.design === "V2") {
-      this.setAttribute("design", "V2");
-    } else {
-      this.removeAttribute("design");
-    }
+    const isV2Design = this._config?.design === "V2";
+    const v2Color =
+      isV2Design && this._config?.v2_color
+        ? this._calculateV2Color(this._config.v2_color)
+        : "var(--primary-color)";
+
+    const classes = {
+      mirrored: this._config.mirrored === true,
+    };
+
+    const designClasses = {
+      v2: this._config?.design === "V2",
+      row: this._config?.layout === "horizontal",
+    };
+    const designStyles = isV2Design ? { background: v2Color } : {};
+
+    const ignoreAspectRatio = this.layout === "grid";
 
     const entitiesByDomain = this._entitiesByDomain(
       this._config.area,
@@ -883,10 +607,6 @@ export class AreaCardPlus
       this.hass.states
     );
     const area = this._area(this._config.area, this._areas);
-
-    const classes = {
-      mirrored: this._config.mirrored === true,
-    };
 
     let cameraEntityId: string | undefined;
     if (this._config.show_camera && "camera" in entitiesByDomain) {
@@ -908,13 +628,28 @@ export class AreaCardPlus
       `;
     }
 
-    const ignoreAspectRatio = this.layout === "grid";
-    const layout = this._config.layout === "horizontal";
+    const iconStyles = {
+      color: this._config?.area_icon_color
+        ? `var(--${this._config.area_icon_color}-color)`
+        : "",
+      ...(this._config?.icon_css
+        ? this._config.icon_css
+            .split("\n")
+            .reduce((acc: Record<string, string>, line: string) => {
+              const trimmed = line.trim();
+              if (trimmed && trimmed.includes(":")) {
+                const [key, value] = trimmed.split(":");
+                acc[key.trim()] = value.trim().replace(";", "");
+              }
+              return acc;
+            }, {})
+        : {}),
+    };
 
     return html`
-      <ha-card class="${classMap(classes)}" style="${styleMap({
-      paddingBottom: ignoreAspectRatio ? "0" : "10em",
-    })}">
+      <ha-card class="${classMap(classes)}" style=${styleMap({
+      paddingBottom: ignoreAspectRatio ? "0" : "12em",
+    })}>
         ${
           (this._config.show_camera && cameraEntityId) ||
           ((this._config.show_icon === "image" ||
@@ -934,55 +669,43 @@ export class AreaCardPlus
               `
             : nothing
         }
-        <div class="content">
           <div class="${classMap({
             "icon-container": true,
-            row: layout,
-          })}">
-            ${
-              showIcon
-                ? html`
-                    <ha-icon
-                      style=${`${
-                        this._config?.area_icon_color
-                          ? `color: var(--${this._config.area_icon_color}-color);`
-                          : ""
-                      } 
-                        ${
-                          this._config?.icon_css
-                            ? this._config.icon_css
-                                .split("\n")
-                                .map((line: string) => line.trim())
-                                .filter(
-                                  (line: string) => line && line.includes(":")
-                                )
-                                .map((line: string) =>
-                                  line.endsWith(";") ? line : `${line};`
-                                )
-                                .join(" ")
-                            : ""
-                        }`}
-                      icon=${this._config.area_icon || area.icon}
-                    ></ha-icon>
-                  `
-                : nothing
-            }
+            ...designClasses,
+          })}"
+          style=${styleMap(designStyles)}>
+          ${
+            showIcon
+              ? html`
+                  <ha-icon
+                    style=${styleMap(iconStyles)}
+                    icon=${this._config.area_icon || area.icon}
+                  ></ha-icon>
+                `
+              : nothing
+          }
           </div>
-          <div class="container"             @action=${this._handleAction}
+          <div class="${classMap({
+            content: true,
+            ...designClasses,
+          })}"            @action=${this._handleAction}
             .actionHandler=${actionHandler({
               hasHold: hasAction(this._config.hold_action),
               hasDoubleClick: hasAction(this._config.double_tap_action),
             })}>
 
-          <div class="${classMap({
+        <div
+          class="${classMap({
             right: true,
-            row: layout,
-          })}">  
+            ...designClasses,
+          })}"
+          style=${styleMap(designStyles)}
+        >
 
 
                               <div class="${classMap({
                                 covers: true,
-                                row: layout,
+                                ...designClasses,
                               })}">
             ${COVER_DOMAINS.map((domain) => {
               if (!(domain in entitiesByDomain)) {
@@ -1017,14 +740,16 @@ export class AreaCardPlus
                         style=${customization?.css || this._config?.cover_css
                           ? (customization?.css || this._config?.cover_css)
                               .split("\n")
-                              .map((line: string) => line.trim())
-                              .filter(
-                                (line: string) => line && line.includes(":")
-                              )
-                              .map((line: string) =>
-                                line.endsWith(";") ? line : `${line};`
-                              )
-                              .join(" ")
+                              .reduce((acc: string, line: string) => {
+                                const trimmed = line.trim();
+                                if (trimmed && trimmed.includes(":")) {
+                                  acc += trimmed.endsWith(";")
+                                    ? trimmed
+                                    : `${trimmed};`;
+                                  acc += " ";
+                                }
+                                return acc;
+                              }, "")
                           : ""}
                         @action=${this._handleCoverAction(domain, deviceClass)}
                         .actionHandler=${actionHandler({
@@ -1043,14 +768,16 @@ export class AreaCardPlus
                           (customization?.icon_css
                             ? customization.icon_css
                                 .split("\n")
-                                .map((line: string) => line.trim())
-                                .filter(
-                                  (line: string) => line && line.includes(":")
-                                )
-                                .map((line: string) =>
-                                  line.endsWith(";") ? line : `${line};`
-                                )
-                                .join(" ")
+                                .reduce((acc: string, line: string) => {
+                                  const trimmed = line.trim();
+                                  if (trimmed && trimmed.includes(":")) {
+                                    acc += trimmed.endsWith(";")
+                                      ? trimmed
+                                      : `${trimmed};`;
+                                    acc += " ";
+                                  }
+                                  return acc;
+                                }, "")
                             : "")}"
                           .icon="${coverIcon
                             ? coverIcon
@@ -1076,7 +803,7 @@ export class AreaCardPlus
 
           <div class="${classMap({
             alerts: true,
-            row: layout,
+            ...designClasses,
           })}">
             ${ALERT_DOMAINS.map((domain) => {
               if (!(domain in entitiesByDomain)) {
@@ -1110,14 +837,16 @@ export class AreaCardPlus
                         style=${customization?.css || this._config?.alert_css
                           ? (customization?.css || this._config?.alert_css)
                               .split("\n")
-                              .map((line: string) => line.trim())
-                              .filter(
-                                (line: string) => line && line.includes(":")
-                              )
-                              .map((line: string) =>
-                                line.endsWith(";") ? line : `${line};`
-                              )
-                              .join(" ")
+                              .reduce((acc: string, line: string) => {
+                                const trimmed = line.trim();
+                                if (trimmed && trimmed.includes(":")) {
+                                  acc += trimmed.endsWith(";")
+                                    ? trimmed
+                                    : `${trimmed};`;
+                                  acc += " ";
+                                }
+                                return acc;
+                              }, "")
                           : ""}
                         @action=${this._handleAlertAction(domain, deviceClass)}
                         .actionHandler=${actionHandler({
@@ -1136,14 +865,16 @@ export class AreaCardPlus
                           (customization?.icon_css
                             ? customization.icon_css
                                 .split("\n")
-                                .map((line: string) => line.trim())
-                                .filter(
-                                  (line: string) => line && line.includes(":")
-                                )
-                                .map((line: string) =>
-                                  line.endsWith(";") ? line : `${line};`
-                                )
-                                .join(" ")
+                                .reduce((acc: string, line: string) => {
+                                  const trimmed = line.trim();
+                                  if (trimmed && trimmed.includes(":")) {
+                                    acc += trimmed.endsWith(";")
+                                      ? trimmed
+                                      : `${trimmed};`;
+                                    acc += " ";
+                                  }
+                                  return acc;
+                                }, "")
                             : "")}"
                           .icon="${alertIcon
                             ? alertIcon
@@ -1173,7 +904,7 @@ export class AreaCardPlus
 
           <div class="${classMap({
             buttons: true,
-            row: layout,
+            ...designClasses,
           })}">
             ${
               this._config.show_active
@@ -1208,14 +939,16 @@ export class AreaCardPlus
                           style=${customization?.css || this._config?.domain_css
                             ? (customization?.css || this._config?.domain_css)
                                 .split("\n")
-                                .map((line: string) => line.trim())
-                                .filter(
-                                  (line: string) => line && line.includes(":")
-                                )
-                                .map((line: string) =>
-                                  line.endsWith(";") ? line : `${line};`
-                                )
-                                .join(" ")
+                                .reduce((acc: string, line: string) => {
+                                  const trimmed = line.trim();
+                                  if (trimmed && trimmed.includes(":")) {
+                                    acc += trimmed.endsWith(";")
+                                      ? trimmed
+                                      : `${trimmed};`;
+                                    acc += " ";
+                                  }
+                                  return acc;
+                                }, "")
                             : ""}
                           @action=${this._handleDomainAction(domain)}
                           .actionHandler=${actionHandler({
@@ -1282,14 +1015,16 @@ export class AreaCardPlus
                         style=${customization?.css || this._config?.domain_css
                           ? (customization?.css || this._config?.domain_css)
                               .split("\n")
-                              .map((line: string) => line.trim())
-                              .filter(
-                                (line: string) => line && line.includes(":")
-                              )
-                              .map((line: string) =>
-                                line.endsWith(";") ? line : `${line};`
-                              )
-                              .join(" ")
+                              .reduce((acc: string, line: string) => {
+                                const trimmed = line.trim();
+                                if (trimmed && trimmed.includes(":")) {
+                                  acc += trimmed.endsWith(";")
+                                    ? trimmed
+                                    : `${trimmed};`;
+                                  acc += " ";
+                                }
+                                return acc;
+                              }, "")
                           : ""}
                         @action=${this._handleDomainAction(domain)}
                         .actionHandler=${actionHandler({
@@ -1309,14 +1044,16 @@ export class AreaCardPlus
                           (customization?.icon_css
                             ? customization.icon_css
                                 .split("\n")
-                                .map((line: string) => line.trim())
-                                .filter(
-                                  (line: string) => line && line.includes(":")
-                                )
-                                .map((line: string) =>
-                                  line.endsWith(";") ? line : `${line};`
-                                )
-                                .join(" ")
+                                .reduce((acc: string, line: string) => {
+                                  const trimmed = line.trim();
+                                  if (trimmed && trimmed.includes(":")) {
+                                    acc += trimmed.endsWith(";")
+                                      ? trimmed
+                                      : `${trimmed};`;
+                                    acc += " ";
+                                  }
+                                  return acc;
+                                }, "")
                             : "")}
                           class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
                           .domain=${domain}
@@ -1343,7 +1080,7 @@ export class AreaCardPlus
           </div>
           <div class="${classMap({
             bottom: true,
-            row: layout,
+            ...designClasses,
           })}">
               <div style=${`${
                 this._config?.area_name_color
@@ -1353,17 +1090,21 @@ export class AreaCardPlus
                 this._config?.name_css
                   ? this._config.name_css
                       .split("\n")
-                      .map((line: string) => line.trim())
-                      .filter((line: string) => line && line.includes(":"))
-                      .map((line: string) =>
-                        line.endsWith(";") ? line : `${line};`
-                      )
-                      .join(" ")
+                      .reduce((acc: string, line: string) => {
+                        const trimmed = line.trim();
+                        if (trimmed && trimmed.includes(":")) {
+                          acc += trimmed.endsWith(";")
+                            ? trimmed
+                            : `${trimmed};`;
+                          acc += " ";
+                        }
+                        return acc;
+                      }, "")
                   : ""
-              }`}
+              }`}"
               <div class="${classMap({
                 name: true,
-                row: layout,
+                ...designClasses,
                 "text-large": true,
                 on: true,
               })}"
@@ -1415,7 +1156,17 @@ export class AreaCardPlus
                       const sensorColor =
                         customization?.color || this._config?.sensor_color;
 
-                      return html`
+                      const icon = this._config?.show_sensor_icons
+                        ? html`
+                            <ha-domain-icon
+                              .hass=${this.hass}
+                              .domain=${domain}
+                              .deviceClass=${deviceClass}
+                            ></ha-domain-icon>
+                          `
+                        : null;
+
+                      const value = html`
                         <span
                           class="sensor-value"
                           @action=${this._handleSensorAction(
@@ -1429,34 +1180,44 @@ export class AreaCardPlus
                             ),
                           })}
                           style=${`
-                            ${
-                              sensorColor
-                                ? `color: var(--${sensorColor}-color);`
-                                : ""
-                            }
-                            ${
-                              customization?.css
-                                ? customization.css
-                                    .split("\n")
-                                    .map((line: string) => line.trim())
-                                    .filter(
-                                      (line: string) =>
-                                        line && line.includes(":")
-                                    )
-                                    .map((line: string) =>
-                                      line.endsWith(";") ? line : `${line};`
-                                    )
-                                    .join(" ")
-                                : ""
-                            }
-                          `}
+              ${sensorColor ? `color: var(--${sensorColor}-color);` : ""}
+              ${
+                customization?.css
+                  ? customization.css
+                      .split("\n")
+                      .reduce((acc: string, line: string) => {
+                        const trimmed = line.trim();
+                        if (trimmed && trimmed.includes(":")) {
+                          acc += trimmed.endsWith(";")
+                            ? trimmed
+                            : `${trimmed};`;
+                          acc += " ";
+                        }
+                        return acc;
+                      }, "")
+                  : ""
+              }
+            `}
                         >
-                          ${index > 0 ? " - " : ""}
+                          ${!this._config?.show_sensor_icons &&
+                          !this._config?.wrap_sensor_icons &&
+                          index > 0
+                            ? " - "
+                            : ""}
                           ${areaEntity
                             ? this.hass.formatEntityState(areaEntity)
                             : this._average(domain, deviceClass)}
                         </span>
                       `;
+
+                      // NUR wenn wrap_sensor_icons aktiv ist, pro Zeile ein div
+                      if (this._config?.wrap_sensor_icons) {
+                        return html`<div class="sensor-row">
+                          ${icon}${value}
+                        </div>`;
+                      }
+                      // Sonst nur Icon und Value zurückgeben (werden dann nebeneinander gerendert)
+                      return html`${icon}${value}`;
                     })
                     .filter((element) => element !== nothing);
 
@@ -1464,11 +1225,18 @@ export class AreaCardPlus
                     return nothing;
                   }
 
-                  return html`
-                    <div class="sensor text-medium off">${sensorElements}</div>
-                  `;
+                  // Wenn wrap_sensor_icons NICHT aktiv ist, alles in eine Zeile
+                  if (!this._config?.wrap_sensor_icons) {
+                    return html`<div class="sensor text-medium off">
+                      ${sensorElements}
+                    </div>`;
+                  }
+                  // Sonst: sensorElements enthalten schon die Zeilen
+                  return html`<div class="sensor text-medium off">
+                    ${sensorElements}
+                  </div>`;
                 })}
-              </div>
+</div>
             <div class="climate text-small off" >
             ${
               this._config?.toggle_domains?.includes("climate")
@@ -1536,15 +1304,16 @@ export class AreaCardPlus
             }
             </div>
           </div>
-          </div>
         </div>
-        ${(() => {
-          return this._showPopup ? this.renderPopup() : nothing;
-        })()}
+${this._showPopup ? renderPopup(this) : nothing}
         
         </div>
       </ha-card>
     `;
+  }
+
+  private _calculateV2Color(colorArray: number[]): string {
+    return `rgba(${colorArray.join(", ")})`;
   }
 
   protected updated(changedProps: PropertyValues): void {
@@ -1563,17 +1332,6 @@ export class AreaCardPlus
 
     const oldHass = changedProps.get("hass") as HomeAssistant | undefined;
     const oldConfig = changedProps.get("_config") as CardConfig | undefined;
-
-    const col = this._config.v2_color;
-    if (Array.isArray(col)) {
-      if (col.length === 3) {
-        const [r, g, b] = col;
-        this.style.setProperty("--v2-color", `rgb(${r}, ${g}, ${b})`);
-      } else if (col.length === 4) {
-        let [r, g, b, a] = col;
-        this.style.setProperty("--v2-color", `rgba(${r}, ${g}, ${b}, ${a})`);
-      }
-    }
 
     if (
       (changedProps.has("hass") &&
@@ -1626,58 +1384,6 @@ export class AreaCardPlus
     return "";
   }
 
-  private _getDomainName(domain: string, deviceClass?: string): string {
-    if (domain === "scene") {
-      return "Scene";
-    }
-
-    if (
-      domain === "binary_sensor" ||
-      domain === "sensor" ||
-      domain === "cover"
-    ) {
-      return deviceClass
-        ? this.hass!.localize(
-            `component.${domain}.entity_component.${deviceClass}.name`
-          )
-        : this.hass!.localize(`component.${domain}.entity_component._.name`);
-    }
-
-    return this.hass!.localize(`component.${domain}.entity_component._.name`);
-  }
-
-  createCard(cardConfig: { type: string; entity: string; [key: string]: any }) {
-    let cardElement: LovelaceCard;
-
-    if (cardConfig.type.startsWith("custom:")) {
-      const customType = cardConfig.type.replace("custom:", "");
-      cardElement = document.createElement(customType) as LovelaceCard;
-    } else {
-      cardElement = document.createElement(
-        `hui-${cardConfig.type}-card`
-      ) as LovelaceCard;
-    }
-
-    if (cardElement) {
-      cardElement.hass = this.hass;
-      cardElement.setConfig(cardConfig);
-      return cardElement;
-    }
-
-    return html`<p>Invalid Configuration for card type: ${cardConfig.type}</p>`;
-  }
-
-  private _closeDialog(): void {
-    this._showPopup = false;
-
-    const container = document.querySelector("home-assistant")?.shadowRoot;
-    const dialog = container?.querySelector("ha-dialog");
-
-    if (dialog && container?.contains(dialog)) {
-      container.removeChild(dialog);
-    }
-  }
-
   connectedCallback(): void {
     super.connectedCallback();
     this._updateIsMobile();
@@ -1693,539 +1399,237 @@ export class AreaCardPlus
     this._isMobile = window.innerWidth <= 768;
   }
 
-  private desktopStyles = `
-  .tile-container {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .domain-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-  }
-  .domain-group h4 {
-    margin: 0;
-    font-size: 1.2em;
-  }
-  .domain-entities {
-    display: grid;
-    grid-template-columns: repeat(var(--columns), 1fr);
-    gap: 4px;
-  }
-  .entity-card {
-    width: 22.5vw;
-  }
-  .dialog-header { 
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-    align-items: center;
-  }
-  .dialog-header ha-icon-button { 
-    margin-right: 10px;  
-  }
-  ha-dialog#more-info-dialog {
-    --mdc-dialog-max-width: calc(22.5vw * var(--columns) + 3vw);
-    overflow: hidden;
-  }
-`;
-
-  private mobileStyles = `
-  .tile-container {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  .domain-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-  }
-  .domain-group h4 {
-    margin: 0;
-    font-size: 1.2em;
-  }
-  .domain-entities {
-    display: grid;
-    grid-template-columns: 1fr !important;
-    gap: 4px;
-  }
-  .dialog-header { 
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-    align-items: center;
-  }    
-  .entity-card {
-    flex-basis: 100%;
-    width: 100% !important;
-    overflow: hidden;
-  }
-  ha-dialog#more-info-dialog {
-    --mdc-dialog-min-width: 96vw;
-    --mdc-dialog-max-width: 96vw;
-    --columns: 1;
-    max-width: 100%;
-    padding: 16px;
-    overflow: hidden;
-  }
-`;
-
-  private renderPopup(): TemplateResult {
-    const entitiesByArea = this._entitiesByArea(
-      this._config!.area,
-      this._devicesInArea(this._config!.area, this._devices!),
-      this._entities!,
-      this.hass.states
-    );
-
-    const area = this._area(this._config!.area, this._areas!);
-    let columns = this._config?.columns ? this._config.columns : 4;
-
-    const entitiesToRender: Record<string, HassEntity[]> = this
-      ._selectedDeviceClass
-      ? {
-          [this._selectedDomain]: (
-            entitiesByArea[this._selectedDomain] || []
-          ).filter(
-            (entity) =>
-              entity.attributes.device_class === this._selectedDeviceClass
-          ),
-        }
-      : this._selectedDomain
-      ? { [this._selectedDomain]: entitiesByArea[this._selectedDomain] || [] }
-      : entitiesByArea;
-
-    let maxEntityCount = 0;
-    Object.entries(entitiesToRender).forEach(([domain, entities]) => {
-      const entityCount = entities.length;
-      if (entityCount > maxEntityCount) {
-        maxEntityCount = entityCount;
-      }
-    });
-
-    if (maxEntityCount === 1) columns = 1;
-    else if (maxEntityCount === 2) columns = Math.min(columns, 2);
-    else if (maxEntityCount === 3) columns = Math.min(columns, 3);
-    else columns = Math.min(columns, 4);
-
-    this.style.setProperty("--columns", columns.toString());
-
-    const styleBlock = this._isMobile ? this.mobileStyles : this.desktopStyles;
-
-    return html`
-      <ha-dialog
-        id="more-info-dialog"
-        style="--columns: ${columns};"
-        open
-        @closed="${this._closeDialog}"
-      >
-        <style>
-          ${styleBlock}
-        </style>
-        <div class="dialog-header">
-          <ha-icon-button
-            slot="navigationIcon"
-            .path=${mdiClose}
-            @click=${this._closeDialog}
-            .label=${this.hass!.localize("ui.common.close")}
-          ></ha-icon-button>
-          <div slot="title">
-            <h3>${this._config?.area_name || area?.name}</h3>
-          </div>
-        </div>
-
-        <div class="tile-container">
-          ${Object.entries(entitiesToRender).map(
-            ([domain, entities]) => html`
-              <div class="domain-group">
-                <h4>
-                  ${domain === "binary_sensor" ||
-                  domain === "sensor" ||
-                  domain === "cover"
-                    ? this._getDomainName(domain, this._selectedDeviceClass)
-                    : this._getDomainName(domain)}
-                </h4>
-                <div class="domain-entities">
-                  ${entities.map((entity: HassEntity) => {
-                    const customization =
-                      this._config?.customization_popup?.find(
-                        (c: any) => c.type === domain
-                      );
-
-                    let cardType: string | undefined;
-                    let cardFeatures: Record<string, any> | undefined =
-                      undefined;
-
-                    if (customization?.card) {
-                      try {
-                        const parsedCard = parse(customization.card);
-                        cardType = parsedCard.type;
-                        const { type, ...restOfCard } = parsedCard;
-                        cardFeatures = restOfCard;
-                      } catch (e) {
-                        console.error("Error parsing card configuration:", e);
-                      }
-                    }
-
-                    const cardConfig = cardType
-                      ? {
-                          type: cardType,
-                          entity: entity.entity_id,
-                          ...cardFeatures,
-                        }
-                      : {
-                          type: "tile",
-                          entity: entity.entity_id,
-                          ...(domain === "alarm_control_panel" && {
-                            features: [
-                              {
-                                type: "alarm-modes",
-                                modes: [
-                                  "armed_home",
-                                  "armed_away",
-                                  "armed_night",
-                                  "armed_vacation",
-                                  "armed_custom_bypass",
-                                  "disarmed",
-                                ],
-                              },
-                            ],
-                          }),
-                          ...(domain === "light" && {
-                            features: [{ type: "light-brightness" }],
-                          }),
-                          ...(domain === "cover" && {
-                            features: [
-                              { type: "cover-open-close" },
-                              { type: "cover-position" },
-                            ],
-                          }),
-                          ...(domain === "vacuum" && {
-                            features: [
-                              {
-                                type: "vacuum-commands",
-                                commands: [
-                                  "start_pause",
-                                  "stop",
-                                  "clean_spot",
-                                  "locate",
-                                  "return_home",
-                                ],
-                              },
-                            ],
-                          }),
-                          ...(domain === "climate" && {
-                            features: [
-                              {
-                                type: "climate-hvac-modes",
-                                hvac_modes: [
-                                  "auto",
-                                  "heat_cool",
-                                  "heat",
-                                  "cool",
-                                  "dry",
-                                  "fan_only",
-                                  "off",
-                                ],
-                              },
-                            ],
-                          }),
-                          ...(domain === "media_player" && {
-                            features: [{ type: "media-player-volume-slider" }],
-                          }),
-                          ...(domain === "lock" && {
-                            features: [{ type: "lock-commands" }],
-                          }),
-                          ...(domain === "fan" && {
-                            features: [{ type: "fan-speed" }],
-                          }),
-                          ...(domain === "switch" && {
-                            features: [{ type: "toggle" }],
-                          }),
-                          ...(domain === "counter" && {
-                            features: [
-                              {
-                                type: "counter-actions",
-                                actions: ["increment", "decrement", "reset"],
-                              },
-                            ],
-                          }),
-                          ...(domain === "update" && {
-                            features: [
-                              { type: "update-actions", backup: "ask" },
-                            ],
-                          }),
-                        };
-
-                    return html`
-                      <div class="entity-card">
-                        ${this.createCard(cardConfig)}
-                      </div>
-                    `;
-                  })}
-                </div>
-              </div>
-            `
-          )}
-        </div>
-      </ha-dialog>
-    `;
-  }
-
   static get styles() {
-    return [
-      css`
-        ha-card {
-          overflow: hidden;
-          position: relative;
-          height: 100%;
+    return css`
+      ha-card {
+        overflow: hidden;
+        position: relative;
+        height: 100%;
+      }
+      hui-image {
+        position: absolute;
+        z-index: 0;
+        height: 100%;
+        width: 100%;
+      }
+      .sensors {
+        --mdc-icon-size: 20px;
+      }
+      .sensor-value {
+        vertical-align: middle;
+      }
+      .sensor-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+      }
+      .icon-container {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        color: var(--primary-color);
+      }
+      .icon-container.row {
+        top: 25%;
+      }
+      .icon-container.v2 {
+        top: 8px;
+        left: 8px;
+        border-radius: 50%;
+      }
+      .mirrored .icon-container {
+        left: unset;
+        right: 16px;
+      }
+      .content {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        cursor: pointer;
+      }
+      .content.row {
+        flex-direction: column;
+        justify-content: center;
+      }
+      .right {
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        align-items: flex-start;
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        gap: 7px;
+      }
+      .right.row {
+        top: unset;
+      }
+      .mirrored .right {
+        right: unset;
+        left: 8px;
+        flex-direction: row-reverse;
+      }
+      .alerts,
+      .covers {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-right: -3px;
+        gap: 2px;
+      }
+      .alerts.row,
+      .covers.row {
+        flex-direction: row-reverse;
+      }
+      .buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .buttons.row {
+        flex-direction: row-reverse;
+      }
+      .bottom {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        bottom: 8px;
+        left: 16px;
+      }
+      .bottom.row {
+        flex-direction: row;
+        left: calc(var(--row-size, 3) * 20px + 25px);
+        bottom: unset;
+        align-items: baseline;
+        gap: 5px;
+      }
+      .mirrored .bottom.row {
+        flex-direction: row-reverse;
+        right: calc(var(--row-size, 3) * 20px + 25px) !important;
+      }
+      .mirrored .bottom {
+        left: unset;
+        right: 16px;
+        text-align: end;
+        align-items: end;
+      }
+      .name {
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      .name.row {
+        margin-bottom: 0;
+      }
+      .icon-with-count {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        background: none;
+        border: solid 0.025rem rgba(var(--rgb-primary-text-color), 0.15);
+        padding: 1px;
+        border-radius: 5px;
+        --mdc-icon-size: 20px;
+      }
+      .icon-with-count > ha-state-icon,
+      .icon-with-count > span {
+        pointer-events: none;
+      }
+
+      .toggle-on {
+        color: var(--primary-text-color);
+      }
+      .toggle-off {
+        color: var(--secondary-text-color) !important;
+      }
+      .off {
+        color: var(--secondary-text-color);
+      }
+      .navigate {
+        cursor: pointer;
+      }
+      .hover:hover {
+        background-color: rgba(var(--rgb-primary-text-color), 0.15);
+      }
+      .text-small {
+        font-size: 0.9em;
+      }
+      .text-medium {
+        font-size: 1em;
+      }
+      .text-large {
+        font-size: 1.3em;
+      }
+      .v2 .covers {
+        flex-direction: row-reverse;
+      }
+      .mirrored .v2 .covers {
+        flex-direction: row;
+      }
+
+      .v2 .alerts {
+        flex-direction: row-reverse;
+      }
+      .mirrored .v2 .areas {
+        flex-direction: row;
+      }
+      .v2 .buttons {
+        flex-direction: row-reverse;
+      }
+      .mirrored .v2 .buttons {
+        flex-direction: row;
+      }
+      .mirrored .v2 .bottom {
+        right: 105px !important;
+        left: unset;
+      }
+      .v2 .right {
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+        padding: calc(var(--row-size, 3) * 3px) 8px;
+        top: unset;
+        min-height: 24px;
+      }
+      .v2 .bottom {
+        left: calc(var(--row-size, 3) * 15px + 55px);
+        top: calc(var(--row-size, 3) * 5px + 4px);
+        bottom: unset;
+      }
+      .v2 .bottom.row {
+        top: calc(var(--row-size, 3) * 8px + 12px);
+        left: calc(var(--row-size, 3) * 15px + 55px);
+      }
+      .v2 .name {
+        margin-bottom: calc(var(--row-size, 3) * 1.5px + 1px);
+      }
+      .v2 .name.row {
+        margin-bottom: 0px;
+      }
+
+      @supports (--row-size: 1) {
+        .icon-container ha-icon {
+          --mdc-icon-size: calc(var(--row-size, 3) * 20px);
         }
-        hui-image {
-          position: absolute;
-          z-index: 0;
-        }
-        .content {
+        .icon-container.v2 ha-icon {
+          --mdc-icon-size: calc(var(--row-size, 3) * 15px);
+          border-radius: 50%;
+          display: flex;
           padding: 16px;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          z-index: 1;
         }
-        .icon-container {
-          position: absolute;
-          top: 16px;
-          left: 16px;
-          color: var(--primary-color);
-        }
-        .icon-container.row {
-          top: 50%;
-          transform: translateY(-50%);
-        }
-        .mirrored .icon-container {
-          left: unset;
-          right: 16px;
-        }
-        @supports (--row-size: 1) {
-          .icon-container ha-icon {
-            --mdc-icon-size: calc(var(--row-size, 3) * 20px);
-          }
-        }
-        .container {
-          display: flex;
-          flex-direction: row;
-          justify-content: space-between;
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          cursor: pointer;
-        }
-        .right {
-          display: flex;
-          flex-direction: row;
-          justify-content: flex-end;
-          align-items: flex-start;
-          position: absolute;
-          top: 8px;
-          right: 8px;
-          gap: 7px;
-        }
-        .right.row {
-          top: 50%;
-          transform: translateY(-50%);
-        }
-        .mirrored .right {
-          right: unset;
-          left: 8px;
-          flex-direction: row-reverse;
-        }
-        .alerts,
-        .covers {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          margin-right: -3px;
-          gap: 2px;
-        }
-        .alerts.row,
-        .covers.row {
-          flex-direction: row-reverse;
-        }
-        .buttons {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-        .buttons.row {
-          flex-direction: row-reverse;
-        }
-        .bottom {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          position: absolute;
-          bottom: 8px;
-          left: 16px;
-        }
-        .bottom.row {
-          flex-direction: row;
-          left: calc(var(--row-size, 3) * 20px + 25px);
-          bottom: auto;
-          gap: 5px;
-          align-items: baseline;
-          top: 50%;
-          transform: translateY(-50%);
-        }
-        .mirrored .bottom.row {
-          flex-direction: row;
-          right: calc(var(--row-size, 3) * 20px + 25px) !important;
-          bottom: auto;
-          gap: 5px;
-          align-items: baseline;
-          top: 50%;
-          transform: translateY(-50%);
-        }
-        .mirrored .bottom {
-          left: unset;
-          right: 16px;
-          text-align: end;
-          align-items: end;
-        }
+      }
+
+      @media (max-width: 768px) {
         .name {
           font-weight: bold;
-          margin-bottom: 8px;
+          margin-bottom: 5px;
         }
-        .name.row {
-          margin-bottom: 0;
-        }
-        .icon-with-count {
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          background: none;
-          border: solid 0.025rem rgba(var(--rgb-primary-text-color), 0.15);
-          padding: 1px;
-          border-radius: 5px;
-          --mdc-icon-size: 20px;
-        }
-        .icon-with-count > ha-state-icon,
-        .icon-with-count > span {
-          pointer-events: none;
-        }
-
-        .toggle-on {
-          color: var(--primary-text-color);
-        }
-        .toggle-off {
-          color: var(--secondary-text-color) !important;
-        }
-        .off {
-          color: var(--secondary-text-color);
-        }
-        .navigate {
-          cursor: pointer;
-        }
-        .hover:hover {
-          background-color: rgba(var(--rgb-primary-text-color), 0.15);
-        }
-        .text-small {
-          font-size: 0.9em;
-        }
-        .text-medium {
-          font-size: 1em;
-        }
-        .text-large {
-          font-size: 1.3em;
-        }
-
-        @media (max-width: 768px) {
-          .name {
-            font-weight: bold;
-            margin-bottom: 5px;
-          }
-        }
-      `,
-      css`
-        /* V2-Design: Überschreibt viele der Standardstile */
-        :host([design="V2"]) .right {
-          bottom: 0px;
-          left: 0px;
-          right: 0px;
-          padding: 9px 8px;
-          top: unset;
-          background: var(--v2-color, var(--primary-color));
-          transform: unset;
-        }
-        :host([design="V2"]) .covers {
-          flex-direction: row-reverse;
-        }
-        :host([design="V2"]) .mirrored .covers {
-          flex-direction: row;
-        }
-        :host([design="V2"]) .icon-container {
-          top: 8px;
-          left: 8px;
-          transform: unset;
-        }
-        :host([design="V2"]) .alerts {
-          flex-direction: row-reverse;
-        }
-        :host([design="V2"]) .mirrored .areas {
-          flex-direction: row;
-        }
-        :host([design="V2"]) .buttons {
-          flex-direction: row-reverse;
-        }
-        :host([design="V2"]) .mirrored .buttons {
-          flex-direction: row;
-        }
-        :host([design="V2"]) .mirrored .bottom {
-          text-align: end;
-          align-items: end;
-          right: 105px !important;
-        }
-        :host([design="V2"]) .mirrored .bottom.row {
-          flex-direction: row-reverse;
-        }
-        @supports (--row-size: 1) {
-          :host([design="V2"]) .icon-container ha-icon {
-            --mdc-icon-size: calc(var(--row-size, 3) * 15px);
-            background: var(--v2-color, var(--primary-color));
-            border-radius: 50%;
-            display: flex;
-            padding: 16px;
-          }
-          :host([design="V2"]) .right {
-            bottom: 0px;
-            left: 0px;
-            right: 0px;
-            padding: calc(var(--row-size, 3) * 3px) 8px;
-            top: unset;
-            background: var(--v2-color, var(--primary-color));
-            transform: unset;
-            min-height: 24px;
-          }
-          :host([design="V2"]) .bottom {
-            left: calc(var(--row-size, 3) * 15px + 55px);
-            top: calc(var(--row-size, 3) * 5px + 4px);
-            bottom: unset;
-          }
-          :host([design="V2"]) .bottom.row {
-            top: calc(var(--row-size, 3) * 8px + 12px);
-            left: calc(var(--row-size, 3) * 15px + 55px);
-            transform: unset;
-          }
-          :host([design="V2"]) .name {
-            margin-bottom: calc(var(--row-size, 3) * 1.5px + 1px);
-          }
-        }
-      `,
-    ];
+      }
+    `;
   }
 }

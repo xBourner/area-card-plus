@@ -7,7 +7,7 @@ import {
   HomeAssistant,
   debounce,
   ActionConfig,
-  HASSDomEvent,
+  LovelaceCardConfig,
 } from "custom-card-helpers";
 import type { Connection, UnsubscribeFunc } from "home-assistant-js-websocket";
 import { createCollection } from "home-assistant-js-websocket";
@@ -15,7 +15,30 @@ import type { Store } from "home-assistant-js-websocket/dist/store";
 import type { PropertyValues, ReactiveElement } from "lit";
 import { property } from "lit/decorators.js";
 
-export interface SubElementConfig {
+export interface CardConfig extends LovelaceCardConfig {
+  area: string;
+  navigation_path?: string;
+  columns?: number;
+  hold_action?: ActionConfig;
+  double_tap_action?: ActionConfig;
+  show_sensor_icons?: boolean;
+}
+
+export interface SelectOption {
+  value: any;
+  label: string;
+  disabled?: boolean;
+}
+
+export interface Schema {
+  name: string;
+  selector?: any;
+  required?: boolean;
+  default?: any;
+  type?: string;
+}
+
+export interface SubElementEditor {
   index?: number;
   type?: string;
 }
@@ -85,6 +108,7 @@ export interface EntityRegistryEntry extends RegistryEntry {
   platform: string;
   config_entry_id: string | null;
   device_id: string | null;
+  entity_category: "config" | "diagnostic" | null;
   area_id: string | null;
   labels: string[];
   disabled_by: "user" | "device" | "integration" | "config_entry" | null;
@@ -873,3 +897,168 @@ export const applyThemesOnElement = (
   // Cache aktualisieren
   element.__themes.cacheKey = selected;
 };
+
+export const UNAVAILABLE_STATES = ["unavailable", "unknown"];
+
+export const STATES_OFF = [
+  "closed",
+  "locked",
+  "off",
+  "docked",
+  "idle",
+  "standby",
+  "paused",
+  "auto",
+  "not_home",
+  "disarmed",
+];
+
+export const SENSOR_DOMAINS = ["sensor"];
+
+export const ALERT_DOMAINS = ["binary_sensor"];
+
+export const COVER_DOMAINS = ["cover"];
+
+export const CLIMATE_DOMAINS = ["climate"];
+
+export const TOGGLE_DOMAINS = [
+  "light",
+  "switch",
+  "fan",
+  "media_player",
+  "lock",
+  "vacuum",
+  "cover",
+];
+
+export const OTHER_DOMAINS = ["camera"];
+
+export const domainOrder = [
+  "alarm_control_panel",
+  "siren",
+  "light",
+  "switch",
+  "media_player",
+  "climate",
+  "air_quality",
+  "humdifier",
+  "vacuum",
+  "lawn_mower",
+  "cover",
+  "lock",
+  "camera",
+  "fan",
+  "valve",
+  "water_heater",
+  "person",
+  "calendar",
+  "remote",
+  "scene",
+  "device_tracker",
+  "update",
+  "notifications",
+  "binary_sensor",
+  "sensor",
+  "script",
+  "tags",
+  "select",
+  "automation",
+  "button",
+  "number",
+  "conversation",
+  "assist_satellite",
+  "counter",
+  "event",
+  "group",
+  "image",
+  "image_processing",
+  "input_boolean",
+  "input_datetime",
+  "input_number",
+  "input_select",
+  "input_text",
+  "stt",
+  "sun",
+  "text",
+  "date",
+  "datetime",
+  "time",
+  "timer",
+  "todo",
+  "tts",
+  "wake_word",
+  "weather",
+  "zone",
+  "geo_location",
+];
+
+export const DEVICE_CLASSES = {
+  sensor: ["temperature", "humidity"],
+  binary_sensor: ["motion", "window"],
+  cover: ["garage"],
+};
+
+export type DomainType =
+  | "light"
+  | "switch"
+  | "fan"
+  | "climate"
+  | "media_player"
+  | "lock"
+  | "vacuum"
+  | "cover"
+  | "binary_sensor";
+
+export const DOMAIN_ICONS = {
+  light: { on: "mdi:lightbulb-multiple", off: "mdi:lightbulb-multiple-off" },
+  switch: { on: "mdi:toggle-switch", off: "mdi:toggle-switch-off" },
+  fan: { on: "mdi:fan", off: "mdi:fan-off" },
+  climate: { on: "mdi:fan", off: "mdi:fan-off" },
+  media_player: { on: "mdi:cast", off: "mdi:cast-off" },
+  lock: { on: "mdi:lock", off: "mdi:lock-open" },
+  vacuum: { on: "mdi:robot-vacuum", off: "mdi:robot-vacuum-off" },
+  binary_sensor: {
+    motion: "mdi:motion-sensor",
+    moisture: "mdi:water-alert",
+    window: "mdi:window-open",
+    door: "mdi:door-open",
+    lock: "mdi:lock",
+    presence: "mdi:home",
+    occupancy: "mdi:seat",
+    vibration: "mdi:vibrate",
+    opening: "mdi:shield-lock-open",
+    garage_door: "mdi:garage-open",
+    problem: "mdi:alert-circle",
+    smoke: "mdi:smoke-detector",
+    running: "mdi:play",
+    plug: "mdi:power-plug",
+    power: "mdi:power",
+    battery: "mdi:battery",
+    battery_charging: "mdi:battery-charging",
+    gas: "mdi:gas-cylinder",
+    carbon_monoxide: "mdi:molecule-co",
+    cold: "mdi:snowflake",
+    heat: "mdi:weather-sunny",
+    connectivity: "mdi:connection",
+    safety: "mdi:shield-alert",
+    sound: "mdi:volume-high",
+    update: "mdi:autorenew",
+    tamper: "mdi:shield-home",
+    light: "mdi:lightbulb",
+    moving: "mdi:car",
+  },
+  cover: {
+    garage: "mdi:garage",
+    door: "mdi:door-closed",
+    gate: "mdi:gate",
+    blind: "mdi:blinds",
+    curtain: "mdi:curtains-closed",
+    damper: "mdi:valve-closed",
+    awning: "mdi:awning-outline",
+    shutter: "mdi:window-shutter",
+    shade: "mdi:roller-shade-closed",
+    window: "mdi:window-closed",
+  },
+};
+
+export const DEFAULT_ASPECT_RATIO = "16:5";

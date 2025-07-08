@@ -5,8 +5,7 @@ import { customElement, property } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import { css, CSSResult, nothing } from "lit";
 import { mdiClose, mdiPencil } from "@mdi/js";
-import { fireEvent } from "./helpers";
-import { SelectOption } from "./editor";
+import { fireEvent, SelectOption } from "./helpers";
 
 abstract class BaseItemsEditor extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;

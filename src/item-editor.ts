@@ -6,7 +6,6 @@ import {
   LovelaceCardConfig,
 } from "custom-card-helpers";
 import { Settings } from "./helpers";
-import { CardConfig } from "./editor";
 import memoizeOne from "memoize-one";
 
 interface Schema {
