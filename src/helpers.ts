@@ -902,7 +902,7 @@ export const UNAVAILABLE_STATES = ["unavailable", "unknown"];
 
 export const STATES_OFF = [
   "closed",
-  "locked",
+  "unlocked",
   "off",
   "docked",
   "idle",
@@ -1015,7 +1015,7 @@ export const DOMAIN_ICONS = {
   fan: { on: "mdi:fan", off: "mdi:fan-off" },
   climate: { on: "mdi:fan", off: "mdi:fan-off" },
   media_player: { on: "mdi:cast", off: "mdi:cast-off" },
-  lock: { on: "mdi:lock", off: "mdi:lock-open" },
+  lock: { on: "mdi:lock", off: "mdi:lock-open-variant" },
   vacuum: { on: "mdi:robot-vacuum", off: "mdi:robot-vacuum-off" },
   binary_sensor: {
     motion: "mdi:motion-sensor",
