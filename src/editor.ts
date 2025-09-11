@@ -18,12 +18,11 @@ import {
   SelectOption,
   CardConfig,
   Schema,
-} from "./helpers";
-import {
   DEVICE_CLASSES,
   TOGGLE_DOMAINS,
   CLIMATE_DOMAINS,
   domainOrder,
+  DOMAIN_ICONS,
 } from "./helpers";
 import {
   mdiAlert,
@@ -31,6 +30,8 @@ import {
   mdiChartBoxMultiple,
   mdiCube,
   mdiViewDashboardVariant,
+  mdiEye,
+  mdiEyeOff,
 } from "@mdi/js";
 import "./items-editor";
 import "./item-editor";
@@ -53,7 +54,6 @@ export class AreaCardPlusEditor
     undefined;
   @state() private _subElementEditorSensor: SubElementEditor | undefined =
     undefined;
-  //   @state() private _subElementEditorPopup: SubElementEditor | undefined = undefined;
 
   private computeLabel = memoizeOne((schema: Schema): string => {
     return computeLabelCallback(this.hass, schema);
@@ -257,68 +257,68 @@ export class AreaCardPlusEditor
   ]);
 
   private _popupschema = memoizeOne(
-    (allDomains: SelectOption[], allEntities: SelectOption[]) => [
-      {
-        name: "columns",
-        selector: { number: { min: 1, max: 4, mode: "box" } },
-      },
-      {
-        name: "popup_domains",
-        selector: {
-          select: {
-            reorder: true,
-            multiple: true,
-            custom_value: true,
-            options: allDomains,
+    (allDomains: SelectOption[], allEntities: SelectOption[]) => {
+      const name = this.computeLabel({ name: "name" });
+      const state = this.computeLabel({ name: "state" });
+      return [
+        {
+          name: "columns",
+          selector: { number: { min: 1, max: 4, mode: "box" } },
+        },
+        {
+          name: "",
+          type: "grid",
+          schema: [
+            {
+              name: "ungroup_areas",
+              selector: { boolean: {} },
+            },
+            { name: "hide_unavailable", selector: { boolean: {} } },
+          ],
+        },
+        {
+          name: "popup_sort",
+          selector: {
+            select: {
+              options: [
+                { value: "name", label: name },
+                { value: "state", label: state },
+              ],
+            },
           },
         },
-      },
-      {
-        name: "edit_filters",
-        flatten: true,
-        type: "expandable",
-        icon: "mdi:eye-plus",
-        schema: [{ name: "label", selector: { label: { multiple: true } } }],
-      },
-      {
-        name: "hidden_entities",
-        flatten: true,
-        type: "expandable",
-        icon: "mdi:eye-off",
-        schema: [
-          {
-            name: "category_filter",
-            selector: {
-              select: {
-                options: ["config", "diagnostic", "config+diagnostic"],
-                mode: "dropdown",
-              },
+        {
+          name: "popup_domains",
+          selector: {
+            select: {
+              reorder: true,
+              multiple: true,
+              custom_value: true,
+              options: allDomains,
             },
           },
-
-          {
-            name: "hidden_entities",
-            selector: {
-              select: {
-                reorder: true,
-                multiple: true,
-                options: allEntities,
-              },
+        },
+        {
+          name: "edit_filters",
+          flatten: true,
+          type: "expandable",
+          icon: "mdi:eye-plus",
+          schema: [{ name: "label", selector: { label: { multiple: true } } }],
+        },
+        {
+          name: "extra_entities",
+          flatten: true,
+          type: "expandable",
+          icon: "mdi:eye-plus",
+          schema: [
+            {
+              name: "extra_entities",
+              selector: { entity: { multiple: true } },
             },
-          },
-        ],
-      },
-      {
-        name: "extra_entities",
-        flatten: true,
-        type: "expandable",
-        icon: "mdi:eye-plus",
-        schema: [
-          { name: "extra_entities", selector: { entity: { multiple: true } } },
-        ],
-      },
-      { name: "hide_unavailable", selector: { boolean: {} } },
-    ]
+          ],
+        },
+      ];
+    }
   );
 
   protected async firstUpdated(): Promise<void> {
@@ -482,7 +482,6 @@ export class AreaCardPlusEditor
       customization_alert: config.customization_alert || [],
       customization_cover: config.customization_cover || [],
       customization_sensor: config.customization_sensor || [],
-      //    customization_popup: config.customization_popup || [],
     };
   }
 
@@ -534,7 +533,11 @@ export class AreaCardPlusEditor
           (a, b) => domainOrder.indexOf(a) - domainOrder.indexOf(b)
         );
 
-        this._config.toggle_domains = [...sortedToggleDomains];
+        // Exclude scene and script from being written into the config
+        // while keeping them available in the system
+        this._config.toggle_domains = [
+          ...sortedToggleDomains.filter((d) => d !== "scene" && d !== "script"),
+        ];
         this._config.alert_classes = [...possibleAlertClasses];
         this._config.cover_classes = [...possibleCoverClasses];
         this._config.popup_domains = [...sortedDomains];
@@ -542,6 +545,25 @@ export class AreaCardPlusEditor
         this._config.customization_alert = [];
         this._config.customization_cover = [];
         this._config.customization_sensor = [];
+
+        // Recompute entity options for the new area
+        this._updateEntityOptions();
+
+        // Adjust hidden_entities to only keep entities that belong to the new area
+        if (Array.isArray(this._config.hidden_entities)) {
+          const currentHidden = this._config.hidden_entities as string[];
+          // _hiddenEntitiesByDomain already filters hidden entities by area/labels/floors
+          const allowed = Object.values(this._hiddenEntitiesByDomain()).flat();
+          const newHidden = currentHidden.filter((id) => allowed.includes(id));
+          if (newHidden.length !== currentHidden.length) {
+            this._config = {
+              ...(this._config || ({} as any)),
+              hidden_entities: newHidden,
+            } as CardConfig;
+            // persist change
+            fireEvent(this, "config-changed", { config: { ...this._config } });
+          }
+        }
 
         this.requestUpdate();
       }
@@ -603,6 +625,32 @@ export class AreaCardPlusEditor
     );
   }
 
+  private _isHiddenEntity(entity_id: string): boolean {
+    const list = this._config?.hidden_entities ?? [];
+    return Array.isArray(list) && list.includes(entity_id);
+  }
+
+  private _toggleEntityHidden = (entity_id: string) => {
+    const current = new Set(this._config?.hidden_entities ?? []);
+    if (current.has(entity_id)) current.delete(entity_id);
+    else current.add(entity_id);
+    const hidden_entities = Array.from(current);
+    this._config = {
+      ...(this._config || ({} as any)),
+      hidden_entities,
+    } as CardConfig;
+    fireEvent(this, "config-changed", { config: { ...this._config } });
+  };
+
+  private _hiddenCategoryChanged(ev: CustomEvent) {
+    const val = ev.detail?.value?.category_filter;
+    this._config = {
+      ...(this._config || ({} as any)),
+      category_filter: val,
+    } as CardConfig;
+    fireEvent(this, "config-changed", { config: { ...this._config } });
+  }
+
   private _editItem(
     ev: CustomEvent<number>,
     editorKey: "Domain" | "Alert" | "Cover" | "Sensor" //| "Popup"
@@ -632,11 +680,6 @@ export class AreaCardPlusEditor
     this._editItem(ev, "Sensor");
   }
 
-  /*
-  private _edit_itemPopup(ev: CustomEvent<number>): void {
-    this._editItem(ev, "Popup");
-  }
-*/
   private _customizationChanged(
     ev: CustomEvent<Settings[]>,
     customizationKey: "domain" | "alert" | "cover" | "sensor" //| "popup"
@@ -669,11 +712,6 @@ export class AreaCardPlusEditor
     this._customizationChanged(ev, "sensor");
   }
 
-  /*
-  private _customizationChangedPopup(ev: CustomEvent<Settings[]>): void {
-    this._customizationChanged(ev, "popup");
-  }
-*/
   private _renderSubElementEditor(
     editorKey: "domain" | "alert" | "cover" | "sensor",
     goBackHandler: () => void,
@@ -773,15 +811,7 @@ export class AreaCardPlusEditor
       this._itemChangedSensor
     );
   }
-  /*
-  private _renderSubElementEditorPopup() {
-    return this._renderSubElementEditor(
-      "popup",
-      this._goBackPopup,
-      this._itemChangedPopup
-    );
-  }
-*/
+
   private _goBackDomain(): void {
     this._subElementEditorDomain = undefined;
   }
@@ -798,10 +828,6 @@ export class AreaCardPlusEditor
     this._subElementEditorSensor = undefined;
   }
 
-  /*  private _goBackPopup(): void {
-    this._subElementEditorPopup = undefined;
-  }
-*/
   private _itemChanged(
     ev: CustomEvent<Settings>,
     editorTarget: { index?: number } | undefined,
@@ -810,7 +836,6 @@ export class AreaCardPlusEditor
       | "customization_alert"
       | "customization_cover"
       | "customization_sensor"
-    //  | "customization_popup"
   ): void {
     ev.stopPropagation();
     if (!this._config || !this.hass) {
@@ -842,11 +867,6 @@ export class AreaCardPlusEditor
     this._itemChanged(ev, this._subElementEditorSensor, "customization_sensor");
   }
 
-  /*
-  private _itemChangedPopup(ev: CustomEvent<Settings>): void {
-    this._itemChanged(ev, this._subElementEditorPopup, "customization_popup");
-  }
-*/
   public get toggleSelectOptions(): SelectOption[] {
     return this._buildToggleOptions(
       this._toggleDomainsForArea(this._config!.area || ""),
@@ -889,6 +909,181 @@ export class AreaCardPlusEditor
 
   public get entityOptions(): SelectOption[] {
     return this._entityOptions;
+  }
+
+  private _domainIcon(
+    domain: string,
+    state: string = "on",
+    deviceClass?: string
+  ): string {
+    const icons: any = DOMAIN_ICONS as any;
+    if (domain in icons) {
+      const def = icons[domain];
+      if (typeof def === "string") return def;
+      if (deviceClass && def[deviceClass])
+        return (
+          def[deviceClass][state === "off" ? "off" : "on"] || def[deviceClass]
+        );
+      return def[state === "off" ? "off" : "on"] || Object.values(def)[0];
+    }
+    return "mdi:help-circle";
+  }
+
+  private _groupAllEntitiesByDomain(): Array<{
+    domain: string;
+    entities: string[];
+  }> {
+    // Build visible set from the already area-filtered entityOptions
+    const visibleMap: Record<string, string[]> = {};
+    const ids = (this.entityOptions || []).map((o) => o.value);
+    for (const id of ids) {
+      const d = computeDomain(id);
+      if (!visibleMap[d]) visibleMap[d] = [];
+      visibleMap[d].push(id);
+    }
+
+    // Hidden entities by domain (already filters by area/labels/floors)
+    const hidden = this._hiddenEntitiesByDomain();
+
+    // Combine domains from visible (entityOptions) and hidden (but hidden is already area-filtered)
+    const domains = Array.from(
+      new Set([...Object.keys(visibleMap), ...Object.keys(hidden)])
+    );
+
+    const states = this.hass?.states || {};
+    const cmpByFriendly = (this as any).compareByFriendlyName
+      ? (this as any).compareByFriendlyName(states, this.hass!.locale.language)
+      : (a: string, b: string) => a.localeCompare(b);
+
+    return domains
+      .sort((a, b) => a.localeCompare(b))
+      .map((domain) => {
+        const merged = new Set<string>([
+          ...(visibleMap[domain] || []),
+          ...(hidden[domain] || []),
+        ]);
+        return { domain, entities: Array.from(merged).sort(cmpByFriendly) };
+      });
+  }
+
+  private _domainLabel(domain: string): string {
+    return (
+      this.hass?.localize?.(`component.${domain}.entity_component._.name`) ||
+      domain
+    );
+  }
+
+  private _getDeviceClassLabel(domain: string, deviceClass: string): string {
+    if (!deviceClass || deviceClass === "other")
+      return (
+        this.hass.localize("ui.dialogs.helper_settings.generic.other") ??
+        "Other"
+      );
+    const key = `ui.dialogs.entity_registry.editor.device_classes.${domain}.${deviceClass}`;
+    return this.hass.localize(key) || deviceClass;
+  }
+
+  private _groupByDeviceClass(domain: string, entities: string[]) {
+    const states = this.hass?.states || {};
+    const map: Record<string, string[]> = {};
+    for (const id of entities) {
+      const dc = (states[id]?.attributes?.device_class as string) || "";
+      if (!dc) continue;
+      if (!map[dc]) map[dc] = [];
+      map[dc].push(id);
+    }
+    const cmpByFriendly = (this as any).compareByFriendlyName
+      ? (this as any).compareByFriendlyName(states, this.hass!.locale.language)
+      : (a: string, b: string) => a.localeCompare(b);
+    const deviceClasses = Object.keys(map).sort((a, b) => a.localeCompare(b));
+    return deviceClasses.map((dc) => ({
+      deviceClass: dc,
+      label: this._getDeviceClassLabel(domain, dc),
+      entities: map[dc].slice().sort(cmpByFriendly),
+    }));
+  }
+
+  private _hiddenEntitiesByDomain(): Record<string, string[]> {
+    const res: Record<string, string[]> = {};
+    const hidden = Array.isArray(this._config?.hidden_entities)
+      ? (this._config!.hidden_entities as string[])
+      : [];
+    if (hidden.length === 0) return res;
+
+    const entitiesReg = (this.hass as any)?.entities || {};
+    const devices = (this.hass as any)?.devices || {};
+    const areasArrAll = this.hass?.areas ? Object.values(this.hass.areas) : [];
+
+    const areaFilter = this._config?.area;
+    const floorFilter = this._config?.floor;
+    const labelFilter = this._config?.label;
+
+    const areasSel = areaFilter
+      ? Array.isArray(areaFilter)
+        ? areaFilter
+        : [areaFilter]
+      : [];
+    const floorsSel = floorFilter
+      ? Array.isArray(floorFilter)
+        ? floorFilter
+        : [floorFilter]
+      : [];
+    const labelsSel = labelFilter
+      ? Array.isArray(labelFilter)
+        ? labelFilter
+        : [labelFilter]
+      : [];
+
+    for (const id of hidden) {
+      const domain = computeDomain(id);
+      // keep domains even if not in popup list
+      const reg = (entitiesReg as any)[id];
+      const dev = reg?.device_id ? (devices as any)[reg.device_id] : undefined;
+
+      const hasAnyArea = reg?.area_id != null || dev?.area_id != null;
+      if (!hasAnyArea) continue;
+
+      if (labelsSel.length) {
+        const ok =
+          (Array.isArray(reg?.labels) &&
+            reg.labels.some((l: string) => labelsSel.includes(l))) ||
+          (Array.isArray(dev?.labels) &&
+            dev.labels.some((l: string) => labelsSel.includes(l)));
+        if (!ok) continue;
+      }
+
+      if (areasSel.length) {
+        const ok =
+          (reg?.area_id && areasSel.includes(reg.area_id)) ||
+          (dev?.area_id && areasSel.includes(dev.area_id));
+        if (!ok) continue;
+      }
+
+      if (floorsSel.length) {
+        const regAreaOk =
+          reg?.area_id &&
+          areasArrAll.some(
+            (a) =>
+              a.area_id === reg.area_id &&
+              a.floor_id &&
+              floorsSel.includes(a.floor_id as any)
+          );
+        const devAreaOk =
+          dev?.area_id &&
+          areasArrAll.some(
+            (a) =>
+              a.area_id === dev.area_id &&
+              a.floor_id &&
+              floorsSel.includes(a.floor_id as any)
+          );
+        if (!regAreaOk && !devAreaOk) continue;
+      }
+
+      if (!res[domain]) res[domain] = [];
+      res[domain].push(id);
+    }
+
+    return res;
   }
 
   protected render() {
@@ -942,7 +1137,6 @@ export class AreaCardPlusEditor
     if (this._subElementEditorCover) return this._renderSubElementEditorCover();
     if (this._subElementEditorSensor)
       return this._renderSubElementEditorSensor();
-    //    if (this._subElementEditorPopup) return this._renderSubElementEditorPopup();
 
     return html`
       <ha-form
@@ -958,10 +1152,6 @@ export class AreaCardPlusEditor
           <ha-svg-icon .path=${mdiAlert}></ha-svg-icon>
           ${this.computeLabel({ name: "alert_classes" })}
         </div>
-        <div class="content">
-          <ha-form
-            .hass=${this.hass}
-            .data=${data}
             .schema=${binaryschema}
             .computeLabel=${this.computeLabel}
             @value-changed=${this._valueChanged}
@@ -1055,7 +1245,7 @@ export class AreaCardPlusEditor
           ${this.computeLabel({ name: "popup" })}
         </div>
         <div class="content">
-          <ha-form
+          <ha-form             
             .hass=${this.hass}
             .data=${data}
             .schema=${popupschema}
@@ -1063,24 +1253,119 @@ export class AreaCardPlusEditor
             @value-changed=${this._valueChanged}
           ></ha-form>
         </div>
-      </ha-expansion-panel>
+
+        <ha-expansion-panel outlined class="main">
+          <div slot="header" role="heading" aria-level="3">
+            <ha-svg-icon .path=${mdiEyeOff}></ha-svg-icon>
+            ${this.computeLabel({ name: "hidden_entities" })}
+          </div>
+          <div class="content">
+            <!-- Category filter selector for hidden entities -->
+            <ha-form
+              .hass=${this.hass}
+              .data=${{ category_filter: this._config?.category_filter }}
+              .schema=${[
+                {
+                  name: "category_filter",
+                  selector: {
+                    select: {
+                      options: ["config", "diagnostic", "config+diagnostic"],
+                      mode: "dropdown",
+                    },
+                  },
+                },
+              ]}
+              .computeLabel=${this.computeLabel}
+              @value-changed=${(ev: CustomEvent) =>
+                this._hiddenCategoryChanged(ev)}
+            ></ha-form>
+            ${this._groupAllEntitiesByDomain().map(
+              (group) => html`
+                <ha-expansion-panel outlined class="domain-panel">
+                  <div slot="header" class="domain-header">
+                    <ha-icon
+                      .icon=${this._domainIcon(group.domain, "on")}
+                    ></ha-icon>
+                    <span class="domain-title"
+                      >${this._domainLabel(group.domain)}</span
+                    >
+                  </div>
+                  <div class="content">
+                    ${["binary_sensor", "cover"].includes(group.domain)
+                      ? this._groupByDeviceClass(
+                          group.domain,
+                          group.entities
+                        ).map(
+                          (sub) => html`
+                            <ha-expansion-panel outlined class="domain-panel">
+                              <div slot="header" class="dc-header">
+                                <ha-icon
+                                  .icon=${this._domainIcon(
+                                    group.domain,
+                                    "on",
+                                    sub.deviceClass
+                                  )}
+                                ></ha-icon>
+                                <span class="dc-title">${sub.label}</span>
+                              </div>
+                              <div class="content">
+                                ${sub.entities.map(
+                                  (id) => html`
+                                    <div class="entity-row">
+                                      <span class="entity-name">
+                                        ${this.hass.states[id]?.attributes
+                                          ?.friendly_name || id}
+                                      </span>
+                                      <ha-icon-button
+                                        .path=${this._isHiddenEntity(id)
+                                          ? mdiEye
+                                          : mdiEyeOff}
+                                        .label=${this._isHiddenEntity(id)
+                                          ? this.hass.localize(
+                                              "ui.common.show"
+                                            ) ?? "Show"
+                                          : this.hass.localize(
+                                              "ui.common.hide"
+                                            ) ?? "Hide"}
+                                        @click=${() =>
+                                          this._toggleEntityHidden(id)}
+                                      ></ha-icon-button>
+                                    </div>
+                                  `
+                                )}
+                              </div>
+                            </ha-expansion-panel>
+                          `
+                        )
+                      : group.entities.map(
+                          (id) => html`
+                            <div class="entity-row">
+                              <span class="entity-name">
+                                ${this.hass.states[id]?.attributes
+                                  ?.friendly_name || id}
+                              </span>
+                              <ha-icon-button
+                                .path=${this._isHiddenEntity(id)
+                                  ? mdiEye
+                                  : mdiEyeOff}
+                                .label=${this._isHiddenEntity(id)
+                                  ? this.hass.localize("ui.common.show") ??
+                                    "Show"
+                                  : this.hass.localize("ui.common.hide") ??
+                                    "Hide"}
+                                @click=${() => this._toggleEntityHidden(id)}
+                              ></ha-icon-button>
+                            </div>
+                          `
+                        )}
+                  </div>
+                </ha-expansion-panel>
+              `
+            )}
+          </div>
+        </ha-expansion-panel>
     `;
   }
-
-  /*
-
-<!--
-          <popup-items-editor
-            .hass=${this.hass}
-            .customization_popup=${this._config.customization_popup}
-            .SelectOptions=${this.AllSelectOptions}
-            @edit-item=${this._edit_itemPopup}
-            @config-changed=${this._customizationChangedPopup}
-          >
-          </popup-items-editor>  
-          
--->    
-  */
 
   static styles = css`
     :host {
@@ -1115,6 +1400,38 @@ export class AreaCardPlusEditor
     }
     .header {
       margin-bottom: 0.5em;
+    }
+    .entity-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+    }
+    .entity-name {
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .domain-panel {
+      margin: 12px 0;
+    }
+    .domain-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .domain-header ha-icon {
+      --mdc-icon-size: 20px;
+    }
+    .dc-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dc-header ha-icon {
+      --mdc-icon-size: 20px;
     }
   `;
 }

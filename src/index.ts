@@ -8,17 +8,6 @@ console.info(
   "color: white ; background: dimgray; font-weight: bold;"
 );
 
-window.addEventListener("error", (e) => {
-  if (
-    typeof e.message === "string" &&
-    e.message.includes("Cannot read properties of null") &&
-    e.message.includes("removeEventListener")
-  ) {
-    e.preventDefault();
-    return true;
-  }
-});
-
 (window as any).customCards = (window as any).customCards || [];
 (window as any).customCards.push({
   type: "area-card-plus",

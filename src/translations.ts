@@ -8,6 +8,17 @@ interface Schema {
   type?: string;
 }
 
+export function translateEntityState(
+  hass: HomeAssistant,
+  state: string,
+  domain: string
+): string {
+  const localized = hass.localize(
+    `component.${domain}.entity_component._.state.${state}`
+  );
+  return localized || state;
+}
+
 export function computeLabelCallback(
   hass: HomeAssistant,
   schema: Schema
@@ -148,6 +159,20 @@ export function computeLabelCallback(
         " " +
         hass!.localize("ui.components.related-filter-menu.filter")
       );
+    case "name":
+      return hass!.localize("ui.common.name");
+    case "state":
+      return hass!.localize("ui.components.entity.entity-state-picker.state");
+    case "ungroup_areas":
+      return (
+        hass!.localize("ui.common.disable") +
+        " " +
+        hass!.localize("ui.panel.lovelace.editor.card.area.name") +
+        " " +
+        hass!.localize("component.group.entity_component._.name")
+      );
+    case "popup_sort":
+      return "Popup Sort";
     case "show_icon":
     case "tap_action":
     case "hold_action":

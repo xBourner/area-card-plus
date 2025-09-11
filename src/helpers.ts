@@ -15,6 +15,16 @@ import type { Store } from "home-assistant-js-websocket/dist/store";
 import type { PropertyValues, ReactiveElement } from "lit";
 import { property } from "lit/decorators.js";
 
+declare module "custom-card-helpers" {
+  interface HomeAssistant {
+    // die zusätzlichen Properties
+    entities: { [id: string]: EntityRegistryEntry };
+    devices: { [id: string]: DeviceRegistryEntry };
+    areas: { [id: string]: AreaRegistryEntry };
+    formatEntityState(stateObj: HassEntity, state?: string): string;
+  }
+}
+
 export interface CardConfig extends LovelaceCardConfig {
   area: string;
   navigation_path?: string;
@@ -113,6 +123,7 @@ export interface EntityRegistryEntry extends RegistryEntry {
   labels: string[];
   disabled_by: "user" | "device" | "integration" | "config_entry" | null;
   hidden_by: Exclude<EntityRegistryEntry["disabled_by"], "config_entry">;
+  hidden?: boolean;
   has_entity_name: boolean;
   original_name?: string;
   unique_id: string;
@@ -125,6 +136,17 @@ export interface HTMLElementValue extends HTMLElement {
 }
 
 export type Constructor<T = any> = new (...args: any[]) => T;
+
+export function typeKey(domain: string, deviceClass?: string): string {
+  return deviceClass ? `${_formatDomain(domain)} - ${deviceClass}` : domain;
+}
+
+export function _formatDomain(domain: string): string {
+  return domain
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
 
 export const round = (value: number, precision = 2): number =>
   Math.round(value * 10 ** precision) / 10 ** precision;
@@ -499,7 +521,9 @@ import {
   DirectiveParameters,
 } from "lit/directive.js";
 
-export type UiAction = Exclude<ActionConfig["action"], "fire-dom-event">;
+export type UiAction =
+  | Exclude<ActionConfig["action"], "fire-dom-event">
+  | "perform-action";
 
 interface ActionHandlerType extends HTMLElement {
   holdTime: number;
@@ -861,42 +885,141 @@ export default function parseAspectRatio(input: string) {
 export const applyThemesOnElement = (
   element: any,
   themes: any,
-  localTheme: any
+  selectedTheme?: string,
+  themeSettings?: Partial<{
+    dark: boolean;
+    primaryColor: string;
+    accentColor: string;
+  }>,
+  main?: boolean
 ) => {
-  const selected = localTheme || themes.theme;
+  const themeToApply = selectedTheme || (main ? themes?.theme : undefined);
+  const darkMode =
+    themeSettings?.dark !== undefined
+      ? themeSettings.dark
+      : themes?.darkMode || false;
 
   if (!element.__themes) {
-    element.__themes = { cacheKey: null, keys: {} };
+    element.__themes = { cacheKey: null, keys: new Set<string>() };
   }
 
-  if (!selected || selected === "default") {
-    // Default-Theme → alle Inline-CSS entfernen
-    element.removeAttribute("style");
-    element.__themes.cacheKey = "default";
+  let cacheKey = themeToApply || "";
+  let themeRules: Record<string, string> = {};
+
+  // Default theme: only use provided primary/accent colors, do not wipe inline styles
+  if (themeToApply === "default") {
+    const primaryColor = themeSettings?.primaryColor;
+    const accentColor = themeSettings?.accentColor;
+
+    if (primaryColor) {
+      cacheKey = `${cacheKey}__primary_${primaryColor}`;
+      themeRules["primary-color"] = String(primaryColor);
+    }
+    if (accentColor) {
+      cacheKey = `${cacheKey}__accent_${accentColor}`;
+      themeRules["accent-color"] = String(accentColor);
+    }
+
+    // If nothing changes and we already applied the same config, skip
+    if (
+      !primaryColor &&
+      !accentColor &&
+      element.__themes?.cacheKey === "default"
+    ) {
+      return;
+    }
+  }
+
+  // Custom theme: merge base rules with dark/light mode specific overrides if present
+  if (
+    themeToApply &&
+    themeToApply !== "default" &&
+    themes?.themes?.[themeToApply]
+  ) {
+    const { modes, ...base } = themes.themes[themeToApply] || {};
+    themeRules = { ...themeRules, ...base };
+    if (modes) {
+      if (darkMode && modes.dark) {
+        themeRules = { ...themeRules, ...modes.dark };
+      } else if (!darkMode && modes.light) {
+        themeRules = { ...themeRules, ...modes.light };
+      }
+    }
+  } else if (
+    !themeToApply &&
+    (!element.__themes?.keys ||
+      (element.__themes.keys as Set<string>).size === 0)
+  ) {
+    // No theme to apply and nothing set previously
     return;
   }
 
-  const themeDef = themes.themes?.[selected];
-  if (!themeDef) {
-    console.warn(`Theme "${selected}" not found.`);
-    element.removeAttribute("style");
-    element.__themes.cacheKey = "default";
+  const prevKeys: Set<string> = element.__themes?.keys || new Set<string>();
+  const newKeys = new Set<string>(Object.keys(themeRules));
+
+  // If default theme with no explicit colors provided, clear previously set vars
+  if (themeToApply === "default" && newKeys.size === 0) {
+    for (const key of prevKeys) {
+      try {
+        element.style.removeProperty(`--${key}`);
+      } catch {}
+    }
+    element.__themes = { cacheKey: "default", keys: new Set<string>() };
     return;
   }
 
-  // Nur neu anwenden, wenn sich das Theme geändert hat
-  if (element.__themes.cacheKey === selected) {
-    return;
+  // If cacheKey unchanged and keys are identical, skip reapplying
+  if (element.__themes?.cacheKey === cacheKey) {
+    let same = true;
+    if (prevKeys.size !== newKeys.size) {
+      same = false;
+    } else {
+      for (const k of prevKeys) {
+        if (!newKeys.has(k)) {
+          same = false;
+          break;
+        }
+      }
+    }
+    if (same) return;
   }
 
-  // Setze CSS-Variablen
-  for (const [key, value] of Object.entries(themeDef)) {
+  // Remove variables that are no longer present
+  for (const key of prevKeys) {
+    if (!newKeys.has(key)) {
+      try {
+        element.style.removeProperty(`--${key}`);
+      } catch {}
+    }
+  }
+
+  // Apply new variables
+  for (const [key, value] of Object.entries(themeRules)) {
     element.style.setProperty(`--${key}`, String(value));
   }
 
-  // Cache aktualisieren
-  element.__themes.cacheKey = selected;
+  element.__themes.cacheKey = cacheKey || null;
+  element.__themes.keys = newKeys;
 };
+
+export function getFriendlyName(
+  states: { [entity_id: string]: HassEntity },
+  entityId: string
+): string {
+  return (states?.[entityId]?.attributes?.friendly_name as string) || entityId;
+}
+
+export function compareByFriendlyName(
+  states: { [entity_id: string]: HassEntity },
+  language?: string
+): (a: string, b: string) => number {
+  return (a: string, b: string) =>
+    caseInsensitiveStringCompare(
+      getFriendlyName(states, a),
+      getFriendlyName(states, b),
+      language
+    );
+}
 
 export const UNAVAILABLE_STATES = ["unavailable", "unknown"];
 
@@ -929,6 +1052,8 @@ export const TOGGLE_DOMAINS = [
   "lock",
   "vacuum",
   "cover",
+  "script",
+  "scene",
 ];
 
 export const OTHER_DOMAINS = ["camera"];
@@ -1013,51 +1138,124 @@ export const DOMAIN_ICONS = {
   light: { on: "mdi:lightbulb-multiple", off: "mdi:lightbulb-multiple-off" },
   switch: { on: "mdi:toggle-switch", off: "mdi:toggle-switch-off" },
   fan: { on: "mdi:fan", off: "mdi:fan-off" },
-  climate: { on: "mdi:fan", off: "mdi:fan-off" },
+  climate: { on: "mdi:thermostat", off: "mdi:thermostat-cog" },
   media_player: { on: "mdi:cast", off: "mdi:cast-off" },
-  lock: { on: "mdi:lock", off: "mdi:lock-open" },
+  lock: { on: "mdi:lock-open", off: "mdi:lock" },
   vacuum: { on: "mdi:robot-vacuum", off: "mdi:robot-vacuum-off" },
+  button: { on: "mdi:gesture-tap-button", off: "mdi:gesture-tap-button" },
+  device_tracker: { on: "mdi:account", off: "mdi:account-off" },
+  person: { on: "mdi:account", off: "mdi:account-off" },
+  alarm_control_panel: { on: "mdi:alarm-light", off: "mdi:alarm-light-off" },
+  siren: { on: "mdi:bell-ring", off: "mdi:bell_off" },
+  vacuum_cleaner: { on: "mdi:robot-vacuum", off: "mdi:robot-vacuum-off" },
+  lawn_mower: { on: "robot-mower", off: "mdi:robot-mower" },
+  calendar: { on: "mdi:calendar", off: "mdi:calendar-remove" },
+  counter: { on: "mdi:counter", off: "mdi:counter" },
+  timer: { on: "mdi:timer-outline", off: "mdi:timer-off" },
+  input_boolean: { on: "mdi:toggle-switch", off: "mdi:toggle-switch-off" },
+  input_select: {
+    on: "mdi:format-list-bulleted",
+    off: "mdi:format-list-bulleted",
+  },
+  input_text: { on: "mdi:text-box", off: "mdi:text-box" },
+  update: { on: "mdi:autorenew", off: "mdi:autorenew-off" },
+  remote: { on: "mdi:remote", off: "mdi:remote-off" },
+  water_heater: { on: "mdi:water-boiler", off: "mdi:water-pump-off" },
+  valve: { on: "mdi:valve", off: "mdi:valve-closed" },
+  sensor: { on: "mdi:gauge", off: "mdi:gauge" },
+  number: { on: "mdi:numeric", off: "mdi:numeric" },
+  script: { on: "mdi:script-text", off: "mdi:script-text" },
+  scene: { on: "mdi:movie", off: "mdi:movie-off" },
+  select: { on: "mdi:format-list-bulleted", off: "mdi:format-list-bulleted" },
+  air_quality: { on: "mdi:air-filter", off: "mdi:air-filter" },
+  humidifier: { on: "mdi:air-humidifier", off: "mdi:air-humidifier-off" },
+  geo_location: { on: "mdi:map-marker", off: "mdi:map-marker-off" },
+  camera: { on: "mdi:camera", off: "mdi:camera-off" },
+  weather: { on: "mdi:weather-partly-cloudy", off: "mdi:weather-night" },
+  automation: { on: "mdi:robot", off: "mdi:robot-off" },
+  notifications: { on: "mdi:bell", off: "mdi:bell-off" },
+  tags: { on: "mdi:tag-multiple", off: "mdi:tag-multiple" },
+  conversation: { on: "mdi:comment-multiple", off: "mdi:comment-multiple" },
+  assist_satellite: {
+    on: "mdi:satellite-variant",
+    off: "mdi:satellite-variant",
+  },
+  event: { on: "mdi:calendar-star", off: "mdi:calendar-star" },
+  group: {
+    on: "mdi:google-circles-communities",
+    off: "mdi:google-circles-communities",
+  },
+  image: { on: "mdi:image", off: "mdi:image-off" },
+  image_processing: {
+    on: "mdi:image-filter-center-focus",
+    off: "mdi:image-filter-center-focus",
+  },
+  input_datetime: { on: "mdi:calendar-clock", off: "mdi:calendar-clock" },
+  input_number: { on: "mdi:numeric", off: "mdi:numeric" },
+  stt: { on: "mdi:record-rec", off: "mdi:record" },
+  sun: { on: "mdi:weather-sunny", off: "mdi:weather-night" },
+  text: { on: "mdi:text-box", off: "mdi:text-box" },
+  date: { on: "mdi:calendar", off: "mdi:calendar-remove" },
+  datetime: { on: "mdi:calendar-clock", off: "mdi:calendar-clock" },
+  time: { on: "mdi:clock-outline", off: "mdi:clock-off" },
+  todo: {
+    on: "mdi:check-circle-outline",
+    off: "mdi:checkbox-blank-circle-outline",
+  },
+  tts: { on: "mdi:volume-high", off: "mdi:volume-off" },
+  wake_word: { on: "mdi:microphone", off: "mdi:microphone-off" },
+  zone: { on: "mdi:map-marker", off: "mdi:map-marker-off" },
   binary_sensor: {
-    motion: "mdi:motion-sensor",
-    moisture: "mdi:water-alert",
-    window: "mdi:window-open",
-    door: "mdi:door-open",
-    lock: "mdi:lock",
-    presence: "mdi:home",
-    occupancy: "mdi:seat",
-    vibration: "mdi:vibrate",
-    opening: "mdi:shield-lock-open",
-    garage_door: "mdi:garage-open",
-    problem: "mdi:alert-circle",
-    smoke: "mdi:smoke-detector",
-    running: "mdi:play",
-    plug: "mdi:power-plug",
-    power: "mdi:power",
-    battery: "mdi:battery",
-    battery_charging: "mdi:battery-charging",
-    gas: "mdi:gas-cylinder",
-    carbon_monoxide: "mdi:molecule-co",
-    cold: "mdi:snowflake",
-    heat: "mdi:weather-sunny",
-    connectivity: "mdi:connection",
-    safety: "mdi:shield-alert",
-    sound: "mdi:volume-high",
-    update: "mdi:autorenew",
-    tamper: "mdi:shield-home",
-    light: "mdi:lightbulb",
-    moving: "mdi:car",
+    on: "mdi:power-off",
+    off: "mdi:power-off",
+    motion: { on: "mdi:motion-sensor", off: "mdi:motion-sensor-off" },
+    moisture: { on: "mdi:water-alert", off: "mdi:water-off" },
+    window: { on: "mdi:window-open", off: "mdi:window-closed" },
+    door: { on: "mdi:door-open", off: "mdi:door-closed" },
+    lock: { on: "mdi:lock-open", off: "mdi:lock" },
+    presence: { on: "mdi:home-outline", off: "mdi:home-export-outline" },
+    occupancy: { on: "mdi:seat", off: "mdi:seat-outline" },
+    vibration: { on: "mdi:vibrate", off: "mdi:vibrate-off" },
+    opening: { on: "mdi:shield-lock-open", off: "mdi:shield-lock" },
+    garage_door: { on: "mdi:garage-open", off: "mdi:garage" },
+    problem: {
+      on: "mdi:alert-circle-outline",
+      off: "mdi:alert-circle-check-outline",
+    },
+    smoke: {
+      on: "mdi:smoke-detector-outline",
+      off: "mdi:smoke-detector-off-outline",
+    },
+    running: { on: "mdi:play", off: "mdi:pause" },
+    plug: { on: "mdi:power-plug", off: "mdi:power-plug-off" },
+    power: { on: "mdi:power", off: "mdi:power-off" },
+    battery: { on: "mdi:battery-alert", off: "mdi:battery" },
+    battery_charging: { on: "mdi:battery-charging", off: "mdi:battery-check" },
+    gas: { on: "mdi:gas-station-outline", off: "mdi:gas-station-off-outline" },
+    carbon_monoxide: { on: "mdi:molecule-co", off: "mdi:molecule-co" },
+    cold: { on: "mdi:snowflake", off: "mdi:snowflake-off" },
+    heat: { on: "mdi:weather-sunny", off: "mdi:weather-sunny-off" },
+    connectivity: { on: "mdi:connection", off: "mdi:connection" },
+    safety: { on: "mdi:shield-alert-outline", off: "mdi:shield-check-outline" },
+    sound: { on: "mdi:volume-high", off: "mdi:volume-off" },
+    update: { on: "mdi:autorenew", off: "mdi:autorenew-off" },
+    tamper: { on: "mdi:shield-home", off: "mdi:shield-home" },
+    light: { on: "mdi:lightbulb-outline", off: "mdi:lightbulb-off-outline" },
+    moving: { on: "mdi:car", off: "mdi:car-off" },
   },
   cover: {
-    garage: "mdi:garage",
-    door: "mdi:door-closed",
-    gate: "mdi:gate",
-    blind: "mdi:blinds",
-    curtain: "mdi:curtains-closed",
-    damper: "mdi:valve-closed",
-    awning: "mdi:awning-outline",
-    shutter: "mdi:window-shutter",
-    shade: "mdi:roller-shade-closed",
-    window: "mdi:window-closed",
+    on: "mdi:garage-open",
+    off: "mdi:garage",
+    garage: { on: "mdi:garage-open", off: "mdi:garage" },
+    door: { on: "mdi:door-open", off: "mdi:door-closed" },
+    gate: { on: "mdi:gate-open", off: "mdi:gate" },
+    blind: { on: "mdi:blinds-open", off: "mdi:blinds" },
+    curtain: { on: "mdi:curtains", off: "mdi:curtains-closed" },
+    damper: { on: "mdi:valve-open", off: "mdi:valve-closed" },
+    awning: { on: "mdi:awning-outline", off: "mdi:awning-outline" },
+    shutter: { on: "mdi:window-shutter-open", off: "mdi:window-shutter" },
+    shade: { on: "mdi:roller-shade", off: "mdi:roller-shade-closed" },
+    window: { on: "mdi:window-open", off: "mdi:window-closed" },
   },
 };
 

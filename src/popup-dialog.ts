@@ -1,0 +1,1001 @@
+import { LitElement, html, css, PropertyValues, nothing } from "lit";
+import { property, state } from "lit/decorators.js";
+import {
+  LovelaceCard,
+  HomeAssistant,
+  computeDomain,
+} from "custom-card-helpers";
+import { HassEntity } from "home-assistant-js-websocket";
+import {
+  Schema,
+  domainOrder,
+  EntityRegistryEntry,
+  UNAVAILABLE_STATES,
+  compareByFriendlyName,
+  AreaRegistryEntry,
+  typeKey,
+  SENSOR_DOMAINS,
+  ALERT_DOMAINS,
+  COVER_DOMAINS,
+} from "./helpers";
+import { mdiClose } from "@mdi/js";
+import { computeLabelCallback, translateEntityState } from "./translations";
+import memoizeOne from "memoize-one";
+
+const OFF_STATES = new Set([
+  "off",
+  "idle",
+  "not_home",
+  "closed",
+  "locked",
+  "standby",
+  "disarmed",
+  "unknown",
+  "unavailable",
+]);
+
+export class PopupDialog extends LitElement {
+  @property({ type: Boolean }) public open = false;
+  @property({ type: String }) public title = "";
+  @property({ type: String }) public selectedDomain?: string;
+  @property({ type: String }) public selectedDeviceClass?: string;
+  @property({ type: String }) public content = "";
+  @property({ type: Array }) public entities: HassEntity[] = [];
+  @property({ attribute: false }) public hass?: HomeAssistant;
+  @property({ attribute: false }) public card!: LovelaceCard & {
+    areas?: AreaRegistryEntry[];
+    entities?: any[];
+    devices?: any[];
+    _config?: any;
+    selectedGroup?: number | null;
+    selectedDomain?: string | null;
+    getCustomizationForType?: (type: string) => any;
+    _totalEntities?: (...args: any[]) => HassEntity[];
+    _isOn?: (...args: any[]) => HassEntity[];
+    _shouldShowTotalEntities?: (...args: any[]) => boolean;
+    list_mode?: boolean;
+  };
+  @state() public _showAll = false;
+  @state() public selectedGroup?: number;
+  private _cardEls: Map<string, HTMLElement> = new Map();
+  private _lastEntityIds: string[] = [];
+
+  public showDialog(params: {
+    title?: string;
+    hass: HomeAssistant;
+    entities?: HassEntity[];
+    content?: string;
+    selectedDomain?: string;
+    selectedDeviceClass?: string;
+    selectedGroup?: number;
+    card?: unknown;
+  }): void {
+    this.title = params.title ?? this.title;
+    this.hass = params.hass;
+    this.entities = params.entities ?? [];
+    if (params.content !== undefined) this.content = params.content;
+    this.selectedDomain = params.selectedDomain;
+    this.selectedDeviceClass = params.selectedDeviceClass;
+    this.selectedGroup = params.selectedGroup;
+    this.card = params.card as LovelaceCard & { areas?: AreaRegistryEntry[] };
+    this._cardEls.clear();
+    this.open = true;
+    this.requestUpdate();
+  }
+
+  private _onClosed = (_ev: Event) => {
+    this.open = false;
+    this._cardEls.clear();
+    this.dispatchEvent(
+      new CustomEvent("dialog-closed", {
+        bubbles: true,
+        composed: true,
+        detail: { dialog: this },
+      })
+    );
+    this.dispatchEvent(
+      new CustomEvent("popup-closed", {
+        bubbles: true,
+        composed: true,
+        detail: { dialog: this },
+      })
+    );
+  };
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this._cardEls.clear();
+  }
+
+  private _toTileConfig(cardConfig: {
+    type: string;
+    entity?: string;
+    [k: string]: any;
+  }) {
+    return {
+      type: "tile",
+      entity: cardConfig.entity,
+    };
+  }
+
+  private async _createCardElement(
+    hass: HomeAssistant,
+    cardConfig: { type: string; entity?: string; [key: string]: any },
+    isFallback = false
+  ): Promise<LovelaceCard | HTMLElement> {
+    try {
+      const helpers = await (window as any)?.loadCardHelpers?.();
+      if (helpers?.createCardElement) {
+        const el = helpers.createCardElement(cardConfig) as LovelaceCard;
+        (el as any).hass = hass;
+        (el as any).setAttribute?.("data-hui-card", "");
+        return el;
+      }
+    } catch {}
+
+    try {
+      const type = cardConfig.type || "tile";
+      const isCustom = typeof type === "string" && type.startsWith("custom:");
+      const tag = isCustom ? type.slice(7) : `hui-${type}-card`;
+
+      if (isCustom && !(customElements as any).get(tag)) {
+        await customElements.whenDefined(tag).catch(() => {});
+      }
+
+      const el = document.createElement(tag) as LovelaceCard;
+
+      if (typeof el.setConfig === "function") {
+        el.setConfig(cardConfig);
+      }
+
+      (el as any).hass = hass;
+      (el as any).setAttribute?.("data-hui-card", "");
+      return el;
+    } catch {
+      if (!isFallback) {
+        return this._createCardElement(
+          hass,
+          this._toTileConfig(cardConfig),
+          true
+        );
+      }
+      const empty = document.createElement("div");
+      empty.setAttribute("data-hui-card", "");
+      return empty;
+    }
+  }
+
+  private _getPopupCardConfig(entity: HassEntity) {
+    const card: any = this.card;
+    const domainFromEntity = computeDomain(entity.entity_id);
+
+    const domain = this.selectedDomain || domainFromEntity;
+    const deviceClass = this.selectedDomain
+      ? this.selectedDeviceClass
+      : (this.hass?.states?.[entity.entity_id]?.attributes as any)
+          ?.device_class;
+
+    // Select the correct customization array based on domain / device class
+    const cfg = card?._config || {};
+    let customization: any | undefined;
+
+    if (ALERT_DOMAINS.includes(domain)) {
+      customization = cfg.customization_alert?.find(
+        (c: any) => c.type === deviceClass
+      );
+      if (!customization)
+        customization = cfg.customization_domain?.find(
+          (c: any) => c.type === domain
+        );
+    } else if (SENSOR_DOMAINS.includes(domain)) {
+      customization = cfg.customization_sensor?.find(
+        (c: any) => c.type === deviceClass
+      );
+      if (!customization)
+        customization = cfg.customization_domain?.find(
+          (c: any) => c.type === domain
+        );
+    } else if (COVER_DOMAINS.includes(domain)) {
+      customization = cfg.customization_cover?.find(
+        (c: any) => c.type === deviceClass
+      );
+      if (!customization)
+        customization = cfg.customization_domain?.find(
+          (c: any) => c.type === domain
+        );
+    } else {
+      customization = cfg.customization_domain?.find(
+        (c: any) => c.type === domain
+      );
+    }
+
+    const popupCard = customization?.popup_card as any | undefined;
+
+    const resolvedType: string =
+      (popupCard && typeof popupCard.type === "string" && popupCard.type) ||
+      customization?.popup_card_type ||
+      "tile";
+
+    const baseOptions =
+      resolvedType === "tile"
+        ? (this.DOMAIN_FEATURES as any)[domainFromEntity] ?? {}
+        : {};
+
+    let overrideOptions: any = {};
+    if (popupCard && typeof popupCard === "object") {
+      const { type: _omitType, entity: _omitEntity, ...rest } = popupCard;
+      overrideOptions = rest;
+    } else {
+      overrideOptions = customization?.popup_card_options ?? {};
+    }
+
+    const finalConfig = {
+      type: resolvedType,
+      entity: entity.entity_id,
+      ...baseOptions,
+      ...overrideOptions,
+    } as any;
+
+    return finalConfig;
+  }
+
+  private DOMAIN_FEATURES: Record<string, any> = {
+    alarm_control_panel: {
+      state_content: ["state", "last_changed"],
+      features: [
+        {
+          type: "alarm-modes",
+          modes: [
+            "armed_home",
+            "armed_away",
+            "armed_night",
+            "armed_vacation",
+            "armed_custom_bypass",
+            "disarmed",
+          ],
+        },
+      ],
+    },
+    light: {
+      state_content: ["state", "brightness", "last_changed"],
+      features: [{ type: "light-brightness" }],
+    },
+    cover: {
+      state_content: ["state", "position", "last_changed"],
+      features: [{ type: "cover-open-close" }, { type: "cover-position" }],
+    },
+    vacuum: {
+      state_content: ["state", "last_changed"],
+      features: [
+        {
+          type: "vacuum-commands",
+          commands: [
+            "start_pause",
+            "stop",
+            "clean_spot",
+            "locate",
+            "return_home",
+          ],
+        },
+      ],
+    },
+    climate: {
+      state_content: ["state", "current_temperature", "last_changed"],
+      features: [
+        {
+          type: "climate-hvac-modes",
+          hvac_modes: [
+            "auto",
+            "heat_cool",
+            "heat",
+            "cool",
+            "dry",
+            "fan_only",
+            "off",
+          ],
+        },
+      ],
+    },
+    water_heater: {
+      state_content: ["state", "last_changed"],
+      features: [
+        {
+          type: "water-heater-operation-modes",
+          operation_modes: [
+            "electric",
+            "gas",
+            "heat_pump",
+            "eco",
+            "performance",
+            "high_demand",
+            "off",
+          ],
+        },
+      ],
+    },
+    humidifier: {
+      state_content: ["state", "current_humidity", "last_changed"],
+      features: [{ type: "target-humidity" }],
+    },
+    media_player: {
+      show_entity_picture: true,
+      state_content: ["state", "volume_level", "last_changed"],
+      features: [{ type: "media-player-playback" }],
+    },
+    lock: {
+      state_content: ["state", "last_changed"],
+      features: [{ type: "lock-commands" }],
+    },
+    fan: {
+      state_content: ["state", "percentage", "last_changed"],
+      features: [{ type: "fan-speed" }],
+    },
+    counter: {
+      state_content: ["state", "last_changed"],
+      features: [
+        {
+          type: "counter-actions",
+          actions: ["increment", "decrement", "reset"],
+        },
+      ],
+    },
+    lawn_mower: {
+      state_content: ["state", "last_changed"],
+      features: [
+        {
+          type: "lawn-mower-commands",
+          commands: ["start_pause", "dock"],
+        },
+      ],
+    },
+    update: {
+      state_content: ["state", "latest_version", "last_changed"],
+      features: [{ type: "update-actions", backup: "ask" }],
+    },
+    switch: {
+      state_content: ["state", "last_changed"],
+      features: [{ type: "toggle" }],
+    },
+    input_boolean: {
+      state_content: ["state", "last_changed"],
+      features: [{ type: "toggle" }],
+    },
+    calendar: {
+      state_content: "message",
+    },
+    timer: {
+      state_content: ["state", "remaining_time"],
+    },
+    binary_sensor: {
+      state_content: ["state", "last_changed"],
+    },
+    device_tracker: {
+      state_content: ["state", "last_changed"],
+    },
+    remote: {
+      state_content: ["state", "last_changed"],
+    },
+    valve: {
+      state_content: ["state", "last_changed"],
+      features: [{ type: "valve-open-close" }],
+    },
+  };
+
+  protected shouldUpdate(changedProps: PropertyValues): boolean {
+    if (!this.open) {
+      return changedProps.has("open");
+    }
+    if (changedProps.size === 1 && changedProps.has("hass")) {
+      const currentIds = this._getCurrentEntities()
+        .map((e) => e.entity_id)
+        .sort();
+      const lastIds = (this._lastEntityIds || []).slice().sort();
+      const same =
+        currentIds.length === lastIds.length &&
+        currentIds.every((id, i) => id === lastIds[i]);
+      this._updateCardsHass();
+      return !same;
+    }
+    return true;
+  }
+
+  private _updateCardsHass(): void {
+    if (!this.hass) return;
+    this._cardEls.forEach((el) => {
+      try {
+        (el as any).hass = this.hass;
+      } catch (_) {}
+    });
+  }
+
+  private _getOrCreateCard(entity: HassEntity): HTMLElement {
+    const id = entity.entity_id;
+    const existing = this._cardEls.get(id);
+    if (existing) {
+      try {
+        (existing as any).hass = this.hass;
+      } catch (_) {}
+      return existing;
+    }
+    const placeholder = document.createElement("div");
+    placeholder.classList.add("card-placeholder");
+    placeholder.setAttribute("data-hui-card", "");
+    this._cardEls.set(id, placeholder);
+
+    const cfg = this._getPopupCardConfig(entity);
+    this._createCardElement(this.hass!, cfg).then((el) => {
+      try {
+        const current = this._cardEls.get(id);
+        if (current === placeholder) {
+          placeholder.replaceWith(el as any);
+          this._cardEls.set(id, el as any);
+        }
+        (el as any).hass = this.hass;
+      } catch (_) {}
+    });
+    return placeholder;
+  }
+
+  private _getCurrentEntities(): HassEntity[] {
+    const card = this.card as any;
+    const domain = this.selectedDomain!;
+    const deviceClass = this.selectedDeviceClass;
+    const group = this.selectedGroup;
+
+    // Groups not implemented for area-card-plus popup; return empty for now
+    if (group !== undefined && card?._config?.content?.[group]) {
+      return [];
+    }
+
+    if (domain) {
+      const shouldShowTotal =
+        typeof card?._shouldShowTotalEntities === "function"
+          ? card._shouldShowTotalEntities(domain, deviceClass)
+          : false;
+      const showAllEntities = shouldShowTotal ? true : this._showAll;
+
+      const result = showAllEntities
+        ? typeof card?._totalEntities === "function"
+          ? card._totalEntities(domain, deviceClass)
+          : undefined
+        : typeof card?._isOn === "function"
+        ? card._isOn(domain, deviceClass)
+        : undefined;
+
+      if (Array.isArray(result)) return result as HassEntity[];
+      if (result) return [result as HassEntity];
+      return [];
+    }
+
+    return Array.isArray(this.entities) ? (this.entities as HassEntity[]) : [];
+  }
+
+  private toggleAllOrOn(): void {
+    this._showAll = !this._showAll;
+  }
+
+  public computeLabel = memoizeOne(
+    (schema: Schema, domain?: string, deviceClass?: string): string => {
+      return computeLabelCallback(this.hass!, schema);
+    }
+  );
+
+  private getAreaForEntity(entity: HassEntity): string {
+    const card: any = this.card;
+    const entry = card._entities?.find(
+      (e: any) => e.entity_id === entity.entity_id
+    );
+    if (entry) {
+      if (entry.area_id) {
+        return entry.area_id;
+      }
+      if (entry.device_id) {
+        const device = card._devices?.find(
+          (d: any) => d.id === entry.device_id
+        );
+        if (device && device.area_id) {
+          return device.area_id;
+        }
+      }
+    }
+    return "unassigned";
+  }
+
+  private _isActive(e: HassEntity): boolean {
+    return !OFF_STATES.has(e.state);
+  }
+
+  private sortEntitiesForPopup(entities: HassEntity[]): HassEntity[] {
+    const mode = (this.card as any)?._config?.popup_sort || "name";
+    const arr = entities.slice();
+    if (mode === "state") {
+      const cmp = compareByFriendlyName(
+        this.hass!.states,
+        this.hass!.locale.language
+      );
+      return arr.sort((a, b) => {
+        const aActive = this._isActive(a) ? 0 : 1;
+        const bActive = this._isActive(b) ? 0 : 1;
+        if (aActive !== bActive) return aActive - bActive;
+        const aDom = computeDomain(a.entity_id);
+        const bDom = computeDomain(b.entity_id);
+        const aState = this.hass
+          ? translateEntityState(this.hass, a.state, aDom)
+          : a.state;
+        const bState = this.hass
+          ? translateEntityState(this.hass, b.state, bDom)
+          : b.state;
+        const s = (aState || "").localeCompare(bState || "");
+        if (s !== 0) return s;
+        return cmp(a.entity_id, b.entity_id);
+      });
+    }
+    const cmp = compareByFriendlyName(
+      this.hass!.states,
+      this.hass!.locale.language
+    );
+    return arr.sort((a, b) => cmp(a.entity_id, b.entity_id));
+  }
+
+  private groupAndSortEntities = memoizeOne(
+    (
+      entities: HassEntity[],
+      areaMap: Map<string, string>,
+      sortEntities: (ents: HassEntity[]) => HassEntity[]
+    ): Array<[string, HassEntity[]]> => {
+      const groups = new Map<string, HassEntity[]>();
+      for (const entity of entities) {
+        const areaId = this.getAreaForEntity(entity);
+        if (!groups.has(areaId)) {
+          groups.set(areaId, []);
+        }
+        groups.get(areaId)!.push(entity);
+      }
+
+      const sortedGroups = Array.from(groups.entries()).sort(
+        ([areaIdA], [areaIdB]) => {
+          const nameA =
+            areaMap.get(areaIdA)?.toLowerCase() ??
+            (areaIdA === "unassigned" ? "unassigned" : areaIdA);
+          const nameB =
+            areaMap.get(areaIdB)?.toLowerCase() ??
+            (areaIdB === "unassigned" ? "unassigned" : areaIdB);
+          return nameA.localeCompare(nameB);
+        }
+      );
+
+      return sortedGroups.map(([areaId, ents]) => [areaId, sortEntities(ents)]);
+    }
+  );
+
+  protected render() {
+    if (!this.open || !this.hass || !this.card) return html``;
+
+    const card: any = this.card;
+
+    // Gather filters and data from card
+    const areaId: string = card._config?.area;
+    const devicesInArea: Set<string> =
+      card._devicesInArea?.(areaId, card._devices) ?? new Set<string>();
+    const registryEntities: EntityRegistryEntry[] = card._entities || [];
+    const states = this.hass.states;
+    const popupDomains: string[] = card._config?.popup_domains || [];
+    const hiddenEntities: string[] = card._config?.hidden_entities || [];
+    const extraEntities: string[] = card._config?.extra_entities || [];
+    const labelFilter: string[] | undefined = card._config?.label;
+    const hideUnavailable: boolean | undefined = card._config?.hide_unavailable;
+    const categoryFilter: string | undefined = card._config?.category_filter;
+    const selectedDomain = this.selectedDomain || null;
+    const selectedDeviceClass = this.selectedDeviceClass || null;
+
+    // Filter by category helper
+    const filterByCategory = (entityId: string) => {
+      if (!categoryFilter) return true;
+      const entry = registryEntities.find(
+        (e) => (e as any).entity_id === entityId
+      );
+      const cat = (entry as any)?.entity_category;
+      if (!cat) return true;
+      if (categoryFilter === "config") return cat !== "config";
+      if (categoryFilter === "diagnostic") return cat !== "diagnostic";
+      if (categoryFilter === "config+diagnostic")
+        return cat !== "config" && cat !== "diagnostic";
+      return true;
+    };
+
+    // Device class filter
+    const filterByDeviceClass = (entity: HassEntity) => {
+      if (!selectedDeviceClass) return true;
+      return (entity.attributes as any).device_class === selectedDeviceClass;
+    };
+
+    // Collect entities in area
+    const entitiesInArea = registryEntities.reduce<string[]>(
+      (acc, entry: any) => {
+        if (
+          !entry.hidden_by &&
+          (entry.area_id
+            ? entry.area_id === areaId
+            : entry.device_id && devicesInArea.has(entry.device_id)) &&
+          (!labelFilter ||
+            (entry.labels &&
+              entry.labels.some((l: string) =>
+                (labelFilter as any).includes(l)
+              )))
+        ) {
+          const entityId = entry.entity_id;
+          if (
+            !hiddenEntities.includes(entityId) &&
+            filterByCategory(entityId) &&
+            (!hideUnavailable ||
+              !UNAVAILABLE_STATES.includes(states[entityId]?.state))
+          ) {
+            acc.push(entityId);
+          }
+        }
+        return acc;
+      },
+      [] as string[]
+    );
+
+    // Build flat entity list applying domain/device_class filters
+    let ents: HassEntity[] = [];
+    for (const entityId of entitiesInArea) {
+      const domain = computeDomain(entityId);
+      if (popupDomains.length > 0 && !popupDomains.includes(domain)) continue;
+      const stateObj = states[entityId];
+      if (!stateObj) continue;
+      if (selectedDomain && domain !== selectedDomain) continue;
+      if (
+        selectedDeviceClass &&
+        (stateObj.attributes as any).device_class !== selectedDeviceClass
+      )
+        continue;
+      ents.push(stateObj);
+    }
+
+    // Add extra entities
+    for (const extra of extraEntities) {
+      const domain = computeDomain(extra);
+      const st = states[extra];
+      if (!st) continue;
+      if (popupDomains.length > 0 && !popupDomains.includes(domain)) continue;
+      if (selectedDomain && domain !== selectedDomain) continue;
+      if (
+        selectedDeviceClass &&
+        (st.attributes as any).device_class !== selectedDeviceClass
+      )
+        continue;
+      if (filterByCategory(extra) && !ents.some((e) => e.entity_id === extra)) {
+        ents.push(st);
+      }
+    }
+
+    const ungroupAreas = card?._config?.ungroup_areas === true;
+    let displayColumns = card._config?.columns ? card._config.columns : 4;
+
+    let finalDomainEntries: Array<[string, HassEntity[]]> = [];
+    let sorted: HassEntity[] = [];
+
+    if (ungroupAreas) {
+      sorted = this.sortEntitiesForPopup(ents);
+      displayColumns = Math.min(displayColumns, Math.max(1, sorted.length));
+    } else {
+      const byDomain: Record<string, HassEntity[]> = {};
+      for (const e of ents) {
+        const d = computeDomain(e.entity_id);
+        if (!(d in byDomain)) byDomain[d] = [];
+        byDomain[d].push(e);
+      }
+      const sortOrder = popupDomains.length > 0 ? popupDomains : domainOrder;
+      finalDomainEntries = Object.entries(byDomain)
+        .filter(([d]) => !selectedDomain || d === selectedDomain)
+        .sort(([a], [b]) => {
+          const ia = sortOrder.indexOf(a);
+          const ib = sortOrder.indexOf(b);
+          return (
+            (ia === -1 ? sortOrder.length : ia) -
+            (ib === -1 ? sortOrder.length : ib)
+          );
+        })
+        .map(
+          ([d, list]) =>
+            [d, this.sortEntitiesForPopup(list)] as [string, HassEntity[]]
+        );
+
+      const maxEntityCount = finalDomainEntries.length
+        ? Math.max(...finalDomainEntries.map(([, list]) => list.length))
+        : 0;
+      displayColumns = Math.min(displayColumns, Math.max(1, maxEntityCount));
+    }
+
+    const area = card._area?.(card._config?.area, card._areas) ?? null;
+
+    return html`
+      <ha-dialog
+        id="more-info-dialog"
+        style="--columns: ${displayColumns};"
+        .open=${this.open}
+        @closed=${this._onClosed}
+      >
+        <style>
+          ${PopupDialog.styles}
+        </style>
+        <div class="dialog-header">
+          <ha-icon-button
+            slot="navigationIcon"
+            .path=${mdiClose}
+            @click=${this._onClosed}
+            .label=${this.hass!.localize("ui.common.close")}
+          ></ha-icon-button>
+          <div slot="title">
+            <h3>${card._config?.area_name || (area && (area as any).name)}</h3>
+          </div>
+        </div>
+
+        <div class="dialog-content">
+          ${!ungroupAreas
+            ? html`${finalDomainEntries.map(([dom, list]) => {
+                return html`
+                  <div class="cards-wrapper">
+                    <h4>
+                      ${dom === "binary_sensor" ||
+                      dom === "sensor" ||
+                      dom === "cover"
+                        ? this._getDomainName(
+                            dom,
+                            selectedDeviceClass || undefined
+                          )
+                        : this._getDomainName(dom)}
+                    </h4>
+                    <div class="entity-cards">
+                      ${list.map(
+                        (entity: HassEntity) => html`
+                          <div class="entity-card">
+                            ${this._getOrCreateCard(entity)}
+                          </div>
+                        `
+                      )}
+                    </div>
+                  </div>
+                `;
+              })}`
+            : html`
+                <div class="entity-cards">
+                  ${sorted.map(
+                    (entity: HassEntity) => html`
+                      <div class="entity-card">
+                        ${this._getOrCreateCard(entity)}
+                      </div>
+                    `
+                  )}
+                </div>
+              `}
+        </div>
+      </ha-dialog>
+    `;
+  }
+
+  private _getDomainName(domain: string, deviceClass?: string): string {
+    if (!this.hass) return domain;
+    if (domain === "scene") return "Scene";
+    if (
+      domain === "binary_sensor" ||
+      domain === "sensor" ||
+      domain === "cover"
+    ) {
+      return deviceClass
+        ? this.hass.localize(
+            `component.${domain}.entity_component.${deviceClass}.name`
+          )
+        : this.hass.localize(`component.${domain}.entity_component._.name`);
+    }
+    return this.hass.localize(`component.${domain}.entity_component._.name`);
+  }
+
+  static styles = css`
+    :host {
+      display: block;
+    }
+    :host([hidden]) {
+      display: none;
+    }
+
+    ha-dialog {
+      --dialog-content-padding: 12px;
+      --mdc-dialog-min-width: calc((var(--columns, 4) * 22.5vw) + 3vw);
+      --mdc-dialog-max-width: calc((var(--columns, 4) * 22.5vw) + 5vw);
+      box-sizing: border-box;
+      overflow-x: auto;
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      min-width: 15vw;
+    }
+    .dialog-header .menu-button {
+      margin-left: auto;
+    }
+    .dialog-content {
+      margin-bottom: 16px;
+    }
+    .dialog-actions {
+      text-align: right;
+    }
+
+    .cards-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      width: 100%;
+      overflow-x: auto;
+    }
+    .entity-list {
+      list-style: none;
+      padding: 0 8px;
+      margin: 0;
+    }
+    .entity-list .entity-item {
+      list-style: none;
+      margin: 0.2em 0;
+    }
+    h4 {
+      width: calc(var(--columns, 4) * 22.5vw);
+      box-sizing: border-box;
+      font-size: 1.2em;
+      margin: 0.8em 0.2em;
+    }
+    .entity-cards {
+      display: grid;
+      grid-template-columns: repeat(var(--columns, 4), 22.5vw);
+      gap: 4px;
+      width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
+      justify-content: center;
+    }
+    .entity-card {
+      width: 22.5vw;
+      box-sizing: border-box;
+    }
+
+    @media (max-width: 1200px) {
+      ha-dialog {
+        --mdc-dialog-min-width: 96vw;
+        --mdc-dialog-max-width: 96vw;
+      }
+      .entity-card {
+        width: 45vw;
+      }
+      .entity-cards {
+        grid-template-columns: repeat(var(--columns, 2), 45vw);
+      }
+      h4 {
+        width: calc(var(--columns, 2) * 45vw);
+        margin: 0.8em 0.2em;
+      }
+    }
+
+    @media (max-width: 700px) {
+      ha-dialog {
+        --dialog-content-padding: 8px;
+        --mdc-dialog-min-width: 96vw;
+        --mdc-dialog-max-width: 96vw;
+      }
+      .cards-wrapper {
+        align-items: stretch;
+        width: 100%;
+        overflow-x: hidden;
+      }
+      .entity-card {
+        width: 100%;
+      }
+      .entity-cards {
+        grid-template-columns: 1fr;
+      }
+      h4 {
+        width: 100%;
+        font-size: 1.2em;
+        margin: 0.6em 0;
+        padding: 0 8px;
+        box-sizing: border-box;
+      }
+    }
+  `;
+}
+
+customElements.define("area-card-plus-popup-dialog", PopupDialog);
+
+class PopupDialogConfirmation extends LitElement {
+  @property({ type: Boolean }) public open = false;
+  @property({ attribute: false }) public hass?: HomeAssistant;
+  @property({ attribute: false }) public card?: any;
+  @property({ type: String }) public selectedDomain?: string;
+  @property({ type: String }) public selectedDeviceClass?: string;
+
+  public showDialog(params: {
+    hass: HomeAssistant;
+    card: any;
+    selectedDomain?: string;
+    selectedDeviceClass?: string;
+  }): void {
+    this.hass = params.hass;
+    this.card = params.card;
+    this.selectedDomain = params.selectedDomain;
+    this.selectedDeviceClass = params.selectedDeviceClass;
+    this.open = true;
+    this.requestUpdate();
+  }
+
+  private _onClosed = () => {
+    this.open = false;
+    this.dispatchEvent(
+      new CustomEvent("dialog-closed", { bubbles: true, composed: true })
+    );
+  };
+
+  private _confirm = () => {
+    try {
+      this.card?.toggleDomain?.(this.selectedDomain, this.selectedDeviceClass);
+    } catch (_) {}
+    this._onClosed();
+  };
+
+  protected render() {
+    if (!this.open || !this.hass || !this.card) return html``;
+
+    const domain = this.selectedDomain || "";
+    const deviceClass = this.selectedDeviceClass;
+    const key: any = [];
+    const customization = this.card?.getCustomizationForType?.(key);
+    const isInverted = customization?.invert === true;
+
+    return html`
+      <ha-dialog
+        .open=${this.open}
+        heading="${isInverted
+          ? this.hass.localize("ui.card.common.turn_on") + "?"
+          : this.hass.localize("ui.card.common.turn_off") + "?"}"
+        @closed=${this._onClosed}
+      >
+        <div>
+          ${this.hass.localize(
+            "ui.panel.lovelace.cards.actions.action_confirmation",
+            {
+              action: isInverted
+                ? this.hass.localize("ui.card.common.turn_on")
+                : this.hass.localize("ui.card.common.turn_off"),
+            }
+          )}
+        </div>
+        <ha-button
+          appearance="plain"
+          slot="secondaryAction"
+          dialogAction="close"
+        >
+          ${this.hass.localize("ui.common.no")}
+        </ha-button>
+        <ha-button
+          appearance="accent"
+          slot="primaryAction"
+          @click=${this._confirm}
+        >
+          ${this.hass.localize("ui.common.yes")}
+        </ha-button>
+      </ha-dialog>
+    `;
+  }
+
+  static styles = css``;
+}
+
+customElements.define(
+  "area-card-plus-popup-dialog-confirmation",
+  PopupDialogConfirmation
+);

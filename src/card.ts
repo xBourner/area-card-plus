@@ -12,7 +12,11 @@ import {
   handleAction,
   ActionHandlerEvent,
 } from "custom-card-helpers";
-import type { HassEntity, UnsubscribeFunc } from "home-assistant-js-websocket";
+import type {
+  HassEntity,
+  UnsubscribeFunc,
+  Connection,
+} from "home-assistant-js-websocket";
 import {
   AreaRegistryEntry,
   DeviceRegistryEntry,
@@ -41,7 +45,7 @@ import {
   DEFAULT_ASPECT_RATIO,
   DomainType,
 } from "./helpers";
-import { renderPopup } from "./popup";
+import "./popup-dialog";
 import parseAspectRatio from "./helpers";
 
 @customElement("area-card-plus")
@@ -54,22 +58,94 @@ export class AreaCardPlus
   }
 
   public static async getStubConfig(hass: HomeAssistant): Promise<CardConfig> {
-    const areas = await subscribeOne(hass.connection, subscribeAreaRegistry);
+    const conn = hass.connection as unknown as Connection;
+    const areas = await subscribeOne(conn, subscribeAreaRegistry);
     return { type: "custom:area-card-plus", area: areas[0]?.area_id || "" };
   }
 
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property({ attribute: false }) public layout?: string;
-  @state() public _config?: CardConfig;
+  @state() public _config!: CardConfig;
   @state() public _areas?: AreaRegistryEntry[];
   @state() public _devices?: DeviceRegistryEntry[];
   @state() public _entities?: EntityRegistryEntry[];
   @state() public _showPopup: boolean = false;
+  @state() public selectedDomain: string | null = null;
+  @state() public selectedDeviceClass: string | null = null;
 
   private _ratio: {
     w: number;
     h: number;
   } | null = null;
+
+  private showPopup(
+    element: HTMLElement,
+    dialogTag: string,
+    dialogParams: any
+  ): void {
+    element.dispatchEvent(
+      new CustomEvent("show-dialog", {
+        detail: {
+          dialogTag,
+          dialogImport: () => customElements.whenDefined(dialogTag),
+          dialogParams,
+        },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private _openDomainPopup(domain: string) {
+    const area = this._area(this._config?.area, this._areas || []);
+    const title =
+      this._config?.area_name || (area && (area as any).name) || "Details";
+
+    const dialogTag = "area-card-plus-popup-dialog";
+    this.showPopup(this, dialogTag, {
+      title,
+      hass: this.hass,
+      selectedDomain: domain,
+      selectedDeviceClass: this.selectedDeviceClass || undefined,
+      selectedGroup: this.selectedGroup || undefined,
+      card: this,
+    });
+  }
+
+  private _openGeneralPopup() {
+    const area = this._area(this._config?.area, this._areas || []);
+    const title =
+      this._config?.area_name || (area && (area as any).name) || "Details";
+
+    const entitiesByDomain = this._entitiesByDomain(
+      this._config!.area,
+      this._devicesInArea(this._config!.area, this._devices!),
+      this._entities!,
+      this._deviceClasses,
+      this.hass.states
+    );
+
+    const entities: HassEntity[] = [];
+    Object.values(entitiesByDomain || {}).forEach((list) => {
+      list.forEach((entity) => {
+        if (
+          !UNAVAILABLE_STATES.includes(entity.state) &&
+          !STATES_OFF.includes(entity.state)
+        ) {
+          entities.push(entity);
+        }
+      });
+    });
+
+    const dialogTag = "area-card-plus-popup-dialog";
+    this.showPopup(this, dialogTag, {
+      title,
+      hass: this.hass,
+      entities,
+      card: this,
+      content: entities.length ? undefined : `Keine Entitäten`,
+    });
+  }
 
   private _deviceClasses: { [key: string]: string[] } = DEVICE_CLASSES;
 
@@ -233,19 +309,20 @@ export class AreaCardPlus
   );
 
   public hassSubscribe(): UnsubscribeFunc[] {
+    const conn = this.hass!.connection as unknown as Connection;
+
     return [
-      subscribeAreaRegistry(this.hass!.connection, (areas) => {
+      subscribeAreaRegistry(conn, (areas) => {
         this._areas = areas;
       }),
-      subscribeDeviceRegistry(this.hass!.connection, (devices) => {
+      subscribeDeviceRegistry(conn, (devices) => {
         this._devices = devices;
       }),
-      subscribeEntityRegistry(this.hass!.connection, (entries) => {
+      subscribeEntityRegistry(conn, (entries) => {
         this._entities = entries;
       }),
     ];
   }
-
   public getCardSize(): number {
     return 3;
   }
@@ -364,10 +441,7 @@ export class AreaCardPlus
         actionConfig?.action === "more-info");
 
     if (isMoreInfo || actionConfig === undefined) {
-      this._showPopup = true;
-      this._selectedDomain = undefined;
-      this._selectedDeviceClass = undefined;
-      this.requestUpdate();
+      this._openGeneralPopup();
       return;
     }
 
@@ -430,7 +504,12 @@ export class AreaCardPlus
       } else if (isMoreInfo || actionConfig === undefined) {
         if (domain !== "binary_sensor" && domain !== "sensor") {
           if (domain === "climate") {
-            if (isMoreInfo) {
+            const climateCustomization =
+              this._config?.customization_domain?.find(
+                (item: { type: string }) => item.type === "climate"
+              );
+            const displayMode = (climateCustomization as any)?.display_mode;
+            if (displayMode === "icon" || displayMode === "text_icon") {
               this._showPopupForDomain(domain);
             }
           } else {
@@ -713,20 +792,23 @@ export class AreaCardPlus
               }
 
               return this._deviceClasses[domain].map((deviceClass) => {
+                const customization = this._config?.customization_cover?.find(
+                  (item: { type: string }) => item.type === deviceClass
+                );
+
+                const invert = customization?.invert === true;
                 const activeEntities = entitiesByDomain[domain].filter(
                   (entity) => {
                     const entityDeviceClass =
                       entity.attributes.device_class || "default";
+                    const isActive = !STATES_OFF.includes(entity.state);
                     return (
                       entityDeviceClass === deviceClass &&
-                      !STATES_OFF.includes(entity.state)
+                      (invert ? STATES_OFF.includes(entity.state) : isActive)
                     );
                   }
                 );
 
-                const customization = this._config?.customization_cover?.find(
-                  (item: { type: string }) => item.type === deviceClass
-                );
                 const coverColor =
                   customization?.color || this._config?.cover_color;
                 const coverIcon = customization?.icon;
@@ -783,7 +865,7 @@ export class AreaCardPlus
                             ? coverIcon
                             : this._getIcon(
                                 domain as DomainType,
-                                activeCount > 0,
+                                invert ? false : true,
                                 deviceClass
                               )}"
                         ></ha-state-icon>
@@ -811,19 +893,23 @@ export class AreaCardPlus
               }
 
               return this._deviceClasses[domain].map((deviceClass) => {
+                const customization = this._config?.customization_alert?.find(
+                  (item: { type: string }) => item.type === deviceClass
+                );
+                const invert = customization?.invert === true;
+
                 const activeEntities = entitiesByDomain[domain].filter(
                   (entity) => {
                     const entityDeviceClass =
                       entity.attributes.device_class || "default";
+                    const isOn = entity.state === "on";
                     return (
-                      entityDeviceClass === deviceClass && entity.state === "on"
+                      entityDeviceClass === deviceClass &&
+                      (invert ? STATES_OFF.includes(entity.state) : isOn)
                     );
                   }
                 );
 
-                const customization = this._config?.customization_alert?.find(
-                  (item: { type: string }) => item.type === deviceClass
-                );
                 const alertColor =
                   customization?.color || this._config?.alert_color;
                 const alertIcon = customization?.icon;
@@ -880,7 +966,7 @@ export class AreaCardPlus
                             ? alertIcon
                             : this._getIcon(
                                 domain as DomainType,
-                                activeCount > 0,
+                                invert ? false : true,
                                 deviceClass
                               )}"
                         ></ha-state-icon>
@@ -914,7 +1000,18 @@ export class AreaCardPlus
                     }
 
                     if (domain === "climate") {
-                      return nothing;
+                      const climateCustomization =
+                        this._config?.customization_domain?.find(
+                          (item: { type: string }) => item.type === "climate"
+                        );
+                      const displayMode = (climateCustomization as any)
+                        ?.display_mode;
+                      if (
+                        displayMode !== "icon" &&
+                        displayMode !== "text_icon"
+                      ) {
+                        return nothing;
+                      }
                     }
 
                     const customization =
@@ -992,7 +1089,18 @@ export class AreaCardPlus
                     }
 
                     if (domain === "climate") {
-                      return nothing;
+                      const climateCustomization =
+                        this._config?.customization_domain?.find(
+                          (item: { type: string }) => item.type === "climate"
+                        );
+                      const displayMode = (climateCustomization as any)
+                        ?.display_mode;
+                      if (
+                        displayMode !== "icon" &&
+                        displayMode !== "text_icon"
+                      ) {
+                        return nothing;
+                      }
                     }
 
                     const customization =
@@ -1076,6 +1184,7 @@ export class AreaCardPlus
                   })
             }
           </div>
+          
 
           </div>
           <div class="${classMap({
@@ -1116,6 +1225,7 @@ export class AreaCardPlus
               >
                 ${this._config.area_name || area.name}
               </div>
+              
 
               <div class="sensors">
                 ${SENSOR_DOMAINS.map((domain) => {
@@ -1155,10 +1265,22 @@ export class AreaCardPlus
                         );
                       const sensorColor =
                         customization?.color || this._config?.sensor_color;
+                      const invert = customization?.invert === true;
+                      const hasOnEntity = matchingEntities.some(
+                        (e) =>
+                          !UNAVAILABLE_STATES.includes(e.state) &&
+                          !STATES_OFF.includes(e.state)
+                      );
+                      if (invert && hasOnEntity) {
+                        return nothing;
+                      }
 
                       const icon = this._config?.show_sensor_icons
                         ? html`
                             <ha-domain-icon
+                              style=${sensorColor
+                                ? `color: var(--${sensorColor}-color);`
+                                : ""}
                               .hass=${this.hass}
                               .domain=${domain}
                               .deviceClass=${deviceClass}
@@ -1284,10 +1406,40 @@ export class AreaCardPlus
                       this._config?.customization_domain?.find(
                         (item: { type: string }) => item.type === domain
                       );
+                    const displayMode = (customization as any)?.display_mode;
+                    if (displayMode === "icon") {
+                      return "";
+                    }
+
+                    const domainColor = customization?.color;
+                    const textStyle = `${
+                      domainColor
+                        ? `color: var(--${domainColor}-color);`
+                        : this._config?.domain_color
+                        ? `color: ${this._config.domain_color};`
+                        : ""
+                    }${
+                      customization?.css
+                        ? " " +
+                          customization.css
+                            .split("\n")
+                            .reduce((acc: string, line: string) => {
+                              const trimmed = line.trim();
+                              if (trimmed && trimmed.includes(":")) {
+                                acc += trimmed.endsWith(";")
+                                  ? trimmed
+                                  : `${trimmed};`;
+                                acc += " ";
+                              }
+                              return acc;
+                            }, "")
+                        : ""
+                    }`;
 
                     return html`
                       <div
                         class="climate"
+                        style=${textStyle}
                         @action=${this._handleDomainAction(domain)}
                         .actionHandler=${actionHandler({
                           hasHold: hasAction(customization?.hold_action),
@@ -1305,7 +1457,7 @@ export class AreaCardPlus
             </div>
           </div>
         </div>
-${this._showPopup ? renderPopup(this) : nothing}
+
         
         </div>
       </ha-card>
@@ -1330,6 +1482,22 @@ ${this._showPopup ? renderPopup(this) : nothing}
       container?.appendChild(dialog);
     }
 
+    if (changedProps.has("selectedDomain") && this.selectedDomain) {
+      const domain = this.selectedDomain;
+      if (domain.includes(".")) {
+        const entityId = domain;
+        const stateObj = this.hass.states[entityId];
+        if (stateObj) {
+          this.showMoreInfo(stateObj);
+        }
+      } else {
+        this._openDomainPopup(domain);
+      }
+      setTimeout(() => {
+        this.selectedDomain = null;
+      }, 0);
+    }
+
     const oldHass = changedProps.get("hass") as HomeAssistant | undefined;
     const oldConfig = changedProps.get("_config") as CardConfig | undefined;
 
@@ -1344,13 +1512,8 @@ ${this._showPopup ? renderPopup(this) : nothing}
   }
 
   private _showPopupForDomain(domain: string, deviceClass?: string): void {
-    this._selectedDomain = domain;
-    this._selectedDeviceClass = deviceClass;
-    this._showPopup = true;
-
-    this.updateComplete.then(() => {
-      this.requestUpdate();
-    });
+    this.selectedDeviceClass = deviceClass || null;
+    this._openDomainPopup(domain);
   }
 
   private _getIcon(
@@ -1358,27 +1521,26 @@ ${this._showPopup ? renderPopup(this) : nothing}
     on: boolean,
     deviceClass?: string
   ): string {
-    if (domain === "cover" && !deviceClass) {
-      return "mdi:garage";
-    }
-
     if (domain in DOMAIN_ICONS) {
-      const icons = DOMAIN_ICONS[domain];
+      const icons = DOMAIN_ICONS[domain] as any;
 
-      if (
-        deviceClass &&
-        typeof icons === "object" &&
-        !(icons as { on: string; off: string }).on
-      ) {
-        const deviceClassIcons = icons as Record<string, string>;
-        if (deviceClass in deviceClassIcons) {
-          return deviceClassIcons[deviceClass];
+      // Prefer device-class specific icon when available (string or {on,off})
+      if (deviceClass && typeof icons === "object") {
+        const dc = (icons as Record<string, any>)[deviceClass];
+        if (dc) {
+          if (typeof dc === "string") return dc;
+          if (typeof dc === "object" && "on" in dc && "off" in dc)
+            return on ? dc.on : dc.off;
         }
       }
 
+      // Domain-level on/off icons (Default)
       if (typeof icons === "object" && "on" in icons && "off" in icons) {
         return on ? icons.on : icons.off;
       }
+
+      // If icons is a direct string fallback
+      if (typeof icons === "string") return icons;
     }
 
     return "";

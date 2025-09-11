@@ -1,11 +1,7 @@
 import { LitElement, TemplateResult, html, css, CSSResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import {
-  HomeAssistant,
-  ActionConfig,
-  LovelaceCardConfig,
-} from "custom-card-helpers";
-import { Settings } from "./helpers";
+import { HomeAssistant, LovelaceCardConfig } from "custom-card-helpers";
+import { Settings, UiAction } from "./helpers";
 import memoizeOne from "memoize-one";
 
 interface Schema {
@@ -17,8 +13,6 @@ interface Schema {
 }
 
 interface ItemConfig extends LovelaceCardConfig {}
-
-export type UiAction = Exclude<ActionConfig["action"], "fire-dom-event">;
 
 @customElement("item-editor")
 export class ItemEditor extends LitElement {
@@ -43,7 +37,7 @@ export class ItemEditor extends LitElement {
       "perform-action",
       "none",
     ];
-    return [
+    const base: Schema[] = [
       { name: "icon", selector: { icon: {} } },
       {
         name: "color",
@@ -63,7 +57,26 @@ export class ItemEditor extends LitElement {
         name: "hold_action",
         selector: { ui_action: { actions } },
       },
+      { name: "popup_card", selector: { object: {} } },
     ];
+
+    if (this._config?.type === "climate") {
+      base.unshift({
+        name: "display_mode",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "text", label: "Text" },
+              { value: "icon", label: "Icon" },
+              { value: "text_icon", label: "Text + Icon" },
+            ],
+          },
+        },
+      });
+    }
+
+    return base;
   });
 
   private _schemaalert = memoizeOne(() => {
@@ -75,6 +88,7 @@ export class ItemEditor extends LitElement {
       "none",
     ];
     return [
+      { name: "invert", selector: { boolean: {} } },
       { name: "icon", selector: { icon: {} } },
       {
         name: "color",
@@ -94,6 +108,7 @@ export class ItemEditor extends LitElement {
         name: "hold_action",
         selector: { ui_action: { actions } },
       },
+      { name: "popup_card", selector: { object: {} } },
     ];
   });
 
@@ -106,6 +121,7 @@ export class ItemEditor extends LitElement {
       "none",
     ];
     return [
+      { name: "invert", selector: { boolean: {} } },
       {
         name: "color",
         selector: { ui_color: { default_color: "state", include_state: true } },
@@ -123,6 +139,7 @@ export class ItemEditor extends LitElement {
         name: "hold_action",
         selector: { ui_action: { actions } },
       },
+      { name: "popup_card", selector: { object: {} } },
     ];
   });
 
@@ -190,6 +207,10 @@ export class ItemEditor extends LitElement {
           " " +
           "CSS"
         );
+      case "display_mode":
+        return "Display Mode";
+      case "popup_card":
+        return "Change Popup Card Type";
       case "icon":
       case "tap_action":
       case "hold_action":

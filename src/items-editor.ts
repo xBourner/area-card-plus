@@ -78,7 +78,11 @@ abstract class BaseItemsEditor extends LitElement {
         <div class="add-item row">
           <ha-select
             label=${this.hass!.localize(
-              "ui.panel.lovelace.editor.features.add"
+              "ui.panel.lovelace.editor.common.edit"
+            ) +
+            " " +
+            this.hass!.localize(
+              "ui.panel.lovelace.editor.card.markdown.content"
             )}
             name="Customize"
             class="add-customization"
