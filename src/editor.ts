@@ -1152,6 +1152,10 @@ export class AreaCardPlusEditor
           <ha-svg-icon .path=${mdiAlert}></ha-svg-icon>
           ${this.computeLabel({ name: "alert_classes" })}
         </div>
+        <div class="content">
+          <ha-form
+            .hass=${this.hass}
+            .data=${data}
             .schema=${binaryschema}
             .computeLabel=${this.computeLabel}
             @value-changed=${this._valueChanged}
@@ -1252,7 +1256,6 @@ export class AreaCardPlusEditor
             .computeLabel=${this.computeLabel}
             @value-changed=${this._valueChanged}
           ></ha-form>
-        </div>
 
         <ha-expansion-panel outlined class="main">
           <div slot="header" role="heading" aria-level="3">
@@ -1364,6 +1367,10 @@ export class AreaCardPlusEditor
             )}
           </div>
         </ha-expansion-panel>
+
+        </div>
+
+
     `;
   }
 
@@ -1381,7 +1388,7 @@ export class AreaCardPlusEditor
     .main {
       --ha-card-border-radius: 6px;
       border-radius: 6px;
-      margin-top: 24px;
+      margin-top: 16px;
     }
     ha-svg-icon {
       color: var(--secondary-text-color);
@@ -1415,7 +1422,7 @@ export class AreaCardPlusEditor
       white-space: nowrap;
     }
     .domain-panel {
-      margin: 12px 0;
+      margin-top: 6px;
     }
     .domain-header {
       display: flex;

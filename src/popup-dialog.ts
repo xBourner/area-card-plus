@@ -356,6 +356,14 @@ export class PopupDialog extends LitElement {
       state_content: ["state", "last_changed"],
       features: [{ type: "toggle" }],
     },
+    scene: {
+      state_content: ["state", "last_changed"],
+      features: [{ type: "button" }],
+    },
+    script: {
+      state_content: ["state", "last_changed"],
+      features: [{ type: "button" }],
+    },    
     input_boolean: {
       state_content: ["state", "last_changed"],
       features: [{ type: "toggle" }],

@@ -674,7 +674,21 @@ export class AreaCardPlus
       v2: this._config?.design === "V2",
       row: this._config?.layout === "horizontal",
     };
+    let rowSize = 3;
+    try {
+      const root = (this.shadowRoot as any)?.host || document.documentElement;
+      const val = getComputedStyle(root).getPropertyValue('--row-size');
+      if (val) rowSize = Number(val.trim()) || 3;
+    } catch (e) {}
+
+    // Standard-Background für alle Container
     const designStyles = isV2Design ? { background: v2Color } : {};
+    // Für icon-container: Kein Background, wenn v2 und row-size = 1
+    const iconContainerStyles = (isV2Design && rowSize === 1)
+      ? {}
+      : isV2Design
+        ? { background: v2Color }
+        : {};
 
     const ignoreAspectRatio = this.layout === "grid";
 
@@ -752,7 +766,7 @@ export class AreaCardPlus
             "icon-container": true,
             ...designClasses,
           })}"
-          style=${styleMap(designStyles)}>
+          style=${styleMap(iconContainerStyles)}>
           ${
             showIcon
               ? html`
@@ -1590,6 +1604,7 @@ export class AreaCardPlus
         top: 16px;
         left: 16px;
         color: var(--primary-color);
+        z-index: 1;
       }
       .icon-container.row {
         top: 25%;
@@ -1782,7 +1797,7 @@ export class AreaCardPlus
           --mdc-icon-size: calc(var(--row-size, 3) * 15px);
           border-radius: 50%;
           display: flex;
-          padding: 16px;
+          padding: 16px;    
         }
       }
 
