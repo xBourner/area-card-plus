@@ -3244,6 +3244,9 @@ let X = class extends gs(te) {
       .text-large {
         font-size: 1.3em;
       }
+      .right  * {
+        pointer-events: auto;
+      }
       .v2 .covers {
         flex-direction: row-reverse;
       }
