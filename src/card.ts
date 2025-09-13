@@ -681,9 +681,7 @@ export class AreaCardPlus
       if (val) rowSize = Number(val.trim()) || 3;
     } catch (e) {}
 
-    // Standard-Background für alle Container
     const designStyles = isV2Design ? { background: v2Color } : {};
-    // Für icon-container: Kein Background, wenn v2 und row-size = 1
     const iconContainerStyles = (isV2Design && rowSize === 1)
       ? {}
       : isV2Design
@@ -722,6 +720,7 @@ export class AreaCardPlus
     }
 
     const iconStyles = {
+  ...(isV2Design && rowSize === 1 ? { "--mdc-icon-size": "20px" } : {}),
       color: this._config?.area_icon_color
         ? `var(--${this._config.area_icon_color}-color)`
         : "",
@@ -1560,20 +1559,6 @@ export class AreaCardPlus
     return "";
   }
 
-  connectedCallback(): void {
-    super.connectedCallback();
-    this._updateIsMobile();
-    window.addEventListener("resize", this._updateIsMobile.bind(this));
-  }
-
-  disconnectedCallback(): void {
-    window.removeEventListener("resize", this._updateIsMobile.bind(this));
-    super.disconnectedCallback();
-  }
-
-  private _updateIsMobile(): void {
-    this._isMobile = window.innerWidth <= 768;
-  }
 
   static get styles() {
     return css`
@@ -1605,6 +1590,7 @@ export class AreaCardPlus
         left: 16px;
         color: var(--primary-color);
         z-index: 1;
+        pointer-events: none;
       }
       .icon-container.row {
         top: 25%;
@@ -1772,6 +1758,7 @@ export class AreaCardPlus
         padding: calc(var(--row-size, 3) * 3px) 8px;
         top: unset;
         min-height: 24px;
+        pointer-events: none;
       }
       .v2 .bottom {
         left: calc(var(--row-size, 3) * 15px + 55px);
