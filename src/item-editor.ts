@@ -28,6 +28,33 @@ export class ItemEditor extends LitElement {
     }
   }
 
+  private _schemacustombutton = memoizeOne(() => {
+        const actions: UiAction[] = [
+          "more-info",
+          "toggle",
+          "navigate",
+          "url",
+          "call-service",
+          "none",
+        ];
+        return [
+          { name: "name", selector: { text: {} } },
+          { name: "icon", selector: { icon: {} } },
+          {
+            name: "tap_action",
+            selector: { ui_action: { actions } },
+          },
+          {
+            name: "double_tap_action",
+            selector: { ui_action: { actions } },
+          },
+          {
+            name: "hold_action",
+            selector: { ui_action: { actions } },
+          },
+        ];
+  });
+    
   private _schemadomain = memoizeOne(() => {
     const actions: UiAction[] = [
       "more-info",
@@ -164,6 +191,9 @@ export class ItemEditor extends LitElement {
       case "cover":
         schema = this._schemaalert();
         break;
+      case "custom_button":
+        schema = this._schemacustombutton();
+        break;
     }
 
     const data = { ...this._config };
@@ -218,6 +248,10 @@ export class ItemEditor extends LitElement {
         return this.hass!.localize(
           `ui.panel.lovelace.editor.card.generic.${schema.name}`
         );
+      case "name":
+        return this.hass!.localize(
+          `ui.panel.lovelace.editor.card.generic.name`
+         );
       default:
         return this.hass!.localize(
           `ui.panel.lovelace.editor.card.area.${schema.name}`
