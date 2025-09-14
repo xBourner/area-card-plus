@@ -13,7 +13,6 @@ import {
   UNAVAILABLE_STATES,
   compareByFriendlyName,
   AreaRegistryEntry,
-  typeKey,
   SENSOR_DOMAINS,
   ALERT_DOMAINS,
   COVER_DOMAINS,
