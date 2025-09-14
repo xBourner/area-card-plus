@@ -96,6 +96,43 @@ export class AreaCardPlus
     );
   }
 
+  private renderCustomButtons() {
+      if (!this.config.custom_buttons?.length) return null;
+
+      return html`
+        <div class="custom-buttons">
+          ${this.config.custom_buttons.map(
+            (btn, idx) => html`
+              <mwc-button
+                class="custom-button"
+                label=${btn.name || ""}
+                @click=${(e) =>
+                  handleAction(this, this.hass!, btn.tap_action, {
+                    entity: undefined,
+                    index: idx,
+                  })}
+                @contextmenu=${(e) => {
+                  e.preventDefault();
+                  handleAction(this, this.hass!, btn.hold_action, {
+                    entity: undefined,
+                    index: idx,
+                  });
+                }}
+                @dblclick=${(e) =>
+                  handleAction(this, this.hass!, btn.double_tap_action, {
+                    entity: undefined,
+                    index: idx,
+                  })}
+              >
+                ${btn.icon ? html`<ha-icon icon=${btn.icon}></ha-icon>` : ""}
+              </mwc-button>
+            `
+          )}
+        </div>
+      `;
+    }
+
+
   private _openDomainPopup(domain: string) {
     const area = this._area(this._config?.area, this._areas || []);
     const title =
@@ -762,6 +799,7 @@ export class AreaCardPlus
               `
             : nothing
         }
+        ${this.renderCustomButtons()}
           <div class="${classMap({
             "icon-container": true,
             ...designClasses,

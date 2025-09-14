@@ -26,12 +26,19 @@ declare module "custom-card-helpers" {
 }
 
 export interface CardConfig extends LovelaceCardConfig {
-  area: string;
-  navigation_path?: string;
-  columns?: number;
-  hold_action?: ActionConfig;
-  double_tap_action?: ActionConfig;
-  show_sensor_icons?: boolean;
+    area: string;
+    navigation_path?: string;
+    columns?: number;
+    hold_action?: ActionConfig;
+    double_tap_action?: ActionConfig;
+    show_sensor_icons?: boolean;
+    custom_buttons?: Array<{
+      icon?: string;
+      name?: string;
+      tap_action?: ActionConfig;
+      hold_action?: ActionConfig;
+      double_tap_action?: ActionConfig;
+    }>;
 }
 
 export interface SelectOption {

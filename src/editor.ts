@@ -54,6 +54,47 @@ export class AreaCardPlusEditor
     undefined;
   @state() private _subElementEditorSensor: SubElementEditor | undefined =
     undefined;
+  @state() private _subElementEditorCustomButton: SubElementEditor | undefined = undefined;
+
+  private _edit_itemCustomButton(ev: CustomEvent<number>): void {
+    ev.stopPropagation();
+    if (!this._config || !this.hass) {
+      return;
+    }
+    this._subElementEditorCustomButton = { index: ev.detail };
+  }
+
+  private _goBackCustomButton(): void {
+    this._subElementEditorCustomButton = undefined;
+  }
+
+  private _itemChangedCustomButton(ev: CustomEvent<any>): void {
+    ev.stopPropagation();
+    if (!this._config || !this.hass) {
+        return;
+    }
+    const index = this._subElementEditorCustomButton?.index;
+    if (index !== undefined) {
+        const newButtons = [...(this._config.custom_buttons || [])];
+        newButtons[index] = ev.detail;
+        fireEvent(this, "config-changed", {
+            config: { ...this._config, custom_buttons: newButtons },
+        });
+    }
+    }
+
+  private _customizationChangedCustomButtons(ev: CustomEvent<any[]>): void {
+    ev.stopPropagation();
+    if (!this._config || !this.hass) {
+        return;
+    }
+    fireEvent(this, "config-changed", {
+      config: {
+        ...this._config,
+        custom_buttons: ev.detail,
+      } as CardConfig,
+    });
+  }
 
   private computeLabel = memoizeOne((schema: Schema): string => {
     return computeLabelCallback(this.hass, schema);
@@ -168,6 +209,21 @@ export class AreaCardPlusEditor
           { name: "double_tap_action", selector: { ui_action: { actions } } },
           { name: "hold_action", selector: { ui_action: { actions } } },
         ],
+      },
+      {
+        name: "custom_buttons",
+        icon: "mdi:gesture-tap-button",
+        selector: {
+          array: {
+            object: [
+              { name: "icon", selector: { icon: {} } },
+              { name: "name", selector: { text: {} } },
+              { name: "tap_action", selector: { ui_action: { actions } } },
+              { name: "hold_action", selector: { ui_action: { actions } } },
+              { name: "double_tap_action", selector: { ui_action: { actions } } },
+            ],
+          },
+        },
       },
     ];
   });
@@ -780,6 +836,28 @@ export class AreaCardPlusEditor
     `;
   }
 
+  private _renderSubElementEditorCustomButton() {
+    const index = this._subElementEditorCustomButton?.index ?? 0;
+    const buttonConfig = this._config?.custom_buttons?.[index] || {};
+
+    return html`
+      <div class="header">
+        <div class="back-title">
+          <mwc-icon-button @click=${this._goBackCustomButton}>
+            <ha-icon icon="mdi:chevron-left"></ha-icon>
+          </mwc-icon-button>
+          <span slot="title">${this.hass.localize("ui.panel.lovelace.editor.card.generic.edit_button")}</span>
+        </div>
+      </div>
+      <item-editor
+        .hass=${this.hass}
+        .config=${buttonConfig}
+        .getSchema=${"custom_button"}
+        @config-changed=${this._itemChangedCustomButton}
+      ></item-editor>
+    `;
+  }
+
   private _renderSubElementEditorDomain() {
     return this._renderSubElementEditor(
       "domain",
@@ -1090,7 +1168,7 @@ export class AreaCardPlusEditor
     if (!this.hass || !this._config) {
       return nothing;
     }
-
+    
     const possibleToggleDomains = this._toggleDomainsForArea(
       this._config.area || ""
     );
@@ -1137,6 +1215,8 @@ export class AreaCardPlusEditor
     if (this._subElementEditorCover) return this._renderSubElementEditorCover();
     if (this._subElementEditorSensor)
       return this._renderSubElementEditorSensor();
+
+    if (this._subElementEditorCustomButton) return this._renderSubElementEditorCustomButton();
 
     return html`
       <ha-form
@@ -1242,7 +1322,23 @@ export class AreaCardPlusEditor
           </domain-items-editor>
         </div>
       </ha-expansion-panel>
-
+    
+      <ha-expansion-panel outlined class="main">
+          <div slot="header" role="heading" aria-level="3">
+            <ha-svg-icon path="mdi:gesture-tap-button"></ha-svg-icon>
+            Custom Buttons
+          </div>
+          <div class="content">
+            <custom-buttons-editor
+              .hass=${this.hass}
+              .custom_buttons=${this._config.custom_buttons}
+              @edit-item=${this._edit_itemCustomButton}
+              @config-changed=${this._customizationChangedCustomButtons}
+            >
+            </custom-buttons-editor>
+          </div>
+     </ha-expansion-panel>
+              
       <ha-expansion-panel outlined class="main" .name="popup">
         <div slot="header" role="heading" aria-level="3">
           <ha-svg-icon .path=${mdiViewDashboardVariant}></ha-svg-icon>

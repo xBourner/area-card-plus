@@ -225,3 +225,87 @@ export class PopupItemsEditor extends BaseItemsEditor {
     return this.customization_popup;
   }
 }
+
+@customElement("custom-buttons-editor")
+export class CustomButtonsEditor extends LitElement {
+  @property({ attribute: false }) hass?: HomeAssistant;
+  @property({ attribute: false }) custom_buttons?: any[];
+
+  private _editRow(ev: Event): void {
+    const index = (ev.currentTarget as any).index;
+    fireEvent(this, "edit-item", index);
+  }
+
+  private _removeRow(ev: Event): void {
+    if (!this.custom_buttons) return;
+    const index = (ev.currentTarget as any).index;
+    const newButtons = [...this.custom_buttons];
+    newButtons.splice(index, 1);
+    fireEvent(this, "config-changed", newButtons);
+  }
+
+  private _addRow(): void {
+    const newButton = {
+      name: "New Button",
+      icon: "mdi:gesture-tap-button",
+      tap_action: { action: "none" },
+    };
+    const newButtons = [...(this.custom_buttons || []), newButton];
+    fireEvent(this, "config-changed", newButtons);
+  }
+
+  protected render() {
+    if (!this.hass) {
+      return nothing;
+    }
+
+    return html`
+      ${this.custom_buttons?.map(
+        (button, index) => html`
+          <div class="row">
+            <div class="item">
+              <ha-icon .icon=${button.icon || "mdi:gesture-tap-button"}></ha-icon>
+              <span class="name">${button.name || `Button ${index + 1}`}</span>
+            </div>
+            <ha-icon-button
+              .label=${this.hass!.localize("ui.common.edit")}
+              .path=${mdiPencil}
+              .index=${index}
+              @click=${this._editRow}
+            ></ha-icon-button>
+            <ha-icon-button
+              .label=${this.hass!.localize("ui.common.remove")}
+              .path=${mdiClose}
+              .index=${index}
+              @click=${this._removeRow}
+            ></ha-icon-button>
+          </div>
+        `
+      )}
+      <mwc-button @click=${this._addRow} class="add-btn" outlined>
+        ${this.hass!.localize("ui.panel.lovelace.editor.card.generic.add_button")}
+      </mwc-button>
+    `;
+  }
+
+  static styles = css`
+    .row {
+      display: flex;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .item {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .name {
+        font-size: 16px;
+    }
+    .add-btn {
+      margin-top: 8px;
+      width: 100%;
+    }
+  `;
+}
