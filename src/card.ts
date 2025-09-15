@@ -97,7 +97,9 @@ export class AreaCardPlus
   }
 
   private renderCustomButtons() {
-      if (!this.config.custom_buttons?.length) return null;
+      if (!this._config?.custom_buttons || this._config.custom_buttons.length === 0) {
+         return nothing;
+       }
 
       return html`
         <div class="custom-buttons">
