@@ -1,3 +1,4 @@
+import { repeat } from "lit/directives/repeat.js";
 import { LitElement, html, css, PropertyValues, nothing } from "lit";
 import { property, state } from "lit/decorators.js";
 import {
@@ -33,9 +34,8 @@ const OFF_STATES = new Set([
   "unavailable",
 ]);
 
-export class PopupDialog extends LitElement {
+export class AreaCardPlusPopup extends LitElement {
   @property({ type: Boolean }) public open = false;
-  @property({ type: String }) public title = "";
   @property({ type: String }) public selectedDomain?: string;
   @property({ type: String }) public selectedDeviceClass?: string;
   @property({ type: String }) public content = "";
@@ -54,10 +54,9 @@ export class PopupDialog extends LitElement {
     _shouldShowTotalEntities?: (...args: any[]) => boolean;
     list_mode?: boolean;
   };
-  @state() public _showAll = false;
+
   @state() public selectedGroup?: number;
   private _cardEls: Map<string, HTMLElement> = new Map();
-  private _lastEntityIds: string[] = [];
 
   public showDialog(params: {
     title?: string;
@@ -174,7 +173,6 @@ export class PopupDialog extends LitElement {
       : (this.hass?.states?.[entity.entity_id]?.attributes as any)
           ?.device_class;
 
-    // Select the correct customization array based on domain / device class
     const cfg = card?._config || {};
     let customization: any | undefined;
 
@@ -362,7 +360,7 @@ export class PopupDialog extends LitElement {
     script: {
       state_content: ["state", "last_changed"],
       features: [{ type: "button" }],
-    },    
+    },
     input_boolean: {
       state_content: ["state", "last_changed"],
       features: [{ type: "toggle" }],
@@ -392,27 +390,7 @@ export class PopupDialog extends LitElement {
     if (!this.open) {
       return changedProps.has("open");
     }
-    if (changedProps.size === 1 && changedProps.has("hass")) {
-      const currentIds = this._getCurrentEntities()
-        .map((e) => e.entity_id)
-        .sort();
-      const lastIds = (this._lastEntityIds || []).slice().sort();
-      const same =
-        currentIds.length === lastIds.length &&
-        currentIds.every((id, i) => id === lastIds[i]);
-      this._updateCardsHass();
-      return !same;
-    }
     return true;
-  }
-
-  private _updateCardsHass(): void {
-    if (!this.hass) return;
-    this._cardEls.forEach((el) => {
-      try {
-        (el as any).hass = this.hass;
-      } catch (_) {}
-    });
   }
 
   private _getOrCreateCard(entity: HassEntity): HTMLElement {
@@ -443,70 +421,11 @@ export class PopupDialog extends LitElement {
     return placeholder;
   }
 
-  private _getCurrentEntities(): HassEntity[] {
-    const card = this.card as any;
-    const domain = this.selectedDomain!;
-    const deviceClass = this.selectedDeviceClass;
-    const group = this.selectedGroup;
-
-    // Groups not implemented for area-card-plus popup; return empty for now
-    if (group !== undefined && card?._config?.content?.[group]) {
-      return [];
-    }
-
-    if (domain) {
-      const shouldShowTotal =
-        typeof card?._shouldShowTotalEntities === "function"
-          ? card._shouldShowTotalEntities(domain, deviceClass)
-          : false;
-      const showAllEntities = shouldShowTotal ? true : this._showAll;
-
-      const result = showAllEntities
-        ? typeof card?._totalEntities === "function"
-          ? card._totalEntities(domain, deviceClass)
-          : undefined
-        : typeof card?._isOn === "function"
-        ? card._isOn(domain, deviceClass)
-        : undefined;
-
-      if (Array.isArray(result)) return result as HassEntity[];
-      if (result) return [result as HassEntity];
-      return [];
-    }
-
-    return Array.isArray(this.entities) ? (this.entities as HassEntity[]) : [];
-  }
-
-  private toggleAllOrOn(): void {
-    this._showAll = !this._showAll;
-  }
-
   public computeLabel = memoizeOne(
     (schema: Schema, domain?: string, deviceClass?: string): string => {
       return computeLabelCallback(this.hass!, schema);
     }
   );
-
-  private getAreaForEntity(entity: HassEntity): string {
-    const card: any = this.card;
-    const entry = card._entities?.find(
-      (e: any) => e.entity_id === entity.entity_id
-    );
-    if (entry) {
-      if (entry.area_id) {
-        return entry.area_id;
-      }
-      if (entry.device_id) {
-        const device = card._devices?.find(
-          (d: any) => d.id === entry.device_id
-        );
-        if (device && device.area_id) {
-          return device.area_id;
-        }
-      }
-    }
-    return "unassigned";
-  }
 
   private _isActive(e: HassEntity): boolean {
     return !OFF_STATES.has(e.state);
@@ -544,43 +463,10 @@ export class PopupDialog extends LitElement {
     return arr.sort((a, b) => cmp(a.entity_id, b.entity_id));
   }
 
-  private groupAndSortEntities = memoizeOne(
-    (
-      entities: HassEntity[],
-      areaMap: Map<string, string>,
-      sortEntities: (ents: HassEntity[]) => HassEntity[]
-    ): Array<[string, HassEntity[]]> => {
-      const groups = new Map<string, HassEntity[]>();
-      for (const entity of entities) {
-        const areaId = this.getAreaForEntity(entity);
-        if (!groups.has(areaId)) {
-          groups.set(areaId, []);
-        }
-        groups.get(areaId)!.push(entity);
-      }
-
-      const sortedGroups = Array.from(groups.entries()).sort(
-        ([areaIdA], [areaIdB]) => {
-          const nameA =
-            areaMap.get(areaIdA)?.toLowerCase() ??
-            (areaIdA === "unassigned" ? "unassigned" : areaIdA);
-          const nameB =
-            areaMap.get(areaIdB)?.toLowerCase() ??
-            (areaIdB === "unassigned" ? "unassigned" : areaIdB);
-          return nameA.localeCompare(nameB);
-        }
-      );
-
-      return sortedGroups.map(([areaId, ents]) => [areaId, sortEntities(ents)]);
-    }
-  );
-
   protected render() {
     if (!this.open || !this.hass || !this.card) return html``;
 
     const card: any = this.card;
-
-    // Gather filters and data from card
     const areaId: string = card._config?.area;
     const devicesInArea: Set<string> =
       card._devicesInArea?.(areaId, card._devices) ?? new Set<string>();
@@ -594,8 +480,6 @@ export class PopupDialog extends LitElement {
     const categoryFilter: string | undefined = card._config?.category_filter;
     const selectedDomain = this.selectedDomain || null;
     const selectedDeviceClass = this.selectedDeviceClass || null;
-
-    // Filter by category helper
     const filterByCategory = (entityId: string) => {
       if (!categoryFilter) return true;
       const entry = registryEntities.find(
@@ -610,13 +494,6 @@ export class PopupDialog extends LitElement {
       return true;
     };
 
-    // Device class filter
-    const filterByDeviceClass = (entity: HassEntity) => {
-      if (!selectedDeviceClass) return true;
-      return (entity.attributes as any).device_class === selectedDeviceClass;
-    };
-
-    // Collect entities in area
     const entitiesInArea = registryEntities.reduce<string[]>(
       (acc, entry: any) => {
         if (
@@ -645,7 +522,6 @@ export class PopupDialog extends LitElement {
       [] as string[]
     );
 
-    // Build flat entity list applying domain/device_class filters
     let ents: HassEntity[] = [];
     for (const entityId of entitiesInArea) {
       const domain = computeDomain(entityId);
@@ -661,7 +537,6 @@ export class PopupDialog extends LitElement {
       ents.push(stateObj);
     }
 
-    // Add extra entities
     for (const extra of extraEntities) {
       const domain = computeDomain(extra);
       const st = states[extra];
@@ -720,13 +595,14 @@ export class PopupDialog extends LitElement {
 
     return html`
       <ha-dialog
+        hideActions
         id="more-info-dialog"
         style="--columns: ${displayColumns};"
         .open=${this.open}
         @closed=${this._onClosed}
       >
         <style>
-          ${PopupDialog.styles}
+          ${AreaCardPlusPopup.styles}
         </style>
         <div class="dialog-header">
           <ha-icon-button
@@ -742,8 +618,10 @@ export class PopupDialog extends LitElement {
 
         <div class="dialog-content">
           ${!ungroupAreas
-            ? html`${finalDomainEntries.map(([dom, list]) => {
-                return html`
+            ? html`${repeat(
+                finalDomainEntries,
+                ([dom]) => dom,
+                ([dom, list]) => html`
                   <div class="cards-wrapper">
                     <h4>
                       ${dom === "binary_sensor" ||
@@ -756,7 +634,9 @@ export class PopupDialog extends LitElement {
                         : this._getDomainName(dom)}
                     </h4>
                     <div class="entity-cards">
-                      ${list.map(
+                      ${repeat(
+                        list,
+                        (entity: HassEntity) => entity.entity_id,
                         (entity: HassEntity) => html`
                           <div class="entity-card">
                             ${this._getOrCreateCard(entity)}
@@ -765,8 +645,8 @@ export class PopupDialog extends LitElement {
                       )}
                     </div>
                   </div>
-                `;
-              })}`
+                `
+              )}`
             : html`
                 <div class="entity-cards">
                   ${sorted.map(
@@ -917,92 +797,4 @@ export class PopupDialog extends LitElement {
   `;
 }
 
-customElements.define("area-card-plus-popup-dialog", PopupDialog);
-
-class PopupDialogConfirmation extends LitElement {
-  @property({ type: Boolean }) public open = false;
-  @property({ attribute: false }) public hass?: HomeAssistant;
-  @property({ attribute: false }) public card?: any;
-  @property({ type: String }) public selectedDomain?: string;
-  @property({ type: String }) public selectedDeviceClass?: string;
-
-  public showDialog(params: {
-    hass: HomeAssistant;
-    card: any;
-    selectedDomain?: string;
-    selectedDeviceClass?: string;
-  }): void {
-    this.hass = params.hass;
-    this.card = params.card;
-    this.selectedDomain = params.selectedDomain;
-    this.selectedDeviceClass = params.selectedDeviceClass;
-    this.open = true;
-    this.requestUpdate();
-  }
-
-  private _onClosed = () => {
-    this.open = false;
-    this.dispatchEvent(
-      new CustomEvent("dialog-closed", { bubbles: true, composed: true })
-    );
-  };
-
-  private _confirm = () => {
-    try {
-      this.card?.toggleDomain?.(this.selectedDomain, this.selectedDeviceClass);
-    } catch (_) {}
-    this._onClosed();
-  };
-
-  protected render() {
-    if (!this.open || !this.hass || !this.card) return html``;
-
-    const domain = this.selectedDomain || "";
-    const deviceClass = this.selectedDeviceClass;
-    const key: any = [];
-    const customization = this.card?.getCustomizationForType?.(key);
-    const isInverted = customization?.invert === true;
-
-    return html`
-      <ha-dialog
-        .open=${this.open}
-        heading="${isInverted
-          ? this.hass.localize("ui.card.common.turn_on") + "?"
-          : this.hass.localize("ui.card.common.turn_off") + "?"}"
-        @closed=${this._onClosed}
-      >
-        <div>
-          ${this.hass.localize(
-            "ui.panel.lovelace.cards.actions.action_confirmation",
-            {
-              action: isInverted
-                ? this.hass.localize("ui.card.common.turn_on")
-                : this.hass.localize("ui.card.common.turn_off"),
-            }
-          )}
-        </div>
-        <ha-button
-          appearance="plain"
-          slot="secondaryAction"
-          dialogAction="close"
-        >
-          ${this.hass.localize("ui.common.no")}
-        </ha-button>
-        <ha-button
-          appearance="accent"
-          slot="primaryAction"
-          @click=${this._confirm}
-        >
-          ${this.hass.localize("ui.common.yes")}
-        </ha-button>
-      </ha-dialog>
-    `;
-  }
-
-  static styles = css``;
-}
-
-customElements.define(
-  "area-card-plus-popup-dialog-confirmation",
-  PopupDialogConfirmation
-);
+customElements.define("area-card-plus-popup", AreaCardPlusPopup);

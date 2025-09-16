@@ -2,6 +2,7 @@ import { LitElement, html, css, PropertyValues, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { classMap } from "lit/directives/class-map.js";
 import { styleMap } from "lit/directives/style-map.js";
+import { repeat } from "lit/directives/repeat.js";
 import memoizeOne from "memoize-one";
 import {
   HomeAssistant,
@@ -64,14 +65,15 @@ export class AreaCardPlus
   }
 
   @property({ attribute: false }) public hass!: HomeAssistant;
-  @property({ attribute: false }) public layout?: string;
   @state() public _config!: CardConfig;
   @state() public _areas?: AreaRegistryEntry[];
   @state() public _devices?: DeviceRegistryEntry[];
   @state() public _entities?: EntityRegistryEntry[];
-  @state() public _showPopup: boolean = false;
   @state() public selectedDomain: string | null = null;
   @state() public selectedDeviceClass: string | null = null;
+
+  private _iconCache: Map<string, string> = new Map();
+  private _styleCache: Map<string, string> = new Map();
 
   private _ratio: {
     w: number;
@@ -101,7 +103,7 @@ export class AreaCardPlus
     const title =
       this._config?.area_name || (area && (area as any).name) || "Details";
 
-    const dialogTag = "area-card-plus-popup-dialog";
+    const dialogTag = "area-card-plus-popup";
     this.showPopup(this, dialogTag, {
       title,
       hass: this.hass,
@@ -137,7 +139,7 @@ export class AreaCardPlus
       });
     });
 
-    const dialogTag = "area-card-plus-popup-dialog";
+    const dialogTag = "area-card-plus-popup";
     this.showPopup(this, dialogTag, {
       title,
       hass: this.hass,
@@ -275,7 +277,6 @@ export class AreaCardPlus
       0
     );
 
-    // Bei "power" wird die Summe ausgegeben, ansonsten der Durchschnitt.
     if (deviceClass === "power") {
       return `${formatNumber(sum, this.hass!.locale as any, {
         maximumFractionDigits: 1,
@@ -365,7 +366,107 @@ export class AreaCardPlus
     if (config.cover_classes) {
       this._deviceClasses.cover = config.cover_classes;
     }
+    this._iconCache.clear();
+    this._styleCache.clear();
   }
+
+  private _parseCss(css?: string): string {
+    if (!css) return "";
+    const key = css;
+    if (this._styleCache.has(key)) return this._styleCache.get(key)!;
+    const parsed = css.split("\n").reduce((acc: string, line: string) => {
+      const trimmed = line.trim();
+      if (trimmed && trimmed.includes(":")) {
+        acc += trimmed.endsWith(";") ? trimmed : `${trimmed};`;
+        acc += " ";
+      }
+      return acc;
+    }, "");
+    this._styleCache.set(key, parsed);
+    return parsed;
+  }
+
+  private _computeCovers = memoizeOne(
+    (entitiesByDomain: { [k: string]: HassEntity[] }, deviceClasses: any) =>
+      COVER_DOMAINS.flatMap((domain) => {
+        if (!(domain in entitiesByDomain)) return [] as any[];
+        return deviceClasses[domain].map((deviceClass: string) => ({
+          domain,
+          deviceClass,
+        }));
+      })
+  );
+
+  private _computeIconStyles = memoizeOne(
+    (
+      isV2Design: boolean,
+      rowSize: number,
+      icon_css: string | undefined,
+      area_icon_color: string | undefined
+    ) => {
+      const base: Record<string, any> = {
+        ...(isV2Design && rowSize === 1 ? { "--mdc-icon-size": "20px" } : {}),
+        color: area_icon_color ? `var(--${area_icon_color}-color)` : "",
+      };
+      if (!icon_css) return base;
+      return icon_css
+        .split("\n")
+        .reduce((acc: Record<string, string>, line: string) => {
+          const trimmed = line.trim();
+          if (trimmed && trimmed.includes(":")) {
+            const [key, value] = trimmed.split(":");
+            acc[key.trim()] = value.trim().replace(";", "");
+          }
+          return acc;
+        }, base as Record<string, string>);
+    }
+  );
+
+  private _computeAlerts = memoizeOne(
+    (entitiesByDomain: { [k: string]: HassEntity[] }, deviceClasses: any) =>
+      ALERT_DOMAINS.flatMap((domain) => {
+        if (!(domain in entitiesByDomain)) return [] as any[];
+        return deviceClasses[domain].map((deviceClass: string) => ({
+          domain,
+          deviceClass,
+        }));
+      })
+  );
+
+  private _computeSensors = memoizeOne(
+    (entitiesByDomain: { [k: string]: HassEntity[] }, deviceClasses: any) =>
+      SENSOR_DOMAINS.flatMap((domain) => {
+        if (!(domain in entitiesByDomain)) return [] as any[];
+        return deviceClasses[domain].map(
+          (deviceClass: string, index: number) => ({
+            domain,
+            deviceClass,
+            index,
+          })
+        );
+      })
+  );
+
+  private _computeButtons = memoizeOne(
+    (
+      toggle_domains: string[] | undefined,
+      entitiesByDomain: { [k: string]: HassEntity[] }
+    ) =>
+      (toggle_domains || []).filter(
+        (domain: string) => domain in entitiesByDomain
+      )
+  );
+
+  private _computeCameraEntity = memoizeOne(
+    (
+      show_camera: boolean | undefined,
+      entitiesByDomain: { [k: string]: HassEntity[] }
+    ) => {
+      if (show_camera && "camera" in entitiesByDomain)
+        return entitiesByDomain.camera[0]?.entity_id;
+      return undefined;
+    }
+  );
 
   protected shouldUpdate(changedProps: PropertyValues): boolean {
     if (changedProps.has("_config") || !this._config) {
@@ -377,10 +478,6 @@ export class AreaCardPlus
       changedProps.has("_areas") ||
       changedProps.has("_entities")
     ) {
-      return true;
-    }
-
-    if (changedProps.has("_showPopup")) {
       return true;
     }
 
@@ -449,176 +546,57 @@ export class AreaCardPlus
   }
 
   private _handleDomainAction(domain: string): (ev: CustomEvent) => void {
-    return (ev: CustomEvent) => {
-      ev.stopPropagation();
-
-      const customization = this._config?.customization_domain?.find(
-        (item: { type: string }) => item.type === domain
-      );
-
-      const actionConfig =
-        ev.detail.action === "tap"
-          ? customization?.tap_action
-          : ev.detail.action === "hold"
-          ? customization?.hold_action
-          : ev.detail.action === "double_tap"
-          ? customization?.double_tap_action
-          : null;
-
-      const isToggle =
-        actionConfig === "toggle" || actionConfig?.action === "toggle";
-      const isMoreInfo =
-        actionConfig === "more-info" || actionConfig?.action === "more-info";
-
-      if (isToggle) {
-        if (domain === "media_player") {
-          this.hass.callService(
-            domain,
-            this._isOn(domain) ? "media_pause" : "media_play",
-            undefined,
-            { area_id: this._config!.area }
-          );
-        } else if (domain === "lock") {
-          this.hass.callService(
-            domain,
-            this._isOn(domain) ? "lock" : "unlock",
-            undefined,
-            { area_id: this._config!.area }
-          );
-        } else if (domain === "vacuum") {
-          this.hass.callService(
-            domain,
-            this._isOn(domain) ? "stop" : "start",
-            undefined,
-            { area_id: this._config!.area }
-          );
-        } else if (TOGGLE_DOMAINS.includes(domain)) {
-          this.hass.callService(
-            domain,
-            this._isOn(domain) ? "turn_off" : "turn_on",
-            undefined,
-            { area_id: this._config!.area }
-          );
-        }
-        return;
-      } else if (isMoreInfo || actionConfig === undefined) {
-        if (domain !== "binary_sensor" && domain !== "sensor") {
-          if (domain === "climate") {
-            const climateCustomization =
-              this._config?.customization_domain?.find(
-                (item: { type: string }) => item.type === "climate"
-              );
-            const displayMode = (climateCustomization as any)?.display_mode;
-            if (displayMode === "icon" || displayMode === "text_icon") {
-              this._showPopupForDomain(domain);
-            }
-          } else {
-            this._showPopupForDomain(domain);
-          }
-        }
-        return;
-      }
-
-      const config = {
-        tap_action: customization?.tap_action,
-        hold_action: customization?.hold_action,
-        double_tap_action: customization?.double_tap_action,
-      };
-
-      handleAction(this, this.hass!, config, ev.detail.action!);
-    };
+    return this._makeActionHandler("domain", domain);
   }
 
   private _handleAlertAction(
     domain: string,
     deviceClass: string
   ): (ev: CustomEvent) => void {
-    return (ev: CustomEvent) => {
-      ev.stopPropagation();
-
-      const customization = this._config?.customization_alert?.find(
-        (item: { type: string }) => item.type === deviceClass
-      );
-
-      const actionConfig =
-        ev.detail.action === "tap"
-          ? customization?.tap_action
-          : ev.detail.action === "hold"
-          ? customization?.hold_action
-          : ev.detail.action === "double_tap"
-          ? customization?.double_tap_action
-          : null;
-
-      const isMoreInfo =
-        actionConfig === "more-info" || actionConfig?.action === "more-info";
-
-      if (isMoreInfo || actionConfig === undefined) {
-        if (domain === "binary_sensor") {
-          this._showPopupForDomain(domain, deviceClass);
-        }
-        return;
-      }
-
-      const config = {
-        tap_action: customization?.tap_action,
-        hold_action: customization?.hold_action,
-        double_tap_action: customization?.double_tap_action,
-      };
-
-      handleAction(this, this.hass!, config, ev.detail.action!);
-    };
+    return this._makeActionHandler("alert", domain, deviceClass);
   }
 
   private _handleCoverAction(
     domain: string,
     deviceClass: string
   ): (ev: CustomEvent) => void {
-    return (ev: CustomEvent) => {
-      ev.stopPropagation();
-
-      const customization = this._config?.customization_cover?.find(
-        (item: { type: string }) => item.type === deviceClass
-      );
-
-      const actionConfig =
-        ev.detail.action === "tap"
-          ? customization?.tap_action
-          : ev.detail.action === "hold"
-          ? customization?.hold_action
-          : ev.detail.action === "double_tap"
-          ? customization?.double_tap_action
-          : null;
-
-      const isMoreInfo =
-        actionConfig === "more-info" || actionConfig?.action === "more-info";
-
-      if (isMoreInfo || actionConfig === undefined) {
-        if (domain === "cover") {
-          this._showPopupForDomain(domain, deviceClass);
-        }
-        return;
-      }
-
-      const config = {
-        tap_action: customization?.tap_action,
-        hold_action: customization?.hold_action,
-        double_tap_action: customization?.double_tap_action,
-      };
-
-      handleAction(this, this.hass!, config, ev.detail.action!);
-    };
+    return this._makeActionHandler("cover", domain, deviceClass);
   }
 
   private _handleSensorAction(
     domain: string,
     deviceClass: string
   ): (ev: CustomEvent) => void {
+    return this._makeActionHandler("sensor", domain, deviceClass);
+  }
+
+  // Unified action handler factory for domain/alert/cover/sensor
+  private _makeActionHandler(
+    kind: "domain" | "alert" | "cover" | "sensor",
+    domain: string,
+    deviceClass?: string
+  ): (ev: CustomEvent) => void {
     return (ev: CustomEvent) => {
       ev.stopPropagation();
 
-      const customization = this._config?.customization_sensor?.find(
-        (item: { type: string }) => item.type === deviceClass
-      );
+      let customization: any;
+      if (kind === "domain") {
+        customization = this._config?.customization_domain?.find(
+          (item: { type: string }) => item.type === domain
+        );
+      } else if (kind === "alert") {
+        customization = this._config?.customization_alert?.find(
+          (item: { type: string }) => item.type === deviceClass
+        );
+      } else if (kind === "cover") {
+        customization = this._config?.customization_cover?.find(
+          (item: { type: string }) => item.type === deviceClass
+        );
+      } else if (kind === "sensor") {
+        customization = this._config?.customization_sensor?.find(
+          (item: { type: string }) => item.type === deviceClass
+        );
+      }
 
       const actionConfig =
         ev.detail.action === "tap"
@@ -629,14 +607,97 @@ export class AreaCardPlus
           ? customization?.double_tap_action
           : null;
 
+      // Domain-specific toggle / more-info behaviour
+      if (kind === "domain") {
+        const isToggle =
+          actionConfig === "toggle" || actionConfig?.action === "toggle";
+        const isMoreInfo =
+          actionConfig === "more-info" || actionConfig?.action === "more-info";
+
+        if (isToggle) {
+          if (domain === "media_player") {
+            this.hass.callService(
+              domain,
+              this._isOn(domain) ? "media_pause" : "media_play",
+              undefined,
+              { area_id: this._config!.area }
+            );
+          } else if (domain === "lock") {
+            this.hass.callService(
+              domain,
+              this._isOn(domain) ? "lock" : "unlock",
+              undefined,
+              { area_id: this._config!.area }
+            );
+          } else if (domain === "vacuum") {
+            this.hass.callService(
+              domain,
+              this._isOn(domain) ? "stop" : "start",
+              undefined,
+              { area_id: this._config!.area }
+            );
+          } else if (TOGGLE_DOMAINS.includes(domain)) {
+            this.hass.callService(
+              domain,
+              this._isOn(domain) ? "turn_off" : "turn_on",
+              undefined,
+              { area_id: this._config!.area }
+            );
+          }
+          return;
+        } else if (isMoreInfo || actionConfig === undefined) {
+          if (domain !== "binary_sensor" && domain !== "sensor") {
+            if (domain === "climate") {
+              const climateCustomization =
+                this._config?.customization_domain?.find(
+                  (item: { type: string }) => item.type === "climate"
+                );
+              const displayMode = (climateCustomization as any)?.display_mode;
+              if (displayMode === "icon" || displayMode === "text_icon") {
+                this._showPopupForDomain(domain);
+              }
+            } else {
+              this._showPopupForDomain(domain);
+            }
+          }
+          return;
+        }
+
+        const config = {
+          tap_action: customization?.tap_action,
+          hold_action: customization?.hold_action,
+          double_tap_action: customization?.double_tap_action,
+        };
+
+        handleAction(this, this.hass!, config, ev.detail.action!);
+        return;
+      }
+
+      // Alert / Cover / Sensor behaviour
       const isMoreInfo =
         actionConfig === "more-info" || actionConfig?.action === "more-info";
 
-      if (isMoreInfo) {
-        if (domain === "sensor") {
-          this._showPopupForDomain(domain, deviceClass);
+      if (kind === "alert") {
+        if (isMoreInfo || actionConfig === undefined) {
+          if (domain === "binary_sensor") {
+            this._showPopupForDomain(domain, deviceClass);
+          }
+          return;
         }
-        return;
+      } else if (kind === "cover") {
+        if (isMoreInfo || actionConfig === undefined) {
+          if (domain === "cover") {
+            this._showPopupForDomain(domain, deviceClass);
+          }
+          return;
+        }
+      } else if (kind === "sensor") {
+        if (isMoreInfo) {
+          if (domain === "sensor") {
+            this._showPopupForDomain(domain, deviceClass);
+          }
+          return;
+        }
       }
 
       const config = {
@@ -677,14 +738,15 @@ export class AreaCardPlus
     let rowSize = 3;
     try {
       const root = (this.shadowRoot as any)?.host || document.documentElement;
-      const val = getComputedStyle(root).getPropertyValue('--row-size');
+      const val = getComputedStyle(root).getPropertyValue("--row-size");
       if (val) rowSize = Number(val.trim()) || 3;
     } catch (e) {}
 
     const designStyles = isV2Design ? { background: v2Color } : {};
-    const iconContainerStyles = (isV2Design && rowSize === 1)
-      ? {}
-      : isV2Design
+    const iconContainerStyles =
+      isV2Design && rowSize === 1
+        ? {}
+        : isV2Design
         ? { background: v2Color }
         : {};
 
@@ -699,10 +761,43 @@ export class AreaCardPlus
     );
     const area = this._area(this._config.area, this._areas);
 
-    let cameraEntityId: string | undefined;
-    if (this._config.show_camera && "camera" in entitiesByDomain) {
-      cameraEntityId = entitiesByDomain.camera[0].entity_id;
-    }
+    const customizationDomainMap = new Map<string, any>();
+    (this._config?.customization_domain || []).forEach((c: any) =>
+      customizationDomainMap.set(c.type, c)
+    );
+    const customizationCoverMap = new Map<string, any>();
+    (this._config?.customization_cover || []).forEach((c: any) =>
+      customizationCoverMap.set(c.type, c)
+    );
+    const customizationAlertMap = new Map<string, any>();
+    (this._config?.customization_alert || []).forEach((c: any) =>
+      customizationAlertMap.set(c.type, c)
+    );
+    const customizationSensorMap = new Map<string, any>();
+    (this._config?.customization_sensor || []).forEach((c: any) =>
+      customizationSensorMap.set(c.type, c)
+    );
+
+    const covers = this._computeCovers(entitiesByDomain, this._deviceClasses);
+
+    const alerts = this._computeAlerts(entitiesByDomain, this._deviceClasses);
+
+    const buttons = this._computeButtons(
+      this._config.toggle_domains,
+      entitiesByDomain
+    );
+
+    const sensors = this._computeSensors(entitiesByDomain, this._deviceClasses);
+
+    const climates = (
+      this._config?.toggle_domains?.includes("climate") ? CLIMATE_DOMAINS : []
+    )
+      .filter((domain) => domain in entitiesByDomain)
+      .map((domain) => ({ domain }));
+    const cameraEntityId = this._computeCameraEntity(
+      this._config.show_camera,
+      entitiesByDomain
+    );
 
     const showIcon = this._config?.show_camera
       ? this._config?.show_icon === "icon" ||
@@ -719,348 +814,112 @@ export class AreaCardPlus
       `;
     }
 
-    const iconStyles = {
-  ...(isV2Design && rowSize === 1 ? { "--mdc-icon-size": "20px" } : {}),
-      color: this._config?.area_icon_color
-        ? `var(--${this._config.area_icon_color}-color)`
-        : "",
-      ...(this._config?.icon_css
-        ? this._config.icon_css
-            .split("\n")
-            .reduce((acc: Record<string, string>, line: string) => {
-              const trimmed = line.trim();
-              if (trimmed && trimmed.includes(":")) {
-                const [key, value] = trimmed.split(":");
-                acc[key.trim()] = value.trim().replace(";", "");
-              }
-              return acc;
-            }, {})
-        : {}),
-    };
+    const iconStyles = this._computeIconStyles(
+      isV2Design,
+      rowSize,
+      this._config?.icon_css,
+      this._config?.area_icon_color
+    );
 
     return html`
-      <ha-card class="${classMap(classes)}" style=${styleMap({
-      paddingBottom: ignoreAspectRatio ? "0" : "12em",
-    })}>
-        ${
-          (this._config.show_camera && cameraEntityId) ||
-          ((this._config.show_icon === "image" ||
-            this._config.show_icon === "icon + image") &&
-            area.picture)
-            ? html`
-                <hui-image
-                  .config=${this._config}
-                  .hass=${this.hass}
-                  .image=${this._config.show_camera ? undefined : area.picture}
-                  .cameraImage=${this._config.show_camera
-                    ? cameraEntityId
-                    : undefined}
-                  .cameraView=${this._config.camera_view}
-                  fitMode="cover"
-                ></hui-image>
-              `
-            : nothing
-        }
-          <div class="${classMap({
-            "icon-container": true,
-            ...designClasses,
-          })}"
-          style=${styleMap(iconContainerStyles)}>
-          ${
-            showIcon
-              ? html`
-                  <ha-icon
-                    style=${styleMap(iconStyles)}
-                    icon=${this._config.area_icon || area.icon}
-                  ></ha-icon>
-                `
-              : nothing
-          }
-          </div>
-          <div class="${classMap({
-            content: true,
-            ...designClasses,
-          })}"            @action=${this._handleAction}
-            .actionHandler=${actionHandler({
-              hasHold: hasAction(this._config.hold_action),
-              hasDoubleClick: hasAction(this._config.double_tap_action),
-            })}>
+      <ha-card
+        class="${classMap(classes)}"
+        style=${styleMap({
+          paddingBottom: ignoreAspectRatio ? "0" : "12em",
+        })}
+      >
+        ${(this._config.show_camera && cameraEntityId) ||
+        ((this._config.show_icon === "image" ||
+          this._config.show_icon === "icon + image") &&
+          area.picture)
+          ? html`
+              <hui-image
+                .config=${this._config}
+                .hass=${this.hass}
+                .image=${this._config.show_camera ? undefined : area.picture}
+                .cameraImage=${this._config.show_camera
+                  ? cameraEntityId
+                  : undefined}
+                .cameraView=${this._config.camera_view}
+                fitMode="cover"
+              ></hui-image>
+            `
+          : nothing}
 
         <div
           class="${classMap({
-            right: true,
+            "icon-container": true,
             ...designClasses,
           })}"
-          style=${styleMap(designStyles)}
+          style=${styleMap(iconContainerStyles)}
         >
+          ${showIcon
+            ? html`
+                <ha-icon
+                  style=${styleMap(iconStyles)}
+                  icon=${this._config.area_icon || area.icon}
+                ></ha-icon>
+              `
+            : nothing}
+        </div>
 
-
-                              <div class="${classMap({
-                                covers: true,
-                                ...designClasses,
-                              })}">
-            ${COVER_DOMAINS.map((domain) => {
-              if (!(domain in entitiesByDomain)) {
-                return nothing;
-              }
-
-              return this._deviceClasses[domain].map((deviceClass) => {
-                const customization = this._config?.customization_cover?.find(
-                  (item: { type: string }) => item.type === deviceClass
-                );
-
-                const invert = customization?.invert === true;
-                const activeEntities = entitiesByDomain[domain].filter(
-                  (entity) => {
-                    const entityDeviceClass =
-                      entity.attributes.device_class || "default";
-                    const isActive = !STATES_OFF.includes(entity.state);
-                    return (
-                      entityDeviceClass === deviceClass &&
-                      (invert ? STATES_OFF.includes(entity.state) : isActive)
-                    );
-                  }
-                );
-
-                const coverColor =
-                  customization?.color || this._config?.cover_color;
-                const coverIcon = customization?.icon;
-
-                const activeCount = activeEntities.length;
-
-                return activeCount > 0
-                  ? html`
-                      <div
-                        class="icon-with-count"
-                        style=${customization?.css || this._config?.cover_css
-                          ? (customization?.css || this._config?.cover_css)
-                              .split("\n")
-                              .reduce((acc: string, line: string) => {
-                                const trimmed = line.trim();
-                                if (trimmed && trimmed.includes(":")) {
-                                  acc += trimmed.endsWith(";")
-                                    ? trimmed
-                                    : `${trimmed};`;
-                                  acc += " ";
-                                }
-                                return acc;
-                              }, "")
-                          : ""}
-                        @action=${this._handleCoverAction(domain, deviceClass)}
-                        .actionHandler=${actionHandler({
-                          hasHold: hasAction(customization?.hold_action),
-                          hasDoubleClick: hasAction(
-                            customization?.double_tap_action
-                          ),
-                        })}
-                      >
-                        <ha-state-icon
-                          class="cover"
-                          style="${(coverColor
-                            ? `color: var(--${coverColor}-color);`
-                            : "") +
-                          " " +
-                          (customization?.icon_css
-                            ? customization.icon_css
-                                .split("\n")
-                                .reduce((acc: string, line: string) => {
-                                  const trimmed = line.trim();
-                                  if (trimmed && trimmed.includes(":")) {
-                                    acc += trimmed.endsWith(";")
-                                      ? trimmed
-                                      : `${trimmed};`;
-                                    acc += " ";
-                                  }
-                                  return acc;
-                                }, "")
-                            : "")}"
-                          .icon="${coverIcon
-                            ? coverIcon
-                            : this._getIcon(
-                                domain as DomainType,
-                                invert ? false : true,
-                                deviceClass
-                              )}"
-                        ></ha-state-icon>
-
-                        <span
-                          class="active-count  text-small${activeCount > 0
-                            ? "on"
-                            : "off"}"
-                          >${activeCount}</span
-                        >
-                      </div>
-                    `
-                  : nothing;
-              });
-            })}
-          </div>        
-
-          <div class="${classMap({
-            alerts: true,
+        <div
+          class="${classMap({
+            content: true,
             ...designClasses,
-          })}">
-            ${ALERT_DOMAINS.map((domain) => {
-              if (!(domain in entitiesByDomain)) {
-                return nothing;
-              }
-
-              return this._deviceClasses[domain].map((deviceClass) => {
-                const customization = this._config?.customization_alert?.find(
-                  (item: { type: string }) => item.type === deviceClass
-                );
-                const invert = customization?.invert === true;
-
-                const activeEntities = entitiesByDomain[domain].filter(
-                  (entity) => {
-                    const entityDeviceClass =
-                      entity.attributes.device_class || "default";
-                    const isOn = entity.state === "on";
-                    return (
-                      entityDeviceClass === deviceClass &&
-                      (invert ? STATES_OFF.includes(entity.state) : isOn)
-                    );
-                  }
-                );
-
-                const alertColor =
-                  customization?.color || this._config?.alert_color;
-                const alertIcon = customization?.icon;
-
-                const activeCount = activeEntities.length;
-
-                return activeCount > 0
-                  ? html`
-                      <div
-                        class="icon-with-count"
-                        style=${customization?.css || this._config?.alert_css
-                          ? (customization?.css || this._config?.alert_css)
-                              .split("\n")
-                              .reduce((acc: string, line: string) => {
-                                const trimmed = line.trim();
-                                if (trimmed && trimmed.includes(":")) {
-                                  acc += trimmed.endsWith(";")
-                                    ? trimmed
-                                    : `${trimmed};`;
-                                  acc += " ";
-                                }
-                                return acc;
-                              }, "")
-                          : ""}
-                        @action=${this._handleAlertAction(domain, deviceClass)}
-                        .actionHandler=${actionHandler({
-                          hasHold: hasAction(customization?.hold_action),
-                          hasDoubleClick: hasAction(
-                            customization?.double_tap_action
-                          ),
-                        })}
-                      >
-                        <ha-state-icon
-                          class="alert"
-                          style="${(alertColor
-                            ? `color: var(--${alertColor}-color);`
-                            : "") +
-                          " " +
-                          (customization?.icon_css
-                            ? customization.icon_css
-                                .split("\n")
-                                .reduce((acc: string, line: string) => {
-                                  const trimmed = line.trim();
-                                  if (trimmed && trimmed.includes(":")) {
-                                    acc += trimmed.endsWith(";")
-                                      ? trimmed
-                                      : `${trimmed};`;
-                                    acc += " ";
-                                  }
-                                  return acc;
-                                }, "")
-                            : "")}"
-                          .icon="${alertIcon
-                            ? alertIcon
-                            : this._getIcon(
-                                domain as DomainType,
-                                invert ? false : true,
-                                deviceClass
-                              )}"
-                        ></ha-state-icon>
-
-                        <span
-                          class="active-count  text-small${activeCount > 0
-                            ? "on"
-                            : "off"}"
-                          >${activeCount}</span
-                        >
-                      </div>
-                    `
-                  : nothing;
-              });
-            })}
-          </div>          
-
-
-
-  
-
-          <div class="${classMap({
-            buttons: true,
-            ...designClasses,
-          })}">
-            ${
-              this._config.show_active
-                ? this._config.toggle_domains?.map((domain: string) => {
-                    if (!(domain in entitiesByDomain)) {
-                      return nothing;
-                    }
-
-                    if (domain === "climate") {
-                      const climateCustomization =
-                        this._config?.customization_domain?.find(
-                          (item: { type: string }) => item.type === "climate"
-                        );
-                      const displayMode = (climateCustomization as any)
-                        ?.display_mode;
-                      if (
-                        displayMode !== "icon" &&
-                        displayMode !== "text_icon"
-                      ) {
-                        return nothing;
-                      }
-                    }
-
-                    const customization =
-                      this._config?.customization_domain?.find(
-                        (item: { type: string }) => item.type === domain
+          })}"
+          @action=${this._handleAction}
+          .actionHandler=${actionHandler({
+            hasHold: hasAction(this._config.hold_action),
+            hasDoubleClick: hasAction(this._config.double_tap_action),
+          })}
+        >
+          <div
+            class="${classMap({
+              right: true,
+              ...designClasses,
+            })}"
+            style=${styleMap(designStyles)}
+          >
+            <!-- Covers -->
+            <div
+              class="${classMap({
+                covers: true,
+                ...designClasses,
+              })}"
+            >
+              ${repeat(
+                covers,
+                (item) => item.domain + "-" + item.deviceClass,
+                ({ domain, deviceClass }) => {
+                  const customization = customizationCoverMap.get(deviceClass);
+                  const invert = customization?.invert === true;
+                  const activeEntities = entitiesByDomain[domain].filter(
+                    (entity) => {
+                      const entityDeviceClass =
+                        entity.attributes.device_class || "default";
+                      const isActive = !STATES_OFF.includes(entity.state);
+                      return (
+                        entityDeviceClass === deviceClass &&
+                        (invert ? STATES_OFF.includes(entity.state) : isActive)
                       );
-                    const domainColor =
-                      customization?.color || this._config?.domain_color;
-                    const domainIcon = customization?.icon;
-
-                    const activeEntities = entitiesByDomain[domain].filter(
-                      (entity) =>
-                        !UNAVAILABLE_STATES.includes(entity.state) &&
-                        !STATES_OFF.includes(entity.state)
-                    );
-                    const activeCount = activeEntities.length;
-
-                    if (activeCount > 0) {
-                      return html`
+                    }
+                  );
+                  const coverColor =
+                    customization?.color || this._config?.cover_color;
+                  const coverIcon = customization?.icon;
+                  const activeCount = activeEntities.length;
+                  return activeCount > 0
+                    ? html`
                         <div
-                          class="icon-with-count hover"
-                          style=${customization?.css || this._config?.domain_css
-                            ? (customization?.css || this._config?.domain_css)
-                                .split("\n")
-                                .reduce((acc: string, line: string) => {
-                                  const trimmed = line.trim();
-                                  if (trimmed && trimmed.includes(":")) {
-                                    acc += trimmed.endsWith(";")
-                                      ? trimmed
-                                      : `${trimmed};`;
-                                    acc += " ";
-                                  }
-                                  return acc;
-                                }, "")
-                            : ""}
-                          @action=${this._handleDomainAction(domain)}
+                          class="icon-with-count"
+                          style=${this._parseCss(
+                            customization?.css || this._config?.cover_css
+                          )}
+                          @action=${this._handleCoverAction(
+                            domain,
+                            deviceClass
+                          )}
                           .actionHandler=${actionHandler({
                             hasHold: hasAction(customization?.hold_action),
                             hasDoubleClick: hasAction(
@@ -1069,142 +928,222 @@ export class AreaCardPlus
                           })}
                         >
                           <ha-state-icon
-                            style=${domainColor
-                              ? `color: var(--${domainColor}-color);`
-                              : nothing}
-                            class=${activeCount > 0
-                              ? "toggle-on"
-                              : "toggle-off"}
-                            .domain=${domain}
-                            .icon=${domainIcon
-                              ? domainIcon
-                              : this._getIcon(
+                            class="cover"
+                            style="${(coverColor
+                              ? `color: var(--${coverColor}-color);`
+                              : "") +
+                            " " +
+                            (customization?.icon_css
+                              ? customization.icon_css
+                                  .split("\n")
+                                  .reduce((acc: string, line: string) => {
+                                    const trimmed = line.trim();
+                                    if (trimmed && trimmed.includes(":")) {
+                                      acc += trimmed.endsWith(";")
+                                        ? trimmed
+                                        : `${trimmed};`;
+                                      acc += " ";
+                                    }
+                                    return acc;
+                                  }, "")
+                              : "")}"
+                            .icon=${coverIcon
+                              ? coverIcon
+                              : this._cachedIcon(
                                   domain as DomainType,
-                                  activeCount > 0
+                                  invert ? false : true,
+                                  deviceClass
                                 )}
                           ></ha-state-icon>
                           <span
                             class="active-count text-small ${activeCount > 0
                               ? "on"
                               : "off"}"
+                            >${activeCount}</span
                           >
-                            ${activeCount}
-                          </span>
                         </div>
-                      `;
-                    } else {
-                      return nothing;
-                    }
-                  })
-                : this._config.toggle_domains?.map((domain: string) => {
-                    if (!(domain in entitiesByDomain)) {
-                      return nothing;
-                    }
+                      `
+                    : nothing;
+                }
+              )}
+            </div>
 
-                    if (domain === "climate") {
-                      const climateCustomization =
-                        this._config?.customization_domain?.find(
-                          (item: { type: string }) => item.type === "climate"
-                        );
-                      const displayMode = (climateCustomization as any)
-                        ?.display_mode;
-                      if (
-                        displayMode !== "icon" &&
-                        displayMode !== "text_icon"
-                      ) {
-                        return nothing;
-                      }
-                    }
-
-                    const customization =
-                      this._config?.customization_domain?.find(
-                        (item: { type: string }) => item.type === domain
+            <!-- Alerts -->
+            <div
+              class="${classMap({
+                alerts: true,
+                ...designClasses,
+              })}"
+            >
+              ${repeat(
+                alerts,
+                (item) => item.domain + "-" + item.deviceClass,
+                ({ domain, deviceClass }) => {
+                  const customization = customizationAlertMap.get(deviceClass);
+                  const invert = customization?.invert === true;
+                  const activeEntities = entitiesByDomain[domain].filter(
+                    (entity) => {
+                      const entityDeviceClass =
+                        entity.attributes.device_class || "default";
+                      const isOn = entity.state === "on";
+                      return (
+                        entityDeviceClass === deviceClass &&
+                        (invert ? STATES_OFF.includes(entity.state) : isOn)
                       );
-                    const domainColor = customization?.color;
-                    const domainIcon = customization?.icon;
-
-                    const activeEntities = entitiesByDomain[domain].filter(
-                      (entity) =>
-                        !UNAVAILABLE_STATES.includes(entity.state) &&
-                        !STATES_OFF.includes(entity.state)
-                    );
-                    const activeCount = activeEntities.length;
-
-                    return html`
-                      <div
-                        class="icon-with-count hover"
-                        style=${customization?.css || this._config?.domain_css
-                          ? (customization?.css || this._config?.domain_css)
-                              .split("\n")
-                              .reduce((acc: string, line: string) => {
-                                const trimmed = line.trim();
-                                if (trimmed && trimmed.includes(":")) {
-                                  acc += trimmed.endsWith(";")
-                                    ? trimmed
-                                    : `${trimmed};`;
-                                  acc += " ";
-                                }
-                                return acc;
-                              }, "")
-                          : ""}
-                        @action=${this._handleDomainAction(domain)}
-                        .actionHandler=${actionHandler({
-                          hasHold: hasAction(customization?.hold_action),
-                          hasDoubleClick: hasAction(
-                            customization?.double_tap_action
-                          ),
-                        })}
-                      >
-                        <ha-state-icon
-                          style=${(domainColor
-                            ? `color: var(--${domainColor}-color);`
-                            : this._config?.domain_color
-                            ? `color: ${this._config.domain_color};`
-                            : "") +
-                          " " +
-                          (customization?.icon_css
-                            ? customization.icon_css
-                                .split("\n")
-                                .reduce((acc: string, line: string) => {
-                                  const trimmed = line.trim();
-                                  if (trimmed && trimmed.includes(":")) {
-                                    acc += trimmed.endsWith(";")
-                                      ? trimmed
-                                      : `${trimmed};`;
-                                    acc += " ";
-                                  }
-                                  return acc;
-                                }, "")
-                            : "")}
-                          class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
-                          .domain=${domain}
-                          .icon=${domainIcon
-                            ? domainIcon
-                            : this._getIcon(
-                                domain as DomainType,
-                                activeCount > 0
-                              )}
-                        ></ha-state-icon>
-                        <span
-                          class="active-count text-small ${activeCount > 0
-                            ? "on"
-                            : "off"}"
+                    }
+                  );
+                  const alertColor =
+                    customization?.color || this._config?.alert_color;
+                  const alertIcon = customization?.icon;
+                  const activeCount = activeEntities.length;
+                  return activeCount > 0
+                    ? html`
+                        <div
+                          class="icon-with-count"
+                          style=${this._parseCss(
+                            customization?.css || this._config?.alert_css
+                          )}
+                          @action=${this._handleAlertAction(
+                            domain,
+                            deviceClass
+                          )}
+                          .actionHandler=${actionHandler({
+                            hasHold: hasAction(customization?.hold_action),
+                            hasDoubleClick: hasAction(
+                              customization?.double_tap_action
+                            ),
+                          })}
                         >
-                          ${activeCount}
-                        </span>
-                      </div>
-                    `;
-                  })
-            }
-          </div>
-          
+                          <ha-state-icon
+                            class="alert"
+                            style="${(alertColor
+                              ? `color: var(--${alertColor}-color);`
+                              : "") +
+                            " " +
+                            (customization?.icon_css
+                              ? customization.icon_css
+                                  .split("\n")
+                                  .reduce((acc: string, line: string) => {
+                                    const trimmed = line.trim();
+                                    if (trimmed && trimmed.includes(":")) {
+                                      acc += trimmed.endsWith(";")
+                                        ? trimmed
+                                        : `${trimmed};`;
+                                      acc += " ";
+                                    }
+                                    return acc;
+                                  }, "")
+                              : "")}"
+                            .icon=${alertIcon
+                              ? alertIcon
+                              : this._cachedIcon(
+                                  domain as DomainType,
+                                  invert ? false : true,
+                                  deviceClass
+                                )}
+                          ></ha-state-icon>
+                          <span
+                            class="active-count text-small ${activeCount > 0
+                              ? "on"
+                              : "off"}"
+                            >${activeCount}</span
+                          >
+                        </div>
+                      `
+                    : nothing;
+                }
+              )}
+            </div>
 
+            <!-- Buttons -->
+            <div
+              class="${classMap({
+                buttons: true,
+                ...designClasses,
+              })}"
+            >
+              ${repeat(
+                buttons,
+                (domain: string) => domain,
+                (domain: string) => {
+                  if (domain === "climate") {
+                    const climateCustomization =
+                      this._config?.customization_domain?.find(
+                        (item: { type: string }) => item.type === "climate"
+                      );
+                    const displayMode = (climateCustomization as any)
+                      ?.display_mode;
+                    if (displayMode !== "icon" && displayMode !== "text_icon") {
+                      return nothing;
+                    }
+                  }
+                  const customization = customizationDomainMap.get(domain);
+                  const domainColor =
+                    customization?.color || this._config?.domain_color;
+                  const domainIcon = customization?.icon;
+                  const activeEntities = (
+                    entitiesByDomain[domain as string] as HassEntity[]
+                  ).filter(
+                    (entity: HassEntity) =>
+                      !UNAVAILABLE_STATES.includes(entity.state) &&
+                      !STATES_OFF.includes(entity.state)
+                  );
+                  const activeCount = activeEntities.length;
+                  if (this._config.show_active && activeCount === 0) {
+                    return nothing;
+                  }
+                  return html`
+                    <div
+                      class="icon-with-count hover"
+                      style=${this._parseCss(
+                        customization?.css || this._config?.domain_css
+                      )}
+                      @action=${this._handleDomainAction(domain as string)}
+                      .actionHandler=${actionHandler({
+                        hasHold: hasAction(customization?.hold_action),
+                        hasDoubleClick: hasAction(
+                          customization?.double_tap_action
+                        ),
+                      })}
+                    >
+                      <ha-state-icon
+                        style=${domainColor
+                          ? `color: var(--${domainColor}-color);`
+                          : this._config?.domain_color
+                          ? `color: ${this._config.domain_color};`
+                          : ""}
+                        class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
+                        .domain=${domain}
+                        .icon=${domainIcon
+                          ? domainIcon
+                          : this._cachedIcon(
+                              domain as DomainType,
+                              activeCount > 0
+                            )}
+                      ></ha-state-icon>
+                      <span
+                        class="active-count text-small ${activeCount > 0
+                          ? "on"
+                          : "off"}"
+                      >
+                        ${activeCount}
+                      </span>
+                    </div>
+                  `;
+                }
+              )}
+            </div>
           </div>
-          <div class="${classMap({
-            bottom: true,
-            ...designClasses,
-          })}">
-              <div style=${`${
+
+          <!-- Bottom -->
+          <div
+            class="${classMap({
+              bottom: true,
+              ...designClasses,
+            })}"
+          >
+            <div
+              style=${`${
                 this._config?.area_name_color
                   ? `color: var(--${this._config.area_name_color}-color);`
                   : ""
@@ -1223,13 +1162,15 @@ export class AreaCardPlus
                         return acc;
                       }, "")
                   : ""
-              }`}"
-              <div class="${classMap({
-                name: true,
-                ...designClasses,
-                "text-large": true,
-                on: true,
-              })}"
+              }`}
+            >
+              <div
+                class="${classMap({
+                  name: true,
+                  ...designClasses,
+                  "text-large": true,
+                  on: true,
+                })}"
                 @action=${this._handleAction}
                 .actionHandler=${actionHandler({
                   hasHold: hasAction(this._config.hold_action),
@@ -1238,71 +1179,64 @@ export class AreaCardPlus
               >
                 ${this._config.area_name || area.name}
               </div>
-              
 
+              <!-- Sensors -->
               <div class="sensors">
-                ${SENSOR_DOMAINS.map((domain) => {
-                  if (!(domain in entitiesByDomain)) {
-                    return nothing;
-                  }
-
-                  const sensorElements = this._deviceClasses[domain]
-                    .map((deviceClass, index, array) => {
-                      const matchingEntities = entitiesByDomain[domain].filter(
-                        (entity) =>
-                          entity.attributes.device_class === deviceClass
-                      );
-
-                      if (matchingEntities.length === 0) {
-                        return nothing;
-                      }
-
-                      const areaSensorEntityId = (() => {
-                        switch (deviceClass) {
-                          case "temperature":
-                            return area.temperature_entity_id;
-                          case "humidity":
-                            return area.humidity_entity_id;
-                          default:
-                            return null;
-                        }
-                      })();
-
-                      const areaEntity = areaSensorEntityId
-                        ? this.hass.states[areaSensorEntityId]
-                        : undefined;
-
-                      const customization =
-                        this._config?.customization_sensor?.find(
-                          (item: { type: string }) => item.type === deviceClass
+                ${this._config?.wrap_sensor_icons
+                  ? repeat(
+                      sensors,
+                      (item) => item.domain + "-" + item.deviceClass,
+                      ({ domain, deviceClass, index }) => {
+                        const matchingEntities = entitiesByDomain[
+                          domain
+                        ].filter(
+                          (entity) =>
+                            entity.attributes.device_class === deviceClass
                         );
-                      const sensorColor =
-                        customization?.color || this._config?.sensor_color;
-                      const invert = customization?.invert === true;
-                      const hasOnEntity = matchingEntities.some(
-                        (e) =>
-                          !UNAVAILABLE_STATES.includes(e.state) &&
-                          !STATES_OFF.includes(e.state)
-                      );
-                      if (invert && hasOnEntity) {
-                        return nothing;
-                      }
+                        if (matchingEntities.length === 0) {
+                          return nothing;
+                        }
 
-                      const icon = this._config?.show_sensor_icons
-                        ? html`
-                            <ha-domain-icon
+                        const areaSensorEntityId = (() => {
+                          switch (deviceClass) {
+                            case "temperature":
+                              return area.temperature_entity_id;
+                            case "humidity":
+                              return area.humidity_entity_id;
+                            default:
+                              return null;
+                          }
+                        })();
+                        const areaEntity = areaSensorEntityId
+                          ? this.hass.states[areaSensorEntityId]
+                          : undefined;
+
+                        const customization =
+                          customizationSensorMap.get(deviceClass);
+                        const sensorColor =
+                          customization?.color || this._config?.sensor_color;
+                        const invert = customization?.invert === true;
+                        const hasOnEntity = matchingEntities.some(
+                          (e) =>
+                            !UNAVAILABLE_STATES.includes(e.state) &&
+                            !STATES_OFF.includes(e.state)
+                        );
+                        if (invert && hasOnEntity) {
+                          return nothing;
+                        }
+
+                        const icon = this._config?.show_sensor_icons
+                          ? html`<ha-domain-icon
                               style=${sensorColor
                                 ? `color: var(--${sensorColor}-color);`
                                 : ""}
                               .hass=${this.hass}
                               .domain=${domain}
                               .deviceClass=${deviceClass}
-                            ></ha-domain-icon>
-                          `
-                        : null;
+                            ></ha-domain-icon>`
+                          : null;
 
-                      const value = html`
-                        <span
+                        const value = html`<span
                           class="sensor-value"
                           @action=${this._handleSensorAction(
                             domain,
@@ -1314,25 +1248,11 @@ export class AreaCardPlus
                               customization?.double_tap_action
                             ),
                           })}
-                          style=${`
-              ${sensorColor ? `color: var(--${sensorColor}-color);` : ""}
-              ${
-                customization?.css
-                  ? customization.css
-                      .split("\n")
-                      .reduce((acc: string, line: string) => {
-                        const trimmed = line.trim();
-                        if (trimmed && trimmed.includes(":")) {
-                          acc += trimmed.endsWith(";")
-                            ? trimmed
-                            : `${trimmed};`;
-                          acc += " ";
-                        }
-                        return acc;
-                      }, "")
-                  : ""
-              }
-            `}
+                          style=${`${
+                            sensorColor
+                              ? `color: var(--${sensorColor}-color);`
+                              : ""
+                          } ${this._parseCss(customization?.css)}`}
                         >
                           ${!this._config?.show_sensor_icons &&
                           !this._config?.wrap_sensor_icons &&
@@ -1342,65 +1262,123 @@ export class AreaCardPlus
                           ${areaEntity
                             ? this.hass.formatEntityState(areaEntity)
                             : this._average(domain, deviceClass)}
-                        </span>
-                      `;
+                        </span>`;
 
-                      // NUR wenn wrap_sensor_icons aktiv ist, pro Zeile ein div
-                      if (this._config?.wrap_sensor_icons) {
-                        return html`<div class="sensor-row">
+                        return html`<div class="sensor-row off">
                           ${icon}${value}
                         </div>`;
                       }
-                      // Sonst nur Icon und Value zurückgeben (werden dann nebeneinander gerendert)
-                      return html`${icon}${value}`;
-                    })
-                    .filter((element) => element !== nothing);
+                    )
+                  : html`<div class="sensor text-medium off">
+                      ${repeat(
+                        sensors,
+                        (item) => item.domain + "-" + item.deviceClass,
+                        ({ domain, deviceClass, index }) => {
+                          const matchingEntities = entitiesByDomain[
+                            domain
+                          ].filter(
+                            (entity) =>
+                              entity.attributes.device_class === deviceClass
+                          );
+                          if (matchingEntities.length === 0) {
+                            return nothing;
+                          }
 
-                  if (sensorElements.length === 0) {
-                    return nothing;
-                  }
+                          const areaSensorEntityId = (() => {
+                            switch (deviceClass) {
+                              case "temperature":
+                                return area.temperature_entity_id;
+                              case "humidity":
+                                return area.humidity_entity_id;
+                              default:
+                                return null;
+                            }
+                          })();
+                          const areaEntity = areaSensorEntityId
+                            ? this.hass.states[areaSensorEntityId]
+                            : undefined;
 
-                  // Wenn wrap_sensor_icons NICHT aktiv ist, alles in eine Zeile
-                  if (!this._config?.wrap_sensor_icons) {
-                    return html`<div class="sensor text-medium off">
-                      ${sensorElements}
-                    </div>`;
-                  }
-                  // Sonst: sensorElements enthalten schon die Zeilen
-                  return html`<div class="sensor text-medium off">
-                    ${sensorElements}
-                  </div>`;
-                })}
-</div>
-            <div class="climate text-small off" >
-            ${
-              this._config?.toggle_domains?.includes("climate")
-                ? CLIMATE_DOMAINS.map((domain) => {
-                    if (!(domain in entitiesByDomain)) {
-                      return "";
-                    }
+                          const customization =
+                            customizationSensorMap.get(deviceClass);
+                          const sensorColor =
+                            customization?.color || this._config?.sensor_color;
+                          const invert = customization?.invert === true;
+                          const hasOnEntity = matchingEntities.some(
+                            (e) =>
+                              !UNAVAILABLE_STATES.includes(e.state) &&
+                              !STATES_OFF.includes(e.state)
+                          );
+                          if (invert && hasOnEntity) {
+                            return nothing;
+                          }
 
+                          const icon = this._config?.show_sensor_icons
+                            ? html`<ha-domain-icon
+                                style=${sensorColor
+                                  ? `color: var(--${sensorColor}-color);`
+                                  : ""}
+                                .hass=${this.hass}
+                                .domain=${domain}
+                                .deviceClass=${deviceClass}
+                              ></ha-domain-icon>`
+                            : null;
+
+                          const value = html`<span
+                            class="sensor-value"
+                            @action=${this._handleSensorAction(
+                              domain,
+                              deviceClass
+                            )}
+                            .actionHandler=${actionHandler({
+                              hasHold: hasAction(customization?.hold_action),
+                              hasDoubleClick: hasAction(
+                                customization?.double_tap_action
+                              ),
+                            })}
+                            style=${`${
+                              sensorColor
+                                ? `color: var(--${sensorColor}-color);`
+                                : ""
+                            } ${this._parseCss(customization?.css)}`}
+                          >
+                            ${!this._config?.show_sensor_icons &&
+                            !this._config?.wrap_sensor_icons &&
+                            index > 0
+                              ? " - "
+                              : ""}
+                            ${areaEntity
+                              ? this.hass.formatEntityState(areaEntity)
+                              : this._average(domain, deviceClass)}
+                          </span>`;
+
+                          return html`${icon}${value}`;
+                        }
+                      )}
+                    </div>`}
+              </div>
+
+              <!-- Climates -->
+              <div class="climate text-small off">
+                ${repeat(
+                  climates,
+                  (item) => item.domain,
+                  ({ domain }) => {
                     const entities = entitiesByDomain[domain];
                     const activeTemperatures = entities
                       .filter((entity) => {
                         const hvacAction = entity.attributes.hvac_action;
                         const state = entity.state;
-
                         const isActive =
                           !UNAVAILABLE_STATES.includes(state) &&
                           !STATES_OFF.includes(state);
-
                         if (hvacAction !== undefined) {
                           const isHeatingCooling =
                             hvacAction !== "idle" && hvacAction !== "off";
-
                           const isHeatButIdle =
                             state === "heat" &&
                             (hvacAction === "idle" || hvacAction === "off");
-
                           return isActive && isHeatingCooling && !isHeatButIdle;
                         }
-
                         return isActive;
                       })
                       .map((entity) => {
@@ -1410,20 +1388,14 @@ export class AreaCardPlus
                           this.hass?.config?.unit_system?.temperature || ""
                         }`;
                       });
-
                     if (activeTemperatures.length === 0) {
-                      return "";
+                      return nothing;
                     }
-
-                    const customization =
-                      this._config?.customization_domain?.find(
-                        (item: { type: string }) => item.type === domain
-                      );
+                    const customization = customizationDomainMap.get(domain);
                     const displayMode = (customization as any)?.display_mode;
                     if (displayMode === "icon") {
-                      return "";
+                      return nothing;
                     }
-
                     const domainColor = customization?.color;
                     const textStyle = `${
                       domainColor
@@ -1431,47 +1403,25 @@ export class AreaCardPlus
                         : this._config?.domain_color
                         ? `color: ${this._config.domain_color};`
                         : ""
-                    }${
-                      customization?.css
-                        ? " " +
-                          customization.css
-                            .split("\n")
-                            .reduce((acc: string, line: string) => {
-                              const trimmed = line.trim();
-                              if (trimmed && trimmed.includes(":")) {
-                                acc += trimmed.endsWith(";")
-                                  ? trimmed
-                                  : `${trimmed};`;
-                                acc += " ";
-                              }
-                              return acc;
-                            }, "")
-                        : ""
-                    }`;
-
-                    return html`
-                      <div
-                        class="climate"
-                        style=${textStyle}
-                        @action=${this._handleDomainAction(domain)}
-                        .actionHandler=${actionHandler({
-                          hasHold: hasAction(customization?.hold_action),
-                          hasDoubleClick: hasAction(
-                            customization?.double_tap_action
-                          ),
-                        })}
-                      >
-                        (${activeTemperatures.join(", ")})
-                      </div>
-                    `;
-                  })
-                : ""
-            }
+                    } ${this._parseCss(customization?.css)}`;
+                    return html`<div
+                      class="climate"
+                      style=${textStyle}
+                      @action=${this._handleDomainAction(domain)}
+                      .actionHandler=${actionHandler({
+                        hasHold: hasAction(customization?.hold_action),
+                        hasDoubleClick: hasAction(
+                          customization?.double_tap_action
+                        ),
+                      })}
+                    >
+                      (${activeTemperatures.join(", ")})
+                    </div>`;
+                  }
+                )}
+              </div>
             </div>
           </div>
-        </div>
-
-        
         </div>
       </ha-card>
     `;
@@ -1486,13 +1436,6 @@ export class AreaCardPlus
 
     if (!this._config || !this.hass) {
       return;
-    }
-
-    const dialog = this.renderRoot?.querySelector("ha-dialog");
-    const container = document.querySelector("home-assistant")?.shadowRoot;
-
-    if (dialog && dialog.parentElement !== container) {
-      container?.appendChild(dialog);
     }
 
     if (changedProps.has("selectedDomain") && this.selectedDomain) {
@@ -1537,7 +1480,6 @@ export class AreaCardPlus
     if (domain in DOMAIN_ICONS) {
       const icons = DOMAIN_ICONS[domain] as any;
 
-      // Prefer device-class specific icon when available (string or {on,off})
       if (deviceClass && typeof icons === "object") {
         const dc = (icons as Record<string, any>)[deviceClass];
         if (dc) {
@@ -1547,18 +1489,27 @@ export class AreaCardPlus
         }
       }
 
-      // Domain-level on/off icons (Default)
       if (typeof icons === "object" && "on" in icons && "off" in icons) {
         return on ? icons.on : icons.off;
       }
 
-      // If icons is a direct string fallback
       if (typeof icons === "string") return icons;
     }
 
     return "";
   }
 
+  private _cachedIcon(
+    domain: DomainType,
+    on: boolean,
+    deviceClass?: string
+  ): string {
+    const key = `${domain}|${deviceClass || ""}|${on ? "1" : "0"}`;
+    if (this._iconCache.has(key)) return this._iconCache.get(key)!;
+    const icon = this._getIcon(domain, on, deviceClass);
+    this._iconCache.set(key, icon);
+    return icon;
+  }
 
   static get styles() {
     return css`
@@ -1728,7 +1679,7 @@ export class AreaCardPlus
       .text-large {
         font-size: 1.3em;
       }
-      .right  * {
+      .right * {
         pointer-events: auto;
       }
       .v2 .covers {
@@ -1787,7 +1738,7 @@ export class AreaCardPlus
           --mdc-icon-size: calc(var(--row-size, 3) * 15px);
           border-radius: 50%;
           display: flex;
-          padding: 16px;    
+          padding: 16px;
         }
       }
 

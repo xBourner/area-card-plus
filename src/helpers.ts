@@ -17,7 +17,6 @@ import { property } from "lit/decorators.js";
 
 declare module "custom-card-helpers" {
   interface HomeAssistant {
-    // die zusätzlichen Properties
     entities: { [id: string]: EntityRegistryEntry };
     devices: { [id: string]: DeviceRegistryEntry };
     areas: { [id: string]: AreaRegistryEntry };
