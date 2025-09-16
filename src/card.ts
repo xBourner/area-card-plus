@@ -96,56 +96,159 @@ export class AreaCardPlus
     );
   }
 
+    
     private renderCustomButtons() {
-      if (!this._config?.custom_buttons || this._config.custom_buttons.length === 0) {
-        return nothing;
-      }
+        if (!this._config?.custom_buttons || this._config.custom_buttons.length === 0) {
+            return nothing;
+        }
 
-      return html`
-        <div class="custom-buttons">
-          ${this._config.custom_buttons.map(
-            (btn) => html`
-              <mwc-icon-button
-                .label=${btn.name || ""}
-                @click=${(ev: Event) => {
-                  ev.stopPropagation();
-                    handleAction(this, this.hass!, {
-                      entity: btn.entity,
-                      tap_action: btn.tap_action,
-                      hold_action: btn.hold_action,
-                      double_tap_action: btn.double_tap_action,
-                    }, "tap_action");
-                }}
-                @hold=${(ev: Event) => {
-                  ev.stopPropagation();
-                    handleAction(this, this.hass!, {
-                      entity: btn.entity,
-                      tap_action: btn.tap_action,
-                      hold_action: btn.hold_action,
-                      double_tap_action: btn.double_tap_action,
-                    }, "hold_action");
-                }}
-                @dblclick=${(ev: Event) => {
-                  ev.stopPropagation();
-                    handleAction(this, this.hass!, {
-                      entity: btn.entity,
-                      tap_action: btn.tap_action,
-                      hold_action: btn.hold_action,
-                      double_tap_action: btn.double_tap_action,
-                    }, "double_tap_action");
-                }}
-              >
-                <ha-icon .icon=${btn.icon}></ha-icon>
-              </mwc-icon-button>
-             ${btn.name ? html`<span class="custom-button-label">${btn.name}</span>` : nothing}
-
-            `
-          )}
-        </div>
-      `;
+        return html`
+            <div class="custom-buttons">
+                ${this._config.custom_buttons.map(
+                    (btn) => html`
+                        <button
+                            class="custom-button"
+                            @click=${() => this._handleCustomButtonClick(btn)}
+                            @dblclick=${() => this._handleCustomButtonAction(btn, 'double_tap')}
+                            @contextmenu=${(ev: Event) => {
+                                ev.preventDefault();
+                                this._handleCustomButtonAction(btn, 'hold');
+                            }}
+                        >
+                            <ha-icon .icon=${btn.icon}></ha-icon>
+                            ${btn.name ? html`<span class="custom-button-label">${btn.name}</span>` : nothing}
+                        </button>
+                    `
+                )}
+            </div>
+        `;
+    }
+    
+    private _handleCustomButtonClick(btn: any) {
+        if (!this.hass || !btn.tap_action) return;
+        
+        try {
+            const action = btn.tap_action;
+            
+            // Handle different action types
+            if (action.action === 'navigate') {
+                handleAction(this, this.hass, { tap_action: btn.tap_action }, 'tap');
+            } else if (action.action === 'perform-action' || action.action === 'call-service') {
+                // Handle service calls directly
+                let domain, service, serviceData = {};
+                
+                if (action.perform_action) {
+                    // New format: perform-action
+                    const [serviceDomain, serviceName] = action.perform_action.split('.');
+                    domain = serviceDomain;
+                    service = serviceName;
+                } else if (action.service) {
+                    // Old format: call-service
+                    const [serviceDomain, serviceName] = action.service.split('.');
+                    domain = serviceDomain;
+                    service = serviceName;
+                }
+                
+                // Add service data from various possible sources
+                if (action.service_data) {
+                    serviceData = { ...serviceData, ...action.service_data };
+                }
+                if (action.data) {
+                    serviceData = { ...serviceData, ...action.data };
+                }
+                
+                // Add target information
+                if (action.target) {
+                    if (action.target.entity_id) {
+                        if (Array.isArray(action.target.entity_id)) {
+                            serviceData.entity_id = action.target.entity_id;
+                        } else {
+                            serviceData.entity_id = [action.target.entity_id];
+                        }
+                    }
+                    if (action.target.area_id) {
+                        serviceData.area_id = action.target.area_id;
+                    }
+                    if (action.target.device_id) {
+                        serviceData.device_id = action.target.device_id;
+                    }
+                }
+                
+                console.log(`Calling service: ${domain}.${service}`, serviceData);
+                this.hass.callService(domain, service, serviceData);
+            } else {
+                // Fall back to handleAction for other action types
+                handleAction(this, this.hass, { tap_action: btn.tap_action }, 'tap');
+            }
+        } catch (error) {
+            console.error('Error handling custom button tap action:', error, btn);
+        }
     }
 
-
+    private _handleCustomButtonAction(btn: any, actionType: 'double_tap' | 'hold') {
+        if (!this.hass) return;
+        
+        const actionConfig = actionType === 'double_tap' ? btn.double_tap_action : btn.hold_action;
+        if (!actionConfig) return;
+        
+        try {
+            const action = actionConfig;
+            
+            // Handle different action types
+            if (action.action === 'navigate') {
+                handleAction(this, this.hass, { [actionType]: actionConfig }, actionType);
+            } else if (action.action === 'perform-action' || action.action === 'call-service') {
+                // Handle service calls directly
+                let domain, service, serviceData = {};
+                
+                if (action.perform_action) {
+                    // New format: perform-action
+                    const [serviceDomain, serviceName] = action.perform_action.split('.');
+                    domain = serviceDomain;
+                    service = serviceName;
+                } else if (action.service) {
+                    // Old format: call-service
+                    const [serviceDomain, serviceName] = action.service.split('.');
+                    domain = serviceDomain;
+                    service = serviceName;
+                }
+                
+                // Add service data from various possible sources
+                if (action.service_data) {
+                    serviceData = { ...serviceData, ...action.service_data };
+                }
+                if (action.data) {
+                    serviceData = { ...serviceData, ...action.data };
+                }
+                
+                // Add target information
+                if (action.target) {
+                    if (action.target.entity_id) {
+                        if (Array.isArray(action.target.entity_id)) {
+                            serviceData.entity_id = action.target.entity_id;
+                        } else {
+                            serviceData.entity_id = [action.target.entity_id];
+                        }
+                    }
+                    if (action.target.area_id) {
+                        serviceData.area_id = action.target.area_id;
+                    }
+                    if (action.target.device_id) {
+                        serviceData.device_id = action.target.device_id;
+                    }
+                }
+                
+                console.log(`Calling service: ${domain}.${service}`, serviceData);
+                this.hass.callService(domain, service, serviceData);
+            } else {
+                // Fall back to handleAction for other action types
+                handleAction(this, this.hass, { [actionType]: actionConfig }, actionType);
+            }
+        } catch (error) {
+            console.error(`Error handling custom button ${actionType} action:`, error, btn);
+        }
+    }
+    
   private _openDomainPopup(domain: string) {
     const area = this._area(this._config?.area, this._areas || []);
     const title =
@@ -1849,45 +1952,21 @@ export class AreaCardPlus
           margin-bottom: 5px;
         }
     
-        .custom-buttons-container {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          padding: 0 16px 16px;
-          border-top: 1px solid var(--divider-color);
-          margin-top: 16px;
-          padding-top: 16px;
-        }
+       .custom-button {
+         display: flex;
+         align-items: center;
+         gap: 5px;
+         background: none;
+         border: solid 0.025rem rgba(var(--rgb-primary-text-color), 0.15);
+         padding: 8px;
+         border-radius: 5px;
+         cursor: pointer;
+         --mdc-icon-size: 20px;
+       }
 
-        .custom-button {
-          --mdc-theme-primary: var(--primary-color);
-          --mdc-theme-on-primary: var(--text-primary-color);
-          --mdc-button-horizontal-padding: 12px;
-          min-width: auto;
-          flex: 1;
-          min-width: 120px;
-        }
-
-        .custom-button ha-icon {
-          margin-right: 8px;
-          --mdc-icon-size: 18px;
-        }
-
-        .custom-button .custom-button-label {
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-
-        /* Responsive design for mobile */
-        @media (max-width: 600px) {
-          .custom-buttons-container {
-            flex-direction: column;
-          }
-          
-          .custom-button {
-            flex: none;
-            width: 100%;
-          }
+       .custom-button:hover {
+         background-color: rgba(var(--rgb-primary-text-color), 0.15);
+       }
       }
     `;
   }

@@ -28,13 +28,14 @@ export class ItemEditor extends LitElement {
     }
   }
 
-  private _schemacustombutton = memoizeOne(() => {
+ private _schemacustombutton = memoizeOne(() => {
         const actions: UiAction[] = [
           "more-info",
           "toggle",
           "navigate",
           "url",
-          "call-service",
+          "perform-action",
+          "assist",
           "none",
         ];
         return [
@@ -53,7 +54,7 @@ export class ItemEditor extends LitElement {
             selector: { ui_action: { actions } },
           },
         ];
-  });
+    });
     
   private _schemadomain = memoizeOne(() => {
     const actions: UiAction[] = [

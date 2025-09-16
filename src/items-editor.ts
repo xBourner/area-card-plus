@@ -286,12 +286,18 @@ export class CustomButtonsEditor extends LitElement {
             </div>
           `
         )}
-        <mwc-button @click=${this._addRow} class="add-btn" outlined>
-          Add Button
-        </mwc-button>
-      </div>
+       <div class="add-button-container">
+         <mwc-button 
+           @click=${this._addRow} 
+           class="add-btn" 
+           outlined
+         >
+           Add Custom Button
+         </mwc-button>
+       </div>
     `;
   }
+    
 
   static styles = css`
     .row {
@@ -306,11 +312,30 @@ export class CustomButtonsEditor extends LitElement {
       gap: 8px;
     }
     .name {
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;   
         font-size: 16px;
     }
     .add-btn {
-      margin-top: 8px;
-      width: 100%;
+          padding: 8px 16px;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          background-color: var(--primary-color);
+          color: white;
+          font-weight: 500;
+          -webkit-align-self: flex-start;
+          -ms-flex-item-align: flex-start;
+          align-self: flex-start;
     }
+    ha-icon {
+      color: var(--secondary-text-color);
+    }
+    .add-button-container {
+          padding: 8px 0;
+          text-align: right;
+    }
+    
   `;
 }
