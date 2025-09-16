@@ -231,20 +231,20 @@ export class PopupItemsEditor extends BaseItemsEditor {
 export class CustomButtonsEditor extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @property({ attribute: false }) custom_buttons?: any[];
-  
-  protected customizationChangedEvent = "config-changed";
 
   private _editRow(ev: Event): void {
+    ev.stopPropagation();
     const index = (ev.currentTarget as any).index;
     fireEvent(this, "edit-item", index);
   }
 
   private _removeRow(ev: Event): void {
+    ev.stopPropagation();
     if (!this.custom_buttons) return;
     const index = (ev.currentTarget as any).index;
     const newButtons = [...this.custom_buttons];
     newButtons.splice(index, 1);
-    fireEvent(this, "config-changed", newButtons);
+    fireEvent(this, "config-changed", newButtons); // Fixed: direct value, not wrapped
   }
 
   private _addRow(): void {
@@ -254,7 +254,7 @@ export class CustomButtonsEditor extends LitElement {
       tap_action: { action: "none" },
     };
     const newButtons = [...(this.custom_buttons || []), newButton];
-    fireEvent(this, "config-changed", newButtons);
+    fireEvent(this, "config-changed", newButtons); // Fixed: direct value, not wrapped
   }
 
   protected render() {
@@ -263,31 +263,33 @@ export class CustomButtonsEditor extends LitElement {
     }
 
     return html`
-      ${this.custom_buttons?.map(
-        (button, index) => html`
-          <div class="row">
-            <div class="item">
-              <ha-icon .path=${button.icon || mdiGestureTapButton}></ha-icon>
-              <span class="name">${button.name || `Button ${index + 1}`}</span>
+      <div class="custom-buttons">
+        ${this.custom_buttons?.map(
+          (button, index) => html`
+            <div class="row">
+              <div class="item">
+                <ha-icon .icon=${button.icon || "mdi:gesture-tap-button"}></ha-icon>
+                <span class="name">${button.name || `Button ${index + 1}`}</span>
+              </div>
+              <ha-icon-button
+                .label=${this.hass!.localize("ui.common.edit")}
+                .path=${mdiPencil}
+                .index=${index}
+                @click=${this._editRow}
+              ></ha-icon-button>
+              <ha-icon-button
+                .label=${this.hass!.localize("ui.common.remove")}
+                .path=${mdiClose}
+                .index=${index}
+                @click=${this._removeRow}
+              ></ha-icon-button>
             </div>
-            <ha-icon-button
-              .label=${this.hass!.localize("ui.common.edit")}
-              .path=${mdiPencil}
-              .index=${index}
-              @click=${this._editRow}
-            ></ha-icon-button>
-            <ha-icon-button
-              .label=${this.hass!.localize("ui.common.remove")}
-              .path=${mdiClose}
-              .index=${index}
-              @click=${this._removeRow}
-            ></ha-icon-button>
-          </div>
-        `
-      )}
-      <mwc-button @click=${this._addRow} class="add-btn" outlined>
-        ${this.hass!.localize("ui.panel.lovelace.editor.card.generic.add_button")}
-      </mwc-button>
+          `
+        )}
+        <mwc-button @click=${this._addRow} class="add-btn" outlined>
+          Add Button
+        </mwc-button>
+      </div>
     `;
   }
 

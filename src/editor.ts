@@ -198,20 +198,6 @@ export class AreaCardPlusEditor
           { name: "hold_action", selector: { ui_action: { actions } } },
         ],
       },
-      {
-        name: "custom_buttons",
-        selector: {
-          array: {
-            object: [
-              { name: "icon", selector: { icon: {} } },
-              { name: "name", selector: { text: {} } },
-              { name: "tap_action", selector: { ui_action: { actions } } },
-              { name: "hold_action", selector: { ui_action: { actions } } },
-              { name: "double_tap_action", selector: { ui_action: { actions } } },
-            ],
-          },
-        },
-      },
     ];
   });
 
@@ -516,17 +502,18 @@ export class AreaCardPlusEditor
     return options;
   }
 
-  setConfig(config: CardConfig): void {
-    this._config = {
-      ...config,
-      columns: config.columns || 4,
-      mirrored: config.mirrored || false,
-      customization_domain: config.customization_domain || [],
-      customization_alert: config.customization_alert || [],
-      customization_cover: config.customization_cover || [],
-      customization_sensor: config.customization_sensor || [],
-    };
-  }
+    setConfig(config: CardConfig): void {
+      this._config = {
+        ...config,
+        columns: config.columns || 4,
+        mirrored: config.mirrored || false,
+        customization_domain: config.customization_domain || [],
+        customization_alert: config.customization_alert || [],
+        customization_cover: config.customization_cover || [],
+        customization_sensor: config.customization_sensor || [],
+        custom_buttons: config.custom_buttons || [],
+      };
+    }
 
   protected async updated(
     changedProperties: Map<string | number | symbol, unknown>
@@ -893,14 +880,19 @@ export class AreaCardPlusEditor
     this._subElementEditorSensor = undefined;
   }
 
-  private _customizationChangedCustomButtons(ev: CustomEvent): void {
-      const updatedButtons = ev.detail.value;
-      this._config = {
-        ...this._config!,
-        custom_buttons: updatedButtons,
-      };
-      this.requestUpdate();
-  }
+    private _customizationChangedCustomButtons(ev: CustomEvent): void {
+      ev.stopPropagation();
+      if (!this._config || !this.hass) {
+        return;
+      }
+      const updatedButtons = ev.detail; // Changed from ev.detail.value
+      fireEvent(this, "config-changed", {
+        config: {
+          ...this._config,
+          custom_buttons: updatedButtons,
+        },
+      });
+    }
 
   private _itemChanged(
     ev: CustomEvent<Settings>,
