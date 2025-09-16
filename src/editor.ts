@@ -32,6 +32,7 @@ import {
   mdiViewDashboardVariant,
   mdiEye,
   mdiEyeOff,
+  mdiGestureTapButton,
 } from "@mdi/js";
 import "./items-editor";
 import "./item-editor";
@@ -82,19 +83,6 @@ export class AreaCardPlusEditor
         });
     }
     }
-
-  private _customizationChangedCustomButtons(ev: CustomEvent<any[]>): void {
-    ev.stopPropagation();
-    if (!this._config || !this.hass) {
-        return;
-    }
-    fireEvent(this, "config-changed", {
-      config: {
-        ...this._config,
-        custom_buttons: ev.detail,
-      } as CardConfig,
-    });
-  }
 
   private computeLabel = memoizeOne((schema: Schema): string => {
     return computeLabelCallback(this.hass, schema);
@@ -212,7 +200,6 @@ export class AreaCardPlusEditor
       },
       {
         name: "custom_buttons",
-        icon: "mdi:gesture-tap-button",
         selector: {
           array: {
             object: [
@@ -906,6 +893,15 @@ export class AreaCardPlusEditor
     this._subElementEditorSensor = undefined;
   }
 
+  private _customizationChangedCustomButtons(ev: CustomEvent): void {
+      const updatedButtons = ev.detail.value;
+      this._config = {
+        ...this._config!,
+        custom_buttons: updatedButtons,
+      };
+      this.requestUpdate();
+  }
+
   private _itemChanged(
     ev: CustomEvent<Settings>,
     editorTarget: { index?: number } | undefined,
@@ -1226,7 +1222,6 @@ export class AreaCardPlusEditor
         .computeLabel=${this.computeLabel}
         @value-changed=${this._valueChanged}
       ></ha-form>
-
       <ha-expansion-panel outlined class="main">
         <div slot="header" role="heading" aria-level="3">
           <ha-svg-icon .path=${mdiAlert}></ha-svg-icon>
@@ -1325,19 +1320,22 @@ export class AreaCardPlusEditor
     
       <ha-expansion-panel outlined class="main">
           <div slot="header" role="heading" aria-level="3">
-            <ha-svg-icon path="mdi:gesture-tap-button"></ha-svg-icon>
+            <ha-svg-icon .path=${mdiGestureTapButton}></ha-svg-icon>
             Custom Buttons
           </div>
           <div class="content">
             <custom-buttons-editor
               .hass=${this.hass}
-              .custom_buttons=${this._config.custom_buttons}
-              @edit-item=${this._edit_itemCustomButton}
+              .custom_buttons=${this._config!.custom_buttons}
               @config-changed=${this._customizationChangedCustomButtons}
+              @edit-item=${this._edit_itemCustomButton}
             >
             </custom-buttons-editor>
           </div>
      </ha-expansion-panel>
+              
+            
+              
               
       <ha-expansion-panel outlined class="main" .name="popup">
         <div slot="header" role="heading" aria-level="3">
@@ -1463,8 +1461,7 @@ export class AreaCardPlusEditor
             )}
           </div>
         </ha-expansion-panel>
-
-        </div>
+        
 
 
     `;

@@ -1,4 +1,4 @@
-import { LitElement, TemplateResult, html, css, CSSResult } from "lit";
+import { LitElement, TemplateResult, html, css, CSSResult, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { HomeAssistant, LovelaceCardConfig } from "custom-card-helpers";
 import { Settings, UiAction } from "./helpers";
@@ -206,6 +206,26 @@ export class ItemEditor extends LitElement {
         .computeLabel=${this._computeLabelCallback}
         @value-changed=${this._valueChangedSchema}
       ></ha-form>
+      ${this._subElementEditorCustomButton !== undefined
+        ? html`
+            <popup-dialog
+              .hass=${this.hass}
+              .title=${this.hass!.localize("ui.panel.lovelace.editor.card.button.name")}
+              .open=${true}
+              @closed=${this._goBackCustomButton}
+            >
+              <item-editor
+                .hass=${this.hass}
+                .config=${this._config!.custom_buttons?.[
+                  this._subElementEditorCustomButton.index!
+                ]}
+                @config-changed=${this._itemChangedCustomButton}
+                .type=${"custom_buttons"}
+              ></item-editor>
+            </popup-dialog>
+          `
+        : nothing
+      }
     `;
   }
 

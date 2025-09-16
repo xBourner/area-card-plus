@@ -96,38 +96,49 @@ export class AreaCardPlus
     );
   }
 
-  private renderCustomButtons() {
+    private renderCustomButtons() {
       if (!this._config?.custom_buttons || this._config.custom_buttons.length === 0) {
-         return nothing;
-       }
+        return nothing;
+      }
 
       return html`
         <div class="custom-buttons">
-          ${this.config.custom_buttons.map(
-            (btn, idx) => html`
-              <mwc-button
-                class="custom-button"
-                label=${btn.name || ""}
-                @click=${(e) =>
-                  handleAction(this, this.hass!, btn.tap_action, {
-                    entity: undefined,
-                    index: idx,
-                  })}
-                @contextmenu=${(e) => {
-                  e.preventDefault();
-                  handleAction(this, this.hass!, btn.hold_action, {
-                    entity: undefined,
-                    index: idx,
-                  });
+          ${this._config.custom_buttons.map(
+            (btn) => html`
+              <mwc-icon-button
+                .label=${btn.name || ""}
+                @click=${(ev: Event) => {
+                  ev.stopPropagation();
+                    handleAction(this, this.hass!, {
+                      entity: btn.entity,
+                      tap_action: btn.tap_action,
+                      hold_action: btn.hold_action,
+                      double_tap_action: btn.double_tap_action,
+                    }, "tap_action");
                 }}
-                @dblclick=${(e) =>
-                  handleAction(this, this.hass!, btn.double_tap_action, {
-                    entity: undefined,
-                    index: idx,
-                  })}
+                @hold=${(ev: Event) => {
+                  ev.stopPropagation();
+                    handleAction(this, this.hass!, {
+                      entity: btn.entity,
+                      tap_action: btn.tap_action,
+                      hold_action: btn.hold_action,
+                      double_tap_action: btn.double_tap_action,
+                    }, "hold_action");
+                }}
+                @dblclick=${(ev: Event) => {
+                  ev.stopPropagation();
+                    handleAction(this, this.hass!, {
+                      entity: btn.entity,
+                      tap_action: btn.tap_action,
+                      hold_action: btn.hold_action,
+                      double_tap_action: btn.double_tap_action,
+                    }, "double_tap_action");
+                }}
               >
-                ${btn.icon ? html`<ha-icon icon=${btn.icon}></ha-icon>` : ""}
-              </mwc-button>
+                <ha-icon .icon=${btn.icon}></ha-icon>
+              </mwc-icon-button>
+             ${btn.name ? html`<span class="custom-button-label">${btn.name}</span>` : nothing}
+
             `
           )}
         </div>
@@ -800,7 +811,7 @@ export class AreaCardPlus
               `
             : nothing
         }
-        ${this.renderCustomButtons()}
+       
           <div class="${classMap({
             "icon-container": true,
             ...designClasses,
@@ -1244,6 +1255,7 @@ export class AreaCardPlus
             bottom: true,
             ...designClasses,
           })}">
+            ${this.renderCustomButtons()}
               <div style=${`${
                 this._config?.area_name_color
                   ? `color: var(--${this._config.area_name_color}-color);`
@@ -1836,6 +1848,46 @@ export class AreaCardPlus
           font-weight: bold;
           margin-bottom: 5px;
         }
+    
+        .custom-buttons-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          padding: 0 16px 16px;
+          border-top: 1px solid var(--divider-color);
+          margin-top: 16px;
+          padding-top: 16px;
+        }
+
+        .custom-button {
+          --mdc-theme-primary: var(--primary-color);
+          --mdc-theme-on-primary: var(--text-primary-color);
+          --mdc-button-horizontal-padding: 12px;
+          min-width: auto;
+          flex: 1;
+          min-width: 120px;
+        }
+
+        .custom-button ha-icon {
+          margin-right: 8px;
+          --mdc-icon-size: 18px;
+        }
+
+        .custom-button .custom-button-label {
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+
+        /* Responsive design for mobile */
+        @media (max-width: 600px) {
+          .custom-buttons-container {
+            flex-direction: column;
+          }
+          
+          .custom-button {
+            flex: none;
+            width: 100%;
+          }
       }
     `;
   }

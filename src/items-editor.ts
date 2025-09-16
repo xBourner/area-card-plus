@@ -1,10 +1,10 @@
-import { LitElement, html } from "lit";
+import { LitElement, html, nothing } from "lit";
 import { HomeAssistant } from "custom-card-helpers";
 import { EditorTarget, Settings, HTMLElementValue } from "./helpers";
 import { customElement, property } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import { css, CSSResult, nothing } from "lit";
-import { mdiClose, mdiPencil } from "@mdi/js";
+import { mdiClose, mdiPencil, mdiGestureTapButton } from "@mdi/js";
 import { fireEvent, SelectOption } from "./helpers";
 
 abstract class BaseItemsEditor extends LitElement {
@@ -128,6 +128,7 @@ abstract class BaseItemsEditor extends LitElement {
     }
   }
 
+    
   private _editRow(ev: Event): void {
     ev.stopPropagation();
     const index = (ev.target as EditorTarget).index;
@@ -230,6 +231,8 @@ export class PopupItemsEditor extends BaseItemsEditor {
 export class CustomButtonsEditor extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @property({ attribute: false }) custom_buttons?: any[];
+  
+  protected customizationChangedEvent = "config-changed";
 
   private _editRow(ev: Event): void {
     const index = (ev.currentTarget as any).index;
@@ -264,7 +267,7 @@ export class CustomButtonsEditor extends LitElement {
         (button, index) => html`
           <div class="row">
             <div class="item">
-              <ha-icon .icon=${button.icon || "mdi:gesture-tap-button"}></ha-icon>
+              <ha-icon .path=${button.icon || mdiGestureTapButton}></ha-icon>
               <span class="name">${button.name || `Button ${index + 1}`}</span>
             </div>
             <ha-icon-button
