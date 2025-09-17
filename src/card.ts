@@ -1861,7 +1861,7 @@ export class AreaCardPlus
 
       .custom-buttons {
           display: flex;
-          gap: 2px;
+          column-gap: 10px;
       }
 
       .custom-button {
@@ -1871,7 +1871,7 @@ export class AreaCardPlus
          background: none;
          border: solid 0.025rem rgba(var(--rgb-primary-text-color), 0.15);
          background-color: var(--secondary-text-color)
-         padding: 1px;
+         padding: 3px;
          border-radius: 5px;
          --mdc-icon-size: 20px;
        }
