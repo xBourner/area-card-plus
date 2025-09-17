@@ -106,15 +106,15 @@ export class AreaCardPlus
             <div class="custom-buttons">
                 ${this._config.custom_buttons.map(
                     (btn) => html`
-                        <button
-                            class="custom-button"
+                        <div
+                            class="custom-button hover"
                             @click=${() => this._handleCustomButtonClick(btn)}
                             @dblclick=${() => this._handleCustomButtonAction(btn, 'double_tap')}
                             @contextmenu=${(ev: Event) => {
                                 ev.preventDefault();
                                 this._handleCustomButtonAction(btn, 'hold');
                             }}
-                        >
+                        style>
                             <ha-icon .icon=${btn.icon}></ha-icon>
                             ${btn.name ? html`<span class="custom-button-label">${btn.name}</span>` : nothing}
                         </button>
@@ -1859,6 +1859,23 @@ export class AreaCardPlus
         pointer-events: none;
       }
 
+      .custom-buttons {
+          display: flex;
+          gap: 2px;
+      }
+
+      .custom-button {
+         display: flex;
+         align-items: center;
+         gap: 5px;
+         background: none;
+         border: solid 0.025rem rgba(var(--rgb-primary-text-color), 0.15);
+         background-color: var(--secondary-text-color)
+         padding: 1px;
+         border-radius: 5px;
+         --mdc-icon-size: 20px;
+       }
+    
       .toggle-on {
         color: var(--primary-text-color);
       }
@@ -1938,6 +1955,7 @@ export class AreaCardPlus
         .icon-container ha-icon {
           --mdc-icon-size: calc(var(--row-size, 3) * 20px);
         }
+       
         .icon-container.v2 ha-icon {
           --mdc-icon-size: calc(var(--row-size, 3) * 15px);
           border-radius: 50%;
@@ -1951,23 +1969,8 @@ export class AreaCardPlus
           font-weight: bold;
           margin-bottom: 5px;
         }
-    
-       .custom-button {
-         display: flex;
-         align-items: center;
-         gap: 5px;
-         background: none;
-         border: solid 0.025rem rgba(var(--rgb-primary-text-color), 0.15);
-         padding: 8px;
-         border-radius: 5px;
-         cursor: pointer;
-         --mdc-icon-size: 20px;
-       }
-
-       .custom-button:hover {
-         background-color: rgba(var(--rgb-primary-text-color), 0.15);
-       }
-      }
+       
+         
     `;
   }
 }
