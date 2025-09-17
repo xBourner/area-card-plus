@@ -28,7 +28,7 @@ export class ItemEditor extends LitElement {
     }
   }
 
- private _schemacustombutton = memoizeOne(() => {
+    private _schemacustombutton = memoizeOne(() => {
         const actions: UiAction[] = [
           "more-info",
           "toggle",
@@ -171,65 +171,67 @@ export class ItemEditor extends LitElement {
     ];
   });
 
-  protected render(): TemplateResult {
-    if (!this.hass || !this.config) {
-      return html``;
-    }
+    
+    protected render(): TemplateResult {
+        if (!this.hass || !this.config) {
+          return html``;
+        }
 
-    if (!this._config) {
-      this._config = { ...this.config, area: this.config.area || "" };
-    }
+        if (!this._config) {
+          this._config = { ...this.config, area: this.config.area || "" };
+        }
 
-    let schema;
-    switch (this.getSchema) {
-      case "sensor":
-        schema = this._schemasensor();
-        break;
-      case "domain":
-        schema = this._schemadomain();
-        break;
-      case "alert":
-      case "cover":
-        schema = this._schemaalert();
-        break;
-      case "custom_button":
-        schema = this._schemacustombutton();
-        break;
-    }
+        let schema;
+        switch (this.getSchema) {
+          case "sensor":
+            schema = this._schemasensor();
+            break;
+          case "domain":
+            schema = this._schemadomain();
+            break;
+          case "alert":
+          case "cover":
+            schema = this._schemaalert();
+            break;
+          case "custom_button":
+            schema = this._schemacustombutton();
+            break;
+        }
 
-    const data = { ...this._config };
+        const data = { ...this._config };
 
-    return html`
-      <ha-form
-        .hass=${this.hass}
-        .data=${data}
-        .schema=${schema}
-        .computeLabel=${this._computeLabelCallback}
-        @value-changed=${this._valueChangedSchema}
-      ></ha-form>
-      ${this._subElementEditorCustomButton !== undefined
-        ? html`
-            <popup-dialog
-              .hass=${this.hass}
-              .title=${this.hass!.localize("ui.panel.lovelace.editor.card.button.name")}
-              .open=${true}
-              @closed=${this._goBackCustomButton}
-            >
-              <item-editor
-                .hass=${this.hass}
-                .config=${this._config!.custom_buttons?.[
-                  this._subElementEditorCustomButton.index!
-                ]}
-                @config-changed=${this._itemChangedCustomButton}
-                .type=${"custom_buttons"}
-              ></item-editor>
-            </popup-dialog>
-          `
-        : nothing
+        return html`
+          <ha-form
+            .hass=${this.hass}
+            .data=${data}
+            .schema=${schema}
+            .computeLabel=${this._computeLabelCallback}
+            @value-changed=${this._handleFormValueChanged}
+          ></ha-form>
+          ${this._subElementEditorCustomButton !== undefined
+            ? html`
+                <popup-dialog
+                  .hass=${this.hass}
+                  .title=${this.hass!.localize("ui.panel.lovelace.editor.card.button.name")}
+                  .open=${true}
+                  @closed=${this._goBackCustomButton}
+                >
+                  <item-editor
+                    .hass=${this.hass}
+                    .config=${this._config!.custom_buttons?.[
+                      this._subElementEditorCustomButton.index!
+                    ]}
+                    @config-changed=${this._itemChangedCustomButton}
+                    .type=${"custom_buttons"}
+                  ></item-editor>
+                </popup-dialog>
+              `
+            : nothing
+          }
+        `;
       }
-    `;
-  }
-
+    
+    
   private _computeLabelCallback = (schema: Schema): string => {
     switch (schema.name) {
       case "color":
@@ -280,24 +282,53 @@ export class ItemEditor extends LitElement {
     }
   };
 
-  private _valueChangedSchema(event: CustomEvent): void {
-    if (!this.config) {
-      return;
-    }
+    private _handleFormValueChanged(event: CustomEvent): void {
+        this._valueChangedSchema(event);
+      }
 
-    const updatedConfig = {
-      ...this.config,
-      ...event.detail.value,
-    };
+      private _valueChangedSchema(event: CustomEvent): void {
+        if (!this.config) {
+          return;
+        }
 
-    this._config = updatedConfig;
+        let updatedConfig = {
+          ...this.config,
+          ...event.detail.value,
+        };
 
-    this.dispatchEvent(
-      new CustomEvent("config-changed", {
-        detail: updatedConfig,
-      })
-    );
-  }
+        // Auto-populate fields when certain actions are selected
+        if (updatedConfig.tap_action?.action === "toggle" && !updatedConfig.tap_action.target) {
+          updatedConfig = {
+            ...updatedConfig,
+            tap_action: {
+              ...updatedConfig.tap_action,
+              action: "perform-action", // Toggle is actually perform-action with a specific service
+              target: { entity_id: "" },
+              perform_action: "homeassistant.toggle",
+            }
+          };
+        } else if (updatedConfig.tap_action?.action === "perform-action" && !updatedConfig.tap_action.target) {
+          updatedConfig = {
+            ...updatedConfig,
+            tap_action: {
+              ...updatedConfig.tap_action,
+              target: { entity_id: "" },
+              perform_action: "",
+            }
+          };
+        }
+
+        this._config = updatedConfig;
+        
+        // Trigger re-render when action type changes to show new fields
+        this.requestUpdate();
+
+        this.dispatchEvent(
+          new CustomEvent("config-changed", {
+            detail: updatedConfig,
+          })
+        );
+      }
 
   static get styles(): CSSResult {
     return css`

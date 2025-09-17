@@ -102,17 +102,57 @@ abstract class BaseItemsEditor extends LitElement {
       </div>
     `;
   }
+    private _valueChangedSchema(event: CustomEvent): void {
+        if (!this.config) {
+          return;
+        }
 
-  private _valueChanged(ev: CustomEvent): void {
-    if (!this.customization || !this.hass) {
-      return;
-    }
-    const value = ev.detail.value;
-    const index = (ev.target as any).index;
-    const newCustomization = this.customization.concat();
-    newCustomization[index] = { ...newCustomization[index], type: value || "" };
-    fireEvent(this, this.customizationChangedEvent, newCustomization);
-  }
+        console.log("_valueChangedSchema called with:", event.detail.value);
+
+        let updatedConfig = {
+          ...this.config,
+          ...event.detail.value,
+        };
+
+        console.log("Current tap_action:", updatedConfig.tap_action);
+
+        // Auto-populate fields when certain actions are selected
+        if (updatedConfig.tap_action?.action === "toggle" && !updatedConfig.tap_action.target) {
+          console.log("Auto-populating toggle action");
+          updatedConfig = {
+            ...updatedConfig,
+            tap_action: {
+              ...updatedConfig.tap_action,
+              action: "perform-action", // Toggle is actually perform-action with a specific service
+              target: { entity_id: "" },
+              perform_action: "homeassistant.toggle",
+            }
+          };
+        } else if (updatedConfig.tap_action?.action === "perform-action" && !updatedConfig.tap_action.target) {
+          console.log("Auto-populating perform-action");
+          updatedConfig = {
+            ...updatedConfig,
+            tap_action: {
+              ...updatedConfig.tap_action,
+              target: { entity_id: "" },
+              perform_action: "",
+            }
+          };
+        }
+
+        this._config = updatedConfig;
+        
+        console.log("Final config:", this._config);
+        
+        // Trigger re-render when action type changes to show new fields
+        this.requestUpdate();
+
+        this.dispatchEvent(
+          new CustomEvent("config-changed", {
+            detail: updatedConfig,
+          })
+        );
+      }
 
   private _removeRow(ev: Event): void {
     ev.stopPropagation();
