@@ -28,6 +28,7 @@ export class ItemEditor extends LitElement {
     }
   }
 
+    
     private _schemacustombutton = memoizeOne(() => {
         const actions: UiAction[] = [
           "more-info",
@@ -234,6 +235,8 @@ export class ItemEditor extends LitElement {
     
   private _computeLabelCallback = (schema: Schema): string => {
     switch (schema.name) {
+      case "custom":
+        return "Custom";
       case "color":
         return this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
       case "enable_popup_view":
@@ -286,7 +289,8 @@ export class ItemEditor extends LitElement {
         this._valueChangedSchema(event);
       }
 
-      private _valueChangedSchema(event: CustomEvent): void {
+
+    private _valueChangedSchema(event: CustomEvent): void {
         if (!this.config) {
           return;
         }
@@ -302,7 +306,7 @@ export class ItemEditor extends LitElement {
             ...updatedConfig,
             tap_action: {
               ...updatedConfig.tap_action,
-              action: "perform-action", // Toggle is actually perform-action with a specific service
+              action: "perform-action",
               target: { entity_id: "" },
               perform_action: "homeassistant.toggle",
             }

@@ -176,12 +176,55 @@ export class AreaCardPlus
                 
                 console.log(`Calling service: ${domain}.${service}`, serviceData);
                 this.hass.callService(domain, service, serviceData);
+            } else if (action.action === 'custom') {
+                // Handle custom JavaScript template (YAML-only configuration)
+                this._executeCustomAction(action.custom_code);
             } else {
                 // Fall back to handleAction for other action types
                 handleAction(this, this.hass, { tap_action: btn.tap_action }, 'tap');
             }
         } catch (error) {
             console.error('Error handling custom button tap action:', error, btn);
+        }
+    }
+
+    private _executeCustomAction(customCode: string) {
+        if (!customCode || typeof customCode !== 'string') {
+            console.error('Custom action code is empty or invalid');
+            return;
+        }
+        
+        try {
+            // Create a safe execution context with access to common Home Assistant objects
+            const context = {
+                hass: this.hass,
+                config: this._config,
+                states: this.hass.states,
+                entity: (entityId: string) => this.hass.states[entityId],
+                callService: (domain: string, service: string, serviceData?: any) =>
+                    this.hass.callService(domain, service, serviceData),
+                navigate: (path: string) => {
+                    window.history.pushState(null, '', path);
+                    window.dispatchEvent(new CustomEvent('location-changed'));
+                },
+                fireEvent: (type: string, detail?: any) => {
+                    this.dispatchEvent(new CustomEvent(type, { detail }));
+                }
+            };
+            
+            // Create a function from the custom code with the context
+            const func = new Function(...Object.keys(context), customCode);
+            
+            // Execute the custom code with the context
+            func(...Object.values(context));
+            
+        } catch (error) {
+            console.error('Error executing custom action:', error);
+            // Optionally show a user-friendly error
+            this.hass.callService('system_log', 'write', {
+                message: `Custom button action error: ${error.message}`,
+                level: 'error',
+            });
         }
     }
 
@@ -240,6 +283,9 @@ export class AreaCardPlus
                 
                 console.log(`Calling service: ${domain}.${service}`, serviceData);
                 this.hass.callService(domain, service, serviceData);
+            } else if (action.action === 'custom') {
+                // Handle custom JavaScript template (YAML-only configuration)
+                this._executeCustomAction(action.custom_code);
             } else {
                 // Fall back to handleAction for other action types
                 handleAction(this, this.hass, { [actionType]: actionConfig }, actionType);
