@@ -572,9 +572,10 @@ export class AreaCardPlus
 
   // Unified action handler factory for domain/alert/cover/sensor
   private _makeActionHandler(
-    kind: "domain" | "alert" | "cover" | "sensor",
+    kind: "domain" | "alert" | "cover" | "sensor" | "custom_button",
     domain: string,
-    deviceClass?: string
+    deviceClass?: string,
+    customButton?: any
   ): (ev: CustomEvent) => void {
     return (ev: CustomEvent) => {
       ev.stopPropagation();
@@ -596,6 +597,8 @@ export class AreaCardPlus
         customization = this._config?.customization_sensor?.find(
           (item: { type: string }) => item.type === deviceClass
         );
+      } else if (kind === "custom_button") {
+        customization = customButton;
       }
 
       const actionConfig =
@@ -708,6 +711,58 @@ export class AreaCardPlus
 
       handleAction(this, this.hass!, config, ev.detail.action!);
     };
+  }
+
+  private renderCustomButtons() {
+    if (
+      !this._config?.custom_buttons ||
+      this._config.custom_buttons.length === 0
+    ) {
+      return nothing;
+    }
+
+
+    const designClasses = {
+      v2: this._config?.design === "V2",
+      row: this._config?.layout === "horizontal",
+    };
+
+    return html`
+      <div
+        class="${classMap({
+          custom_buttons: true,
+          ...designClasses,
+        })}"
+      >
+        ${this._config.custom_buttons.map(
+          (btn: any) => {
+            const colorStyle = btn.color
+              ? `color: var(--${btn.color}-color, ${btn.color});`
+              : "";
+            return html`
+              <div
+                class="icon-with-count hover"
+                @action=${this._makeActionHandler(
+                  "custom_button",
+                  "",
+                  undefined,
+                  btn
+                )}
+                .actionHandler=${actionHandler({
+                  hasHold: hasAction(btn.hold_action),
+                  hasDoubleClick: hasAction(btn.double_tap_action),
+                })}
+              >
+                <ha-icon .icon=${btn.icon} style="${colorStyle}"></ha-icon>
+                ${btn.name
+                  ? html`<span class="custom-button-label" style="${colorStyle}">${btn.name}</span>`
+                  : nothing}
+              </div>
+            `;
+          }
+        )}
+      </div>
+    `;
   }
 
   protected render() {
@@ -828,23 +883,25 @@ export class AreaCardPlus
           paddingBottom: ignoreAspectRatio ? "0" : "12em",
         })}
       >
-        ${(this._config.show_camera && cameraEntityId) ||
-        ((this._config.show_icon === "image" ||
-          this._config.show_icon === "icon + image") &&
-          area.picture)
-          ? html`
-              <hui-image
-                .config=${this._config}
-                .hass=${this.hass}
-                .image=${this._config.show_camera ? undefined : area.picture}
-                .cameraImage=${this._config.show_camera
-                  ? cameraEntityId
-                  : undefined}
-                .cameraView=${this._config.camera_view}
-                fitMode="cover"
-              ></hui-image>
-            `
-          : nothing}
+        ${
+          (this._config.show_camera && cameraEntityId) ||
+          ((this._config.show_icon === "image" ||
+            this._config.show_icon === "icon + image") &&
+            area.picture)
+            ? html`
+                <hui-image
+                  .config=${this._config}
+                  .hass=${this.hass}
+                  .image=${this._config.show_camera ? undefined : area.picture}
+                  .cameraImage=${this._config.show_camera
+                    ? cameraEntityId
+                    : undefined}
+                  .cameraView=${this._config.camera_view}
+                  fitMode="cover"
+                ></hui-image>
+              `
+            : nothing
+        }
 
         <div
           class="${classMap({
@@ -853,14 +910,16 @@ export class AreaCardPlus
           })}"
           style=${styleMap(iconContainerStyles)}
         >
-          ${showIcon
-            ? html`
-                <ha-icon
-                  style=${styleMap(iconStyles)}
-                  icon=${this._config.area_icon || area.icon}
-                ></ha-icon>
-              `
-            : nothing}
+          ${
+            showIcon
+              ? html`
+                  <ha-icon
+                    style=${styleMap(iconStyles)}
+                    icon=${this._config.area_icon || area.icon}
+                  ></ha-icon>
+                `
+              : nothing
+          }
         </div>
 
         <div
@@ -1135,15 +1194,14 @@ export class AreaCardPlus
             </div>
           </div>
 
-          <!-- Bottom -->
-          <div
-            class="${classMap({
-              bottom: true,
-              ...designClasses,
-            })}"
-          >
-            <div
-              style=${`${
+
+${this.renderCustomButtons()}
+
+          <div class="${classMap({
+            bottom: true,
+            ...designClasses,
+          })}">
+              <div style=${`${
                 this._config?.area_name_color
                   ? `color: var(--${this._config.area_name_color}-color);`
                   : ""
@@ -1162,15 +1220,13 @@ export class AreaCardPlus
                         return acc;
                       }, "")
                   : ""
-              }`}
-            >
-              <div
-                class="${classMap({
-                  name: true,
-                  ...designClasses,
-                  "text-large": true,
-                  on: true,
-                })}"
+              }`}"
+              <div class="${classMap({
+                name: true,
+                ...designClasses,
+                "text-large": true,
+                on: true,
+              })}"
                 @action=${this._handleAction}
                 .actionHandler=${actionHandler({
                   hasHold: hasAction(this._config.hold_action),
@@ -1182,95 +1238,9 @@ export class AreaCardPlus
 
               <!-- Sensors -->
               <div class="sensors">
-                ${this._config?.wrap_sensor_icons
-                  ? repeat(
-                      sensors,
-                      (item) => item.domain + "-" + item.deviceClass,
-                      ({ domain, deviceClass, index }) => {
-                        const matchingEntities = entitiesByDomain[
-                          domain
-                        ].filter(
-                          (entity) =>
-                            entity.attributes.device_class === deviceClass
-                        );
-                        if (matchingEntities.length === 0) {
-                          return nothing;
-                        }
-
-                        const areaSensorEntityId = (() => {
-                          switch (deviceClass) {
-                            case "temperature":
-                              return area.temperature_entity_id;
-                            case "humidity":
-                              return area.humidity_entity_id;
-                            default:
-                              return null;
-                          }
-                        })();
-                        const areaEntity = areaSensorEntityId
-                          ? this.hass.states[areaSensorEntityId]
-                          : undefined;
-
-                        const customization =
-                          customizationSensorMap.get(deviceClass);
-                        const sensorColor =
-                          customization?.color || this._config?.sensor_color;
-                        const invert = customization?.invert === true;
-                        const hasOnEntity = matchingEntities.some(
-                          (e) =>
-                            !UNAVAILABLE_STATES.includes(e.state) &&
-                            !STATES_OFF.includes(e.state)
-                        );
-                        if (invert && hasOnEntity) {
-                          return nothing;
-                        }
-
-                        const icon = this._config?.show_sensor_icons
-                          ? html`<ha-domain-icon
-                              style=${sensorColor
-                                ? `color: var(--${sensorColor}-color);`
-                                : ""}
-                              .hass=${this.hass}
-                              .domain=${domain}
-                              .deviceClass=${deviceClass}
-                            ></ha-domain-icon>`
-                          : null;
-
-                        const value = html`<span
-                          class="sensor-value"
-                          @action=${this._handleSensorAction(
-                            domain,
-                            deviceClass
-                          )}
-                          .actionHandler=${actionHandler({
-                            hasHold: hasAction(customization?.hold_action),
-                            hasDoubleClick: hasAction(
-                              customization?.double_tap_action
-                            ),
-                          })}
-                          style=${`${
-                            sensorColor
-                              ? `color: var(--${sensorColor}-color);`
-                              : ""
-                          } ${this._parseCss(customization?.css)}`}
-                        >
-                          ${!this._config?.show_sensor_icons &&
-                          !this._config?.wrap_sensor_icons &&
-                          index > 0
-                            ? " - "
-                            : ""}
-                          ${areaEntity
-                            ? this.hass.formatEntityState(areaEntity)
-                            : this._average(domain, deviceClass)}
-                        </span>`;
-
-                        return html`<div class="sensor-row off">
-                          ${icon}${value}
-                        </div>`;
-                      }
-                    )
-                  : html`<div class="sensor text-medium off">
-                      ${repeat(
+                ${
+                  this._config?.wrap_sensor_icons
+                    ? repeat(
                         sensors,
                         (item) => item.domain + "-" + item.deviceClass,
                         ({ domain, deviceClass, index }) => {
@@ -1351,10 +1321,99 @@ export class AreaCardPlus
                               : this._average(domain, deviceClass)}
                           </span>`;
 
-                          return html`${icon}${value}`;
+                          return html`<div class="sensor-row off">
+                            ${icon}${value}
+                          </div>`;
                         }
-                      )}
-                    </div>`}
+                      )
+                    : html`<div class="sensor text-medium off">
+                        ${repeat(
+                          sensors,
+                          (item) => item.domain + "-" + item.deviceClass,
+                          ({ domain, deviceClass, index }) => {
+                            const matchingEntities = entitiesByDomain[
+                              domain
+                            ].filter(
+                              (entity) =>
+                                entity.attributes.device_class === deviceClass
+                            );
+                            if (matchingEntities.length === 0) {
+                              return nothing;
+                            }
+
+                            const areaSensorEntityId = (() => {
+                              switch (deviceClass) {
+                                case "temperature":
+                                  return area.temperature_entity_id;
+                                case "humidity":
+                                  return area.humidity_entity_id;
+                                default:
+                                  return null;
+                              }
+                            })();
+                            const areaEntity = areaSensorEntityId
+                              ? this.hass.states[areaSensorEntityId]
+                              : undefined;
+
+                            const customization =
+                              customizationSensorMap.get(deviceClass);
+                            const sensorColor =
+                              customization?.color ||
+                              this._config?.sensor_color;
+                            const invert = customization?.invert === true;
+                            const hasOnEntity = matchingEntities.some(
+                              (e) =>
+                                !UNAVAILABLE_STATES.includes(e.state) &&
+                                !STATES_OFF.includes(e.state)
+                            );
+                            if (invert && hasOnEntity) {
+                              return nothing;
+                            }
+
+                            const icon = this._config?.show_sensor_icons
+                              ? html`<ha-domain-icon
+                                  style=${sensorColor
+                                    ? `color: var(--${sensorColor}-color);`
+                                    : ""}
+                                  .hass=${this.hass}
+                                  .domain=${domain}
+                                  .deviceClass=${deviceClass}
+                                ></ha-domain-icon>`
+                              : null;
+
+                            const value = html`<span
+                              class="sensor-value"
+                              @action=${this._handleSensorAction(
+                                domain,
+                                deviceClass
+                              )}
+                              .actionHandler=${actionHandler({
+                                hasHold: hasAction(customization?.hold_action),
+                                hasDoubleClick: hasAction(
+                                  customization?.double_tap_action
+                                ),
+                              })}
+                              style=${`${
+                                sensorColor
+                                  ? `color: var(--${sensorColor}-color);`
+                                  : ""
+                              } ${this._parseCss(customization?.css)}`}
+                            >
+                              ${!this._config?.show_sensor_icons &&
+                              !this._config?.wrap_sensor_icons &&
+                              index > 0
+                                ? " - "
+                                : ""}
+                              ${areaEntity
+                                ? this.hass.formatEntityState(areaEntity)
+                                : this._average(domain, deviceClass)}
+                            </span>`;
+
+                            return html`${icon}${value}`;
+                          }
+                        )}
+                      </div>`
+                }
               </div>
 
               <!-- Climates -->
@@ -1722,6 +1781,28 @@ export class AreaCardPlus
       .v2 .bottom.row {
         top: calc(var(--row-size, 3) * 8px + 12px);
         left: calc(var(--row-size, 3) * 15px + 55px);
+      }
+      .custom_buttons {
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        align-items: flex-start;
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        gap: 7px;
+      }
+      .custom_buttons.row {
+        top: unset;
+      }
+      .v2 .custom_buttons {
+        top: 0px;
+        right: 0px;
+        padding: calc(var(--row-size, 3) * 3px) 8px;
+        min-height: 24px;
+        pointer-events: none;
+        flex-direction: column;
+        bottom: unset;
       }
       .v2 .name {
         margin-bottom: calc(var(--row-size, 3) * 1.5px + 1px);

@@ -32,6 +32,7 @@ import {
   mdiViewDashboardVariant,
   mdiEye,
   mdiEyeOff,
+  mdiGestureTapButton,
 } from "@mdi/js";
 import "./items-editor";
 import "./item-editor";
@@ -53,6 +54,8 @@ export class AreaCardPlusEditor
   @state() private _subElementEditorCover: SubElementEditor | undefined =
     undefined;
   @state() private _subElementEditorSensor: SubElementEditor | undefined =
+    undefined;
+  @state() private _subElementEditorCustomButton: SubElementEditor | undefined =
     undefined;
 
   private computeLabel = memoizeOne((schema: Schema): string => {
@@ -465,6 +468,7 @@ export class AreaCardPlusEditor
       customization_alert: config.customization_alert || [],
       customization_cover: config.customization_cover || [],
       customization_sensor: config.customization_sensor || [],
+      custom_buttons: config.custom_buttons || [],
     };
   }
 
@@ -688,6 +692,73 @@ export class AreaCardPlusEditor
     this._customizationChanged(ev, "sensor");
   }
 
+  private _renderSubElementEditorCustomButton() {
+    const index = this._subElementEditorCustomButton?.index ?? 0;
+    const buttonConfig = this._config?.custom_buttons?.[index] || {};
+
+    return html`
+      <div class="header">
+        <div class="back-title">
+          <mwc-icon-button @click=${this._goBackCustomButton}>
+            <ha-icon icon="mdi:chevron-left"></ha-icon>
+          </mwc-icon-button>
+          <span slot="title"
+            >${this.hass.localize(
+              "ui.panel.lovelace.editor.card.generic.edit_button"
+            )}</span
+          >
+        </div>
+      </div>
+      <item-editor
+        .hass=${this.hass}
+        .config=${buttonConfig}
+        .getSchema=${"custom_button"}
+        @config-changed=${this._itemChangedCustomButton}
+      ></item-editor>
+    `;
+  }
+
+  private _edit_itemCustomButton(ev: CustomEvent<number>): void {
+    ev.stopPropagation();
+    if (!this._config || !this.hass) {
+      return;
+    }
+    this._subElementEditorCustomButton = { index: ev.detail };
+  }
+
+  private _goBackCustomButton(): void {
+    this._subElementEditorCustomButton = undefined;
+  }
+
+  private _itemChangedCustomButton(ev: CustomEvent<any>): void {
+    ev.stopPropagation();
+    if (!this._config || !this.hass) {
+      return;
+    }
+    const index = this._subElementEditorCustomButton?.index;
+    if (index !== undefined) {
+      const newButtons = [...(this._config.custom_buttons || [])];
+      newButtons[index] = ev.detail;
+      fireEvent(this, "config-changed", {
+        config: { ...this._config, custom_buttons: newButtons },
+      });
+    }
+  }
+
+  private _customizationChangedCustomButtons(ev: CustomEvent): void {
+    ev.stopPropagation();
+    if (!this._config || !this.hass) {
+      return;
+    }
+    const updatedButtons = ev.detail; // Changed from ev.detail.value
+    fireEvent(this, "config-changed", {
+      config: {
+        ...this._config,
+        custom_buttons: updatedButtons,
+      },
+    });
+  }
+
   private _renderSubElementEditor(
     editorKey: "domain" | "alert" | "cover" | "sensor",
     goBackHandler: () => void,
@@ -826,7 +897,6 @@ export class AreaCardPlusEditor
     return this._selectOptions("sensor");
   }
 
-  // Generic selector to produce the various SelectOption lists
   private _selectOptions(
     kind: "toggle" | "all" | "binary" | "cover" | "sensor"
   ): SelectOption[] {
@@ -1087,6 +1157,8 @@ export class AreaCardPlusEditor
       return this._renderSubElementEditorByKey("cover");
     if (this._subElementEditorSensor)
       return this._renderSubElementEditorByKey("sensor");
+    if (this._subElementEditorCustomButton)
+      return this._renderSubElementEditorCustomButton();
 
     return html`
       <ha-form
@@ -1190,6 +1262,22 @@ export class AreaCardPlusEditor
             @config-changed=${this._customizationChangedDomain}
           >
           </domain-items-editor>
+        </div>
+      </ha-expansion-panel>
+
+      <ha-expansion-panel outlined class="main">
+        <div slot="header" role="heading" aria-level="3">
+          <ha-svg-icon .path=${mdiGestureTapButton}></ha-svg-icon>
+          Custom Buttons
+        </div>
+        <div class="content">
+          <custom-buttons-editor
+            .hass=${this.hass}
+            .custom_buttons=${this._config!.custom_buttons}
+            @config-changed=${this._customizationChangedCustomButtons}
+            @edit-item=${this._edit_itemCustomButton}
+          >
+          </custom-buttons-editor>
         </div>
       </ha-expansion-panel>
 

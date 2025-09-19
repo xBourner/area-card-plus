@@ -143,6 +143,37 @@ export class ItemEditor extends LitElement {
     ];
   });
 
+  private _schemacustombutton = memoizeOne(() => {
+    const actions: UiAction[] = [
+      "more-info",
+      "toggle",
+      "navigate",
+      "url",
+      "perform-action",
+      "none",
+    ];
+    return [
+      { name: "name", selector: { text: {} } },
+      { name: "icon", selector: { icon: {} } },
+      {
+        name: "color",
+        selector: { ui_color: { default_color: "state", include_state: true } },
+      },
+      {
+        name: "tap_action",
+        selector: { ui_action: { actions } },
+      },
+      {
+        name: "double_tap_action",
+        selector: { ui_action: { actions } },
+      },
+      {
+        name: "hold_action",
+        selector: { ui_action: { actions } },
+      },
+    ];
+  });
+
   protected render(): TemplateResult {
     if (!this.hass || !this.config) {
       return html``;
@@ -163,6 +194,9 @@ export class ItemEditor extends LitElement {
       case "alert":
       case "cover":
         schema = this._schemaalert();
+        break;
+      case "custom_button":
+        schema = this._schemacustombutton();
         break;
     }
 
@@ -217,6 +251,11 @@ export class ItemEditor extends LitElement {
       case "double_tap_action":
         return this.hass!.localize(
           `ui.panel.lovelace.editor.card.generic.${schema.name}`
+        );
+      case "invert":
+      case "invert_state":
+        return this.hass!.localize(
+          "ui.dialogs.entity_registry.editor.invert.label"
         );
       default:
         return this.hass!.localize(
