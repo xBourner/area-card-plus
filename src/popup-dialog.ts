@@ -798,7 +798,7 @@ export class AreaCardPlusPopup extends LitElement {
         overflow-x: hidden;
       }
       .entity-card {
-        width: 100%;
+        width: 92vw;
       }
       .entity-cards {
         grid-template-columns: 1fr;

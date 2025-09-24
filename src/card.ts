@@ -869,17 +869,17 @@ export class AreaCardPlus
     )
       .filter((domain) => domain in entitiesByDomain)
       .map((domain) => ({ domain }));
+    // Normalize display_type and compute flags for what to show.
+    const display = (this._config?.display_type || "").toString().toLowerCase();
+    const showCamera = display.includes("camera");
+    const showPicture =
+      display.includes("picture") || display.includes("image");
+    const showIcon = display === "" ? true : display.includes("icon");
+
     const cameraEntityId = this._computeCameraEntity(
-      this._config.show_camera,
+      showCamera,
       entitiesByDomain
     );
-
-    const showIcon = this._config?.show_camera
-      ? this._config?.show_icon === "icon" ||
-        this._config?.show_icon === "icon + image"
-      : this._config?.show_icon === "icon" ||
-        this._config?.show_icon === "icon + image" ||
-        this._config?.show_icon === undefined;
 
     if (area === null) {
       return html`
@@ -904,18 +904,13 @@ export class AreaCardPlus
         })}
       >
         ${
-          (this._config.show_camera && cameraEntityId) ||
-          ((this._config.show_icon === "image" ||
-            this._config.show_icon === "icon + image") &&
-            area.picture)
+          (showCamera && cameraEntityId) || (showPicture && area.picture)
             ? html`
                 <hui-image
                   .config=${this._config}
                   .hass=${this.hass}
-                  .image=${this._config.show_camera ? undefined : area.picture}
-                  .cameraImage=${this._config.show_camera
-                    ? cameraEntityId
-                    : undefined}
+                  .image=${showCamera ? undefined : area.picture}
+                  .cameraImage=${showCamera ? cameraEntityId : undefined}
                   .cameraView=${this._config.camera_view}
                   fitMode="cover"
                 ></hui-image>

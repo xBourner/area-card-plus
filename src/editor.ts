@@ -35,6 +35,13 @@ import "./items-editor";
 import "./item-editor";
 import { computeLabelCallback } from "./translations";
 
+export type AreaCardDisplayType =
+  | "icon"
+  | "picture"
+  | "icon + picture"
+  | "camera"
+  | "camera & icon";
+
 @customElement("area-card-plus-editor")
 export class AreaCardPlusEditor
   extends LitElement
@@ -60,118 +67,172 @@ export class AreaCardPlusEditor
     return computeLabelCallback(this.hass, schema);
   });
 
-  private _schema = memoizeOne((showCamera: boolean, designVersion: string) => {
-    const localize = (key: string) => this.hass!.localize(key) || key;
-    const actions: UiAction[] = [
-      "more-info",
-      "navigate",
-      "url",
-      "perform-action",
-      "none",
-    ];
+  private _schema = memoizeOne(
+    (designVersion: string, displayType: AreaCardDisplayType) => {
+      const localize = (key: string) => this.hass!.localize(key) || key;
+      const actions: UiAction[] = [
+        "more-info",
+        "navigate",
+        "url",
+        "perform-action",
+        "none",
+      ];
 
-    const icons = [
-      {
-        value: "icon",
-        label: localize("ui.panel.lovelace.editor.card.generic.icon"),
-      },
-      {
-        value: "image",
-        label: localize("ui.components.selectors.image.image"),
-      },
-      {
-        value: "icon + image",
-        label: `${localize(
-          "ui.panel.lovelace.editor.card.generic.icon"
-        )} & ${localize("ui.components.selectors.image.image")}`,
-      },
-    ];
+      const icons = [
+        {
+          value: "icon",
+          label: localize("ui.panel.lovelace.editor.card.generic.icon"),
+        },
+        {
+          value: "image",
+          label: localize("ui.components.selectors.image.image"),
+        },
+        {
+          value: "icon + image",
+          label: `${localize(
+            "ui.panel.lovelace.editor.card.generic.icon"
+          )} & ${localize("ui.components.selectors.image.image")}`,
+        },
+      ];
 
-    return [
-      { name: "area", selector: { area: {} } },
-      {
-        name: "appearance",
-        flatten: true,
-        type: "expandable",
-        icon: "mdi:palette",
-        schema: [
-          { name: "theme", required: false, selector: { theme: {} } },
-          {
-            name: "layout",
-            required: true,
-            selector: {
-              select: {
-                mode: "box",
-                options: ["vertical", "horizontal"].map((value) => ({
-                  label: localize(
-                    `ui.panel.lovelace.editor.card.tile.content_layout_options.${value}`
-                  ),
-                  value,
-                })),
+      return [
+        { name: "area", selector: { area: {} } },
+        {
+          name: "appearance",
+          flatten: true,
+          type: "expandable",
+          icon: "mdi:palette",
+          schema: [
+            { name: "theme", required: false, selector: { theme: {} } },
+            {
+              name: "layout",
+              required: true,
+              selector: {
+                select: {
+                  mode: "box",
+                  options: ["vertical", "horizontal"].map((value) => ({
+                    label: localize(
+                      `ui.panel.lovelace.editor.card.tile.content_layout_options.${value}`
+                    ),
+                    value,
+                  })),
+                },
               },
             },
-          },
-          {
-            name: "design",
-            selector: {
-              select: { mode: "box", options: ["V1", "V2"] },
+            {
+              name: "design",
+              selector: {
+                select: { mode: "box", options: ["V1", "V2"] },
+              },
             },
-          },
-          ...(designVersion === "V2"
-            ? ([
+            ...(designVersion === "V2"
+              ? ([
+                  {
+                    name: "v2_color",
+                    selector: {
+                      color_rgb: {
+                        default_color: "state",
+                        include_state: true,
+                      },
+                    },
+                  },
+                ] as const)
+              : []),
+            { name: "mirrored", selector: { boolean: {} } },
+
+            {
+              name: "",
+              type: "grid",
+              schema: [
+                { name: "name", selector: { text: {} } },
+                { name: "color", selector: { ui_color: {} } },
                 {
-                  name: "v2_color",
+                  name: "display_type",
+                  required: true,
                   selector: {
-                    color_rgb: { default_color: "state", include_state: true },
+                    select: {
+                      options: [
+                        "icon",
+                        "picture",
+                        "icon & picture",
+                        "camera",
+                        "camera & icon",
+                      ].map((value) => {
+                        const keyForPart = (part: string) => {
+                          const p = part.trim().toLowerCase();
+                          if (p === "icon")
+                            return "ui.panel.lovelace.editor.card.generic.icon";
+                          if (p === "picture" || p === "image")
+                            return "ui.components.selectors.image.image";
+                          if (p === "camera")
+                            return `ui.panel.lovelace.editor.card.area.display_type_options.camera`;
+                          // fallback to the original compound key
+                          return `ui.panel.lovelace.editor.card.area.display_type_options.${part}`;
+                        };
+
+                        const parts = value.split(" & ").map((p) => p.trim());
+                        const label = parts
+                          .map((p) => localize(keyForPart(p)) || p)
+                          .join(" & ");
+
+                        return { value, label };
+                      }),
+                      mode: "dropdown",
+                    },
                   },
                 },
-              ] as const)
-            : []),
-          { name: "mirrored", selector: { boolean: {} } },
-          { name: "show_camera", required: false, selector: { boolean: {} } },
-          ...(showCamera
-            ? ([
-                {
-                  name: "camera_view",
-                  selector: { select: { options: ["auto", "live"] } },
-                },
-              ] as const)
-            : []),
-          {
-            name: "show_icon",
-            selector: { select: { options: icons, mode: "dropdown" } },
-          },
-          { name: "area_icon", selector: { icon: {} } },
-          {
-            name: "area_icon_color",
-            selector: {
-              ui_color: { default_color: "state", include_state: true },
+                ...(displayType === "camera" || displayType === "camera & icon"
+                  ? ([
+                      {
+                        name: "camera_view",
+                        selector: {
+                          select: {
+                            options: ["auto", "live"].map((value) => ({
+                              value,
+                              label: localize(
+                                `ui.panel.lovelace.editor.card.generic.camera_view_options.${value}`
+                              ),
+                            })),
+                            mode: "dropdown",
+                          },
+                        },
+                      },
+                    ] as const satisfies readonly Schema[])
+                  : []),
+              ],
             },
-          },
-          { name: "area_name", selector: { text: {} } },
-          {
-            name: "area_name_color",
-            selector: {
-              ui_color: { default_color: "state", include_state: true },
+            { name: "area_icon", selector: { icon: {} } },
+            {
+              name: "area_icon_color",
+              selector: {
+                ui_color: { default_color: "state", include_state: true },
+              },
             },
-          },
-          {
-            name: "css",
-            flatten: true,
-            type: "expandable",
-            icon: "mdi:palette",
-            schema: [
-              { name: "icon_css", selector: { template: {} } },
-              { name: "name_css", selector: { template: {} } },
-            ],
-          },
-          { name: "tap_action", selector: { ui_action: { actions } } },
-          { name: "double_tap_action", selector: { ui_action: { actions } } },
-          { name: "hold_action", selector: { ui_action: { actions } } },
-        ],
-      },
-    ];
-  });
+            { name: "area_name", selector: { text: {} } },
+            {
+              name: "area_name_color",
+              selector: {
+                ui_color: { default_color: "state", include_state: true },
+              },
+            },
+            {
+              name: "css",
+              flatten: true,
+              type: "expandable",
+              icon: "mdi:palette",
+              schema: [
+                { name: "icon_css", selector: { template: {} } },
+                { name: "name_css", selector: { template: {} } },
+              ],
+            },
+            { name: "tap_action", selector: { ui_action: { actions } } },
+            { name: "double_tap_action", selector: { ui_action: { actions } } },
+            { name: "hold_action", selector: { ui_action: { actions } } },
+          ],
+        },
+      ];
+    }
+  );
 
   private _binaryschema = memoizeOne((binaryClasses: SelectOption[]) => [
     {
@@ -1146,8 +1207,8 @@ export class AreaCardPlusEditor
     const possibleDomains = this._allDomainsForArea(this._config.area || "");
 
     const schema = this._schema(
-      this._config.show_camera || false,
-      this._config.design || "V1"
+      this._config.design || "V1",
+      this._config.display_type
     );
 
     const binaryschema = this._binaryschema(this.binarySelectOptions);
