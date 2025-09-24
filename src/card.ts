@@ -550,16 +550,20 @@ export class AreaCardPlus
         : null;
 
     const isMoreInfo =
-      (typeof actionConfig === "string" && actionConfig === "more-info") ||
-      (typeof actionConfig === "object" &&
-        actionConfig?.action === "more-info");
+      actionConfig === "more-info" || actionConfig?.action === "more-info";
 
     if (isMoreInfo || actionConfig === undefined) {
       this._openGeneralPopup();
       return;
     }
 
-    handleAction(this, this.hass!, actionConfig, ev.detail.action!);
+    const config = {
+      tap_action: this._config?.tap_action,
+      hold_action: this._config?.hold_action,
+      double_tap_action: this._config?.double_tap_action,
+    };
+
+    handleAction(this, this.hass!, config, ev.detail.action!);
   }
 
   private _handleDomainAction(domain: string): (ev: CustomEvent) => void {

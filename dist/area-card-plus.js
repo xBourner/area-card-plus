@@ -287,12 +287,12 @@ Se.elementStyles = [], Se.shadowRootOptions = { mode: "open" }, Se[We("elementPr
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const Ge = globalThis, dt = Ge.trustedTypes, jt = dt ? dt.createPolicy("lit-html", { createHTML: (t) => t }) : void 0, ni = "$lit$", _e = `lit$${Math.random().toFixed(9).slice(2)}$`, ai = "?" + _e, zi = `<${ai}>`, Ce = document, Xe = () => Ce.createComment(""), Je = (t) => t === null || typeof t != "object" && typeof t != "function", zt = Array.isArray, Hi = (t) => zt(t) || typeof (t == null ? void 0 : t[Symbol.iterator]) == "function", pt = `[ 	
-\f\r]`, Ke = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Ut = /-->/g, Ft = />/g, ve = RegExp(`>|${pt}(?:([^\\s"'>=/]+)(${pt}*=${pt}*(?:[^ 	
+const Ge = globalThis, dt = Ge.trustedTypes, Ut = dt ? dt.createPolicy("lit-html", { createHTML: (t) => t }) : void 0, ni = "$lit$", _e = `lit$${Math.random().toFixed(9).slice(2)}$`, ai = "?" + _e, zi = `<${ai}>`, Ce = document, Xe = () => Ce.createComment(""), Je = (t) => t === null || typeof t != "object" && typeof t != "function", zt = Array.isArray, Hi = (t) => zt(t) || typeof (t == null ? void 0 : t[Symbol.iterator]) == "function", pt = `[ 	
+\f\r]`, Ke = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, jt = /-->/g, Ft = />/g, ve = RegExp(`>|${pt}(?:([^\\s"'>=/]+)(${pt}*=${pt}*(?:[^ 	
 \f\r"'\`<>=]|("|')|))|$)`, "g"), Vt = /'/g, Kt = /"/g, ri = /^(?:script|style|textarea|title)$/i, Li = (t) => (e, ...i) => ({ _$litType$: t, strings: e, values: i }), w = Li(1), ne = Symbol.for("lit-noChange"), A = Symbol.for("lit-nothing"), qt = /* @__PURE__ */ new WeakMap(), be = Ce.createTreeWalker(Ce, 129);
 function ci(t, e) {
   if (!zt(t) || !t.hasOwnProperty("raw")) throw Error("invalid template strings array");
-  return jt !== void 0 ? jt.createHTML(e) : e;
+  return Ut !== void 0 ? Ut.createHTML(e) : e;
 }
 const Mi = (t, e) => {
   const i = t.length - 1, s = [];
@@ -300,7 +300,7 @@ const Mi = (t, e) => {
   for (let r = 0; r < i; r++) {
     const c = t[r];
     let l, d, h = -1, m = 0;
-    for (; m < c.length && (a.lastIndex = m, d = a.exec(c), d !== null); ) m = a.lastIndex, a === Ke ? d[1] === "!--" ? a = Ut : d[1] !== void 0 ? a = Ft : d[2] !== void 0 ? (ri.test(d[2]) && (o = RegExp("</" + d[2], "g")), a = ve) : d[3] !== void 0 && (a = ve) : a === ve ? d[0] === ">" ? (a = o ?? Ke, h = -1) : d[1] === void 0 ? h = -2 : (h = a.lastIndex - d[2].length, l = d[1], a = d[3] === void 0 ? ve : d[3] === '"' ? Kt : Vt) : a === Kt || a === Vt ? a = ve : a === Ut || a === Ft ? a = Ke : (a = ve, o = void 0);
+    for (; m < c.length && (a.lastIndex = m, d = a.exec(c), d !== null); ) m = a.lastIndex, a === Ke ? d[1] === "!--" ? a = jt : d[1] !== void 0 ? a = Ft : d[2] !== void 0 ? (ri.test(d[2]) && (o = RegExp("</" + d[2], "g")), a = ve) : d[3] !== void 0 && (a = ve) : a === ve ? d[0] === ">" ? (a = o ?? Ke, h = -1) : d[1] === void 0 ? h = -2 : (h = a.lastIndex - d[2].length, l = d[1], a = d[3] === void 0 ? ve : d[3] === '"' ? Kt : Vt) : a === Kt || a === Vt ? a = ve : a === jt || a === Ft ? a = Ke : (a = ve, o = void 0);
     const u = a === ve && t[r + 1].startsWith("/>") ? " " : "";
     n += a === Ke ? c + zi : h >= 0 ? (s.push(l), c.slice(0, h) + ni + c.slice(h) + _e + u) : c + _e + (h === -2 ? r : u);
   }
@@ -509,7 +509,7 @@ class Ni {
 }
 const Ri = { I: ze }, ft = Ge.litHtmlPolyfillSupport;
 ft == null || ft(Ye, ze), (Ge.litHtmlVersions ?? (Ge.litHtmlVersions = [])).push("3.3.1");
-const ji = (t, e, i) => {
+const Ui = (t, e, i) => {
   const s = (i == null ? void 0 : i.renderBefore) ?? e;
   let o = s._$litPart$;
   if (o === void 0) {
@@ -535,7 +535,7 @@ let oe = class extends Se {
   }
   update(e) {
     const i = this.render();
-    this.hasUpdated || (this.renderOptions.isConnected = this.isConnected), super.update(e), this._$Do = ji(i, this.renderRoot, this.renderOptions);
+    this.hasUpdated || (this.renderOptions.isConnected = this.isConnected), super.update(e), this._$Do = Ui(i, this.renderRoot, this.renderOptions);
   }
   connectedCallback() {
     var e;
@@ -569,7 +569,7 @@ const he = (t) => (e, i) => {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const Ui = { attribute: !0, type: String, converter: lt, reflect: !1, hasChanged: kt }, Fi = (t = Ui, e, i) => {
+const ji = { attribute: !0, type: String, converter: lt, reflect: !1, hasChanged: kt }, Fi = (t = ji, e, i) => {
   const { kind: s, metadata: o } = i;
   let n = globalThis.litPropertyMetadata.get(o);
   if (n === void 0 && globalThis.litPropertyMetadata.set(o, n = /* @__PURE__ */ new Map()), s === "setter" && ((t = Object.create(t)).wrapped = !0), n.set(i.name, t), s === "accessor") {
@@ -601,7 +601,7 @@ function B(t) {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-function U(t) {
+function j(t) {
   return B({ ...t, state: !0, attribute: !1 });
 }
 /**
@@ -993,7 +993,7 @@ const nt = ["sensor"], at = ["binary_sensor"], rt = ["cover"], $t = ["climate"],
   for (const [g, k] of Object.entries(c))
     t.style.setProperty(`--${g}`, String(k));
   t.__themes.cacheKey = r || null, t.__themes.keys = d;
-}, j = (t, e, i, s) => {
+}, U = (t, e, i, s) => {
   s = s || {}, i = i ?? {};
   const o = new Event(e, {
     bubbles: s.bubbles === void 0 ? !0 : s.bubbles,
@@ -1399,9 +1399,9 @@ class bs extends HTMLElement {
       if (s.currentTarget !== s.target || s.type === "touchcancel" || s.type === "touchend" && this.cancelled)
         return;
       const o = s.target;
-      s.cancelable && s.preventDefault(), i.hasHold && (clearTimeout(this.timer), this.timer = void 0), i.hasHold && this.held ? j(o, "action", { action: "hold" }) : i.hasDoubleClick ? s.type === "click" && s.detail < 2 || !this.dblClickTimeout ? this.dblClickTimeout = window.setTimeout(() => {
-        this.dblClickTimeout = void 0, j(o, "action", { action: "tap" });
-      }, 250) : (clearTimeout(this.dblClickTimeout), this.dblClickTimeout = void 0, j(o, "action", { action: "double_tap" })) : j(o, "action", { action: "tap" });
+      s.cancelable && s.preventDefault(), i.hasHold && (clearTimeout(this.timer), this.timer = void 0), i.hasHold && this.held ? U(o, "action", { action: "hold" }) : i.hasDoubleClick ? s.type === "click" && s.detail < 2 || !this.dblClickTimeout ? this.dblClickTimeout = window.setTimeout(() => {
+        this.dblClickTimeout = void 0, U(o, "action", { action: "tap" });
+      }, 250) : (clearTimeout(this.dblClickTimeout), this.dblClickTimeout = void 0, U(o, "action", { action: "double_tap" })) : U(o, "action", { action: "tap" });
     }, e.actionHandler.handleKeyDown = (s) => {
       ["Enter", " "].includes(s.key) && s.currentTarget.actionHandler.end(s);
     }, e.addEventListener("touchstart", e.actionHandler.start, {
@@ -1431,7 +1431,7 @@ const $s = () => {
     }
   }
 ), yt = async (t, e, i, s) => {
-  j(t, "hass-action", { config: i, action: s });
+  U(t, "hass-action", { config: i, action: s });
 };
 function V(t) {
   return t !== void 0 && t.action !== "none";
@@ -1887,8 +1887,8 @@ const ue = (we = class extends oe {
       }
       const M = Object.keys(Qe || {}), H = a.length > 0 ? a : M;
       C = Object.entries(S).filter(([J]) => !m || J === m).sort(([J], [te]) => {
-        const je = H.indexOf(J), Ue = H.indexOf(te);
-        return (je === -1 ? H.length : je) - (Ue === -1 ? H.length : Ue);
+        const Ue = H.indexOf(J), je = H.indexOf(te);
+        return (Ue === -1 ? H.length : Ue) - (je === -1 ? H.length : je);
       }).map(
         ([J, te]) => [J, this.sortEntitiesForPopup(te)]
       );
@@ -2101,7 +2101,7 @@ fe([
   B({ attribute: !1 })
 ], ue.prototype, "card");
 fe([
-  U()
+  j()
 ], ue.prototype, "selectedGroup");
 let zs = ue;
 customElements.define("area-card-plus-popup", zs);
@@ -2368,13 +2368,18 @@ let ee = class extends ys(oe) {
     return !1;
   }
   _handleAction(t) {
-    var s, o, n;
-    const e = t.detail.action === "tap" ? (s = this._config) == null ? void 0 : s.tap_action : t.detail.action === "hold" ? (o = this._config) == null ? void 0 : o.hold_action : t.detail.action === "double_tap" ? (n = this._config) == null ? void 0 : n.double_tap_action : null;
-    if (typeof e == "string" && e === "more-info" || typeof e == "object" && (e == null ? void 0 : e.action) === "more-info" || e === void 0) {
+    var o, n, a, r, c, l;
+    const e = t.detail.action === "tap" ? (o = this._config) == null ? void 0 : o.tap_action : t.detail.action === "hold" ? (n = this._config) == null ? void 0 : n.hold_action : t.detail.action === "double_tap" ? (a = this._config) == null ? void 0 : a.double_tap_action : null;
+    if (e === "more-info" || (e == null ? void 0 : e.action) === "more-info" || e === void 0) {
       this._openGeneralPopup();
       return;
     }
-    yt(this, this.hass, e, t.detail.action);
+    const s = {
+      tap_action: (r = this._config) == null ? void 0 : r.tap_action,
+      hold_action: (c = this._config) == null ? void 0 : c.hold_action,
+      double_tap_action: (l = this._config) == null ? void 0 : l.double_tap_action
+    };
+    yt(this, this.hass, s, t.detail.action);
   }
   _handleDomainAction(t) {
     return this._makeActionHandler("domain", t);
@@ -2513,7 +2518,7 @@ let ee = class extends ys(oe) {
     `;
   }
   render() {
-    var F, W, z, X, ge, Le, Me, Pe, Te, Be, Ie, Ne, Re, S, M, H, G, J, te, je, Ue, Tt;
+    var F, W, z, X, ge, Le, Me, Pe, Te, Be, Ie, Ne, Re, S, M, H, G, J, te, Ue, je, Tt;
     if (!this._config || !this.hass || !this._areas || !this._devices || !this._entities)
       return A;
     const t = ((F = this._config) == null ? void 0 : F.design) === "V2", e = t && ((W = this._config) != null && W.v2_color) ? this._calculateV2Color(this._config.v2_color) : "var(--primary-color)", i = {
@@ -2802,7 +2807,7 @@ let ee = class extends ys(oe) {
       bottom: !0,
       ...s
     })}">
-              <div style=${`${(je = this._config) != null && je.area_name_color ? `color: var(--${this._config.area_name_color}-color);` : ""} ${(Ue = this._config) != null && Ue.name_css ? this._config.name_css.split(`
+              <div style=${`${(Ue = this._config) != null && Ue.area_name_color ? `color: var(--${this._config.area_name_color}-color);` : ""} ${(je = this._config) != null && je.name_css ? this._config.name_css.split(`
 `).reduce((_, y) => {
       const p = y.trim();
       return p && p.includes(":") && (_ += p.endsWith(";") ? p : `${p};`, _ += " "), _;
@@ -3263,28 +3268,28 @@ ae([
   B({ attribute: !1 })
 ], ee.prototype, "hass", 2);
 ae([
-  U()
+  j()
 ], ee.prototype, "_config", 2);
 ae([
-  U()
+  j()
 ], ee.prototype, "_areas", 2);
 ae([
-  U()
+  j()
 ], ee.prototype, "_devices", 2);
 ae([
-  U()
+  j()
 ], ee.prototype, "_entities", 2);
 ae([
-  U()
+  j()
 ], ee.prototype, "selectedDomain", 2);
 ae([
-  U()
+  j()
 ], ee.prototype, "selectedDeviceClass", 2);
 ae([
-  U()
+  j()
 ], ee.prototype, "selectedGroup", 2);
 ae([
-  U()
+  j()
 ], ee.prototype, "layout", 2);
 ee = ae([
   he("area-card-plus")
@@ -3375,20 +3380,20 @@ class xe extends oe {
     if (!this.customization || !this.hass)
       return;
     const i = e.detail.value, s = e.target.index, o = this.customization.concat();
-    o[s] = { ...o[s], type: i || "" }, j(this, "config-changed", o);
+    o[s] = { ...o[s], type: i || "" }, U(this, "config-changed", o);
   }
   _removeRow(e) {
     e.stopPropagation();
     const i = e.currentTarget.index;
     if (i != null) {
       const s = this.customization.concat();
-      s.splice(i, 1), j(this, "config-changed", s);
+      s.splice(i, 1), U(this, "config-changed", s);
     }
   }
   _editRow(e) {
     e.stopPropagation();
     const i = e.target.index;
-    i != null && j(this, "edit-item", i);
+    i != null && U(this, "edit-item", i);
   }
   _addRow(e) {
     if (e.stopPropagation(), !this.customization || !this.hass)
@@ -3399,7 +3404,7 @@ class xe extends oe {
     if (!i || !i.value)
       return;
     const o = { type: i.value };
-    j(this, "config-changed", [...this.customization, o]), i.value = "";
+    U(this, "config-changed", [...this.customization, o]), i.value = "";
   }
   static get styles() {
     return ke`
@@ -3490,12 +3495,12 @@ let et = class extends oe {
   _editRow(t) {
     t.stopPropagation();
     const e = t.currentTarget.index;
-    j(this, "edit-item", e);
+    U(this, "edit-item", e);
   }
   _removeRow(t) {
     if (t.stopPropagation(), !this.custom_buttons) return;
     const e = t.currentTarget.index, i = [...this.custom_buttons];
-    i.splice(e, 1), j(this, "config-changed", i);
+    i.splice(e, 1), U(this, "config-changed", i);
   }
   _addRow() {
     const t = {
@@ -3503,7 +3508,7 @@ let et = class extends oe {
       icon: "",
       tap_action: { action: "none" }
     }, e = [...this.custom_buttons || [], t];
-    j(this, "config-changed", e);
+    U(this, "config-changed", e);
   }
   render() {
     var t;
@@ -3860,10 +3865,10 @@ He([
   B({ type: Boolean })
 ], Ae.prototype, "useSensorSchema", 2);
 He([
-  U()
+  j()
 ], Ae.prototype, "getSchema", 2);
 He([
-  U()
+  j()
 ], Ae.prototype, "_config", 2);
 Ae = He([
   he("item-editor")
@@ -4144,7 +4149,7 @@ let Y = class extends oe {
       this._config = {
         ...this._config || {},
         hidden_entities: i
-      }, j(this, "config-changed", { config: this._config });
+      }, U(this, "config-changed", { config: this._config });
     };
   }
   _classesForArea(t, e, i) {
@@ -4237,7 +4242,7 @@ let Y = class extends oe {
             E.length !== C.length && (this._config = {
               ...this._config || {},
               hidden_entities: E
-            }, j(this, "config-changed", {
+            }, U(this, "config-changed", {
               config: { ...this._config }
             }));
           }
@@ -4289,7 +4294,7 @@ let Y = class extends oe {
     this._config = {
       ...this._config || {},
       category_filter: e
-    }, j(this, "config-changed", { config: { ...this._config } });
+    }, U(this, "config-changed", { config: { ...this._config } });
   }
   _editItem(t, e) {
     if (t.stopPropagation(), !this._config || !this.hass)
@@ -4310,7 +4315,7 @@ let Y = class extends oe {
     this._editItem(t, "Sensor");
   }
   _customizationChanged(t, e) {
-    t.stopPropagation(), !(!this._config || !this.hass) && j(this, "config-changed", {
+    t.stopPropagation(), !(!this._config || !this.hass) && U(this, "config-changed", {
       config: {
         ...this._config,
         [`customization_${e}`]: t.detail
@@ -4366,7 +4371,7 @@ let Y = class extends oe {
     const e = (i = this._subElementEditorCustomButton) == null ? void 0 : i.index;
     if (e !== void 0) {
       const s = [...this._config.custom_buttons || []];
-      s[e] = t.detail, j(this, "config-changed", {
+      s[e] = t.detail, U(this, "config-changed", {
         config: { ...this._config, custom_buttons: s }
       });
     }
@@ -4375,7 +4380,7 @@ let Y = class extends oe {
     if (t.stopPropagation(), !this._config || !this.hass)
       return;
     const e = t.detail;
-    j(this, "config-changed", {
+    U(this, "config-changed", {
       config: { ...this._config, custom_buttons: e }
     });
   }
@@ -4431,7 +4436,7 @@ let Y = class extends oe {
     const s = e == null ? void 0 : e.index;
     if (s != null) {
       const o = [...this._config[i]];
-      o[s] = t.detail, j(this, "config-changed", {
+      o[s] = t.detail, U(this, "config-changed", {
         config: { ...this._config, [i]: o }
       });
     }
@@ -4891,28 +4896,28 @@ re([
   B({ attribute: !1 })
 ], Y.prototype, "hass", 2);
 re([
-  U()
+  j()
 ], Y.prototype, "_config", 2);
 re([
-  U()
+  j()
 ], Y.prototype, "_entities", 2);
 re([
-  U()
+  j()
 ], Y.prototype, "_numericDeviceClasses", 2);
 re([
-  U()
+  j()
 ], Y.prototype, "_subElementEditorDomain", 2);
 re([
-  U()
+  j()
 ], Y.prototype, "_subElementEditorAlert", 2);
 re([
-  U()
+  j()
 ], Y.prototype, "_subElementEditorCover", 2);
 re([
-  U()
+  j()
 ], Y.prototype, "_subElementEditorSensor", 2);
 re([
-  U()
+  j()
 ], Y.prototype, "_subElementEditorCustomButton", 2);
 Y = re([
   he("area-card-plus-editor")
