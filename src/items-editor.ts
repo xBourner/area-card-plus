@@ -1,22 +1,29 @@
 import { LitElement, html } from "lit";
-import { HomeAssistant } from "custom-card-helpers";
-import { EditorTarget, Settings, HTMLElementValue } from "./helpers";
+import {
+  HomeAssistant,
+  fireEvent,
+  SelectOption,
+  LovelaceCardConfig,
+  EditorTarget,
+} from "./ha";
 import { customElement, property } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import { css, CSSResult, nothing } from "lit";
 import { mdiClose, mdiPencil } from "@mdi/js";
-import { fireEvent, SelectOption } from "./helpers";
+
+interface HTMLElementValue extends HTMLElement {
+  value: string;
+}
 
 abstract class BaseItemsEditor extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
   @property({ type: Array }) SelectOptions: SelectOption[] = [];
 
-  protected abstract customization: Settings[] | undefined;
-  protected abstract customizationChangedEvent: string;
+  protected abstract customization: LovelaceCardConfig[] | undefined;
 
-  private _entityKeys = new WeakMap<Settings, string>();
+  private _entityKeys = new WeakMap<LovelaceCardConfig, string>();
 
-  private _getKey(action: Settings) {
+  private _getKey(action: LovelaceCardConfig) {
     if (!this._entityKeys.has(action)) {
       this._entityKeys.set(action, Math.random().toString());
     }
@@ -111,7 +118,7 @@ abstract class BaseItemsEditor extends LitElement {
     const index = (ev.target as any).index;
     const newCustomization = this.customization.concat();
     newCustomization[index] = { ...newCustomization[index], type: value || "" };
-    fireEvent(this, this.customizationChangedEvent, newCustomization);
+    fireEvent(this, "config-changed", newCustomization as any);
   }
 
   private _removeRow(ev: Event): void {
@@ -120,11 +127,7 @@ abstract class BaseItemsEditor extends LitElement {
     if (index != undefined) {
       const customization = this.customization!.concat();
       customization.splice(index, 1);
-      fireEvent<Settings[]>(
-        this,
-        this.customizationChangedEvent,
-        customization
-      );
+      fireEvent(this, "config-changed", customization as any);
     }
   }
 
@@ -132,7 +135,7 @@ abstract class BaseItemsEditor extends LitElement {
     ev.stopPropagation();
     const index = (ev.target as EditorTarget).index;
     if (index != undefined) {
-      fireEvent<number>(this, "edit-item", index);
+      fireEvent(this, "edit-item", index);
     }
   }
 
@@ -148,11 +151,8 @@ abstract class BaseItemsEditor extends LitElement {
       return;
     }
     const preset = selectElement.value;
-    const newItem: Settings = { type: preset };
-    fireEvent<Settings[]>(this, this.customizationChangedEvent, [
-      ...this.customization,
-      newItem,
-    ]);
+    const newItem: LovelaceCardConfig = { type: preset };
+    fireEvent(this, "config-changed", [...this.customization, newItem] as any);
     selectElement.value = "";
   }
 
@@ -183,8 +183,7 @@ abstract class BaseItemsEditor extends LitElement {
 
 @customElement("domain-items-editor")
 export class DomainItemsEditor extends BaseItemsEditor {
-  @property({ attribute: false }) customization_domain?: Settings[];
-  protected customizationChangedEvent = "config-changed";
+  @property({ attribute: false }) customization_domain?: LovelaceCardConfig[];
   protected get customization() {
     return this.customization_domain;
   }
@@ -192,8 +191,7 @@ export class DomainItemsEditor extends BaseItemsEditor {
 
 @customElement("alert-items-editor")
 export class AlertItemsEditor extends BaseItemsEditor {
-  @property({ attribute: false }) customization_alert?: Settings[];
-  protected customizationChangedEvent = "config-changed";
+  @property({ attribute: false }) customization_alert?: LovelaceCardConfig[];
   protected get customization() {
     return this.customization_alert;
   }
@@ -201,8 +199,7 @@ export class AlertItemsEditor extends BaseItemsEditor {
 
 @customElement("cover-items-editor")
 export class CoverItemsEditor extends BaseItemsEditor {
-  @property({ attribute: false }) customization_cover?: Settings[];
-  protected customizationChangedEvent = "config-changed";
+  @property({ attribute: false }) customization_cover?: LovelaceCardConfig[];
   protected get customization() {
     return this.customization_cover;
   }
@@ -210,8 +207,7 @@ export class CoverItemsEditor extends BaseItemsEditor {
 
 @customElement("sensor-items-editor")
 export class SensorItemsEditor extends BaseItemsEditor {
-  @property({ attribute: false }) customization_sensor?: Settings[];
-  protected customizationChangedEvent = "config-changed";
+  @property({ attribute: false }) customization_sensor?: LovelaceCardConfig[];
   protected get customization() {
     return this.customization_sensor;
   }
@@ -219,8 +215,7 @@ export class SensorItemsEditor extends BaseItemsEditor {
 
 @customElement("popup-items-editor")
 export class PopupItemsEditor extends BaseItemsEditor {
-  @property({ attribute: false }) customization_popup?: Settings[];
-  protected customizationChangedEvent = "config-changed";
+  @property({ attribute: false }) customization_popup?: LovelaceCardConfig[];
   protected get customization() {
     return this.customization_popup;
   }
@@ -243,7 +238,8 @@ export class CustomButtonsEditor extends LitElement {
     const index = (ev.currentTarget as any).index;
     const newButtons = [...this.custom_buttons];
     newButtons.splice(index, 1);
-    fireEvent(this, "config-changed", newButtons); // Fixed: direct value, not wrapped
+
+    fireEvent(this, "config-changed", newButtons as any); // Fixed: direct value, not wrapped
   }
 
   private _addRow(): void {
@@ -253,7 +249,7 @@ export class CustomButtonsEditor extends LitElement {
       tap_action: { action: "none" },
     };
     const newButtons = [...(this.custom_buttons || []), newButton];
-    fireEvent(this, "config-changed", newButtons); // Fixed: direct value, not wrapped
+    fireEvent(this, "config-changed", newButtons as any); // Fixed: direct value, not wrapped
   }
 
   protected render() {

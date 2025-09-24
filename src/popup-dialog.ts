@@ -1,38 +1,32 @@
 import { repeat } from "lit/directives/repeat.js";
-import { LitElement, html, css, PropertyValues, nothing } from "lit";
+import { LitElement, html, css, PropertyValues } from "lit";
 import { property, state } from "lit/decorators.js";
 import {
   LovelaceCard,
   HomeAssistant,
   computeDomain,
-} from "custom-card-helpers";
+  AreaRegistryEntry,
+  EntityRegistryEntry,
+  UNAVAILABLE,
+  UNKNOWN,
+  STATES_OFF,
+  caseInsensitiveStringCompare,
+  Schema,
+} from "./ha";
 import { HassEntity } from "home-assistant-js-websocket";
 import {
-  Schema,
-  domainOrder,
-  EntityRegistryEntry,
-  UNAVAILABLE_STATES,
-  compareByFriendlyName,
-  AreaRegistryEntry,
   SENSOR_DOMAINS,
   ALERT_DOMAINS,
   COVER_DOMAINS,
+  DOMAIN_ICONS,
 } from "./helpers";
 import { mdiClose } from "@mdi/js";
 import { computeLabelCallback, translateEntityState } from "./translations";
 import memoizeOne from "memoize-one";
 
-const OFF_STATES = new Set([
-  "off",
-  "idle",
-  "not_home",
-  "closed",
-  "locked",
-  "standby",
-  "disarmed",
-  "unknown",
-  "unavailable",
-]);
+const UNAVAILABLE_STATES = [UNAVAILABLE, UNKNOWN];
+
+const OFF_STATES = [UNAVAILABLE_STATES, STATES_OFF];
 
 export class AreaCardPlusPopup extends LitElement {
   @property({ type: Boolean }) public open = false;
@@ -57,6 +51,27 @@ export class AreaCardPlusPopup extends LitElement {
 
   @state() public selectedGroup?: number;
   private _cardEls: Map<string, HTMLElement> = new Map();
+
+  private getFriendlyName(
+    states: { [entity_id: string]: HassEntity },
+    entityId: string
+  ): string {
+    return (
+      (states?.[entityId]?.attributes?.friendly_name as string) || entityId
+    );
+  }
+
+  private compareByFriendlyName(
+    states: { [entity_id: string]: HassEntity },
+    language?: string
+  ): (a: string, b: string) => number {
+    return (a: string, b: string) =>
+      caseInsensitiveStringCompare(
+        this.getFriendlyName(states, a),
+        this.getFriendlyName(states, b),
+        language
+      );
+  }
 
   public showDialog(params: {
     title?: string;
@@ -428,14 +443,14 @@ export class AreaCardPlusPopup extends LitElement {
   );
 
   private _isActive(e: HassEntity): boolean {
-    return !OFF_STATES.has(e.state);
+    return !OFF_STATES.flat().includes(e.state);
   }
 
   private sortEntitiesForPopup(entities: HassEntity[]): HassEntity[] {
     const mode = (this.card as any)?._config?.popup_sort || "name";
     const arr = entities.slice();
     if (mode === "state") {
-      const cmp = compareByFriendlyName(
+      const cmp = this.compareByFriendlyName(
         this.hass!.states,
         this.hass!.locale.language
       );
@@ -456,7 +471,7 @@ export class AreaCardPlusPopup extends LitElement {
         return cmp(a.entity_id, b.entity_id);
       });
     }
-    const cmp = compareByFriendlyName(
+    const cmp = this.compareByFriendlyName(
       this.hass!.states,
       this.hass!.locale.language
     );
@@ -569,7 +584,9 @@ export class AreaCardPlusPopup extends LitElement {
         if (!(d in byDomain)) byDomain[d] = [];
         byDomain[d].push(e);
       }
-      const sortOrder = popupDomains.length > 0 ? popupDomains : domainOrder;
+
+      const _iconOrder = Object.keys(DOMAIN_ICONS || {});
+      const sortOrder = popupDomains.length > 0 ? popupDomains : _iconOrder;
       finalDomainEntries = Object.entries(byDomain)
         .filter(([d]) => !selectedDomain || d === selectedDomain)
         .sort(([a], [b]) => {

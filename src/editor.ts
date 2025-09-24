@@ -4,24 +4,21 @@ import {
   computeDomain,
   HomeAssistant,
   LovelaceCardEditor,
-} from "custom-card-helpers";
-import memoizeOne from "memoize-one";
-import {
+  EntityRegistryEntry,
+  LovelaceCardConfig,
   caseInsensitiveStringCompare,
   getSensorNumericDeviceClasses,
-  HassCustomElement,
-  SubElementEditor,
-  Settings,
-  fireEvent,
-  EntityRegistryEntry,
   UiAction,
+  fireEvent,
   SelectOption,
-  CardConfig,
   Schema,
+  SubElementEditorConfig,
+} from "./ha";
+import memoizeOne from "memoize-one";
+import {
   DEVICE_CLASSES,
   TOGGLE_DOMAINS,
   CLIMATE_DOMAINS,
-  domainOrder,
   DOMAIN_ICONS,
 } from "./helpers";
 import {
@@ -44,19 +41,20 @@ export class AreaCardPlusEditor
   implements LovelaceCardEditor
 {
   @property({ attribute: false }) public hass!: HomeAssistant;
-  @state() private _config?: CardConfig;
+  @state() private _config?: LovelaceCardConfig;
   @state() public _entities?: EntityRegistryEntry[];
   @state() private _numericDeviceClasses?: string[];
-  @state() private _subElementEditorDomain: SubElementEditor | undefined =
+  @state() private _subElementEditorDomain: SubElementEditorConfig | undefined =
     undefined;
-  @state() private _subElementEditorAlert: SubElementEditor | undefined =
+  @state() private _subElementEditorAlert: SubElementEditorConfig | undefined =
     undefined;
-  @state() private _subElementEditorCover: SubElementEditor | undefined =
+  @state() private _subElementEditorCover: SubElementEditorConfig | undefined =
     undefined;
-  @state() private _subElementEditorSensor: SubElementEditor | undefined =
+  @state() private _subElementEditorSensor: SubElementEditorConfig | undefined =
     undefined;
-  @state() private _subElementEditorCustomButton: SubElementEditor | undefined =
-    undefined;
+  @state() private _subElementEditorCustomButton:
+    | SubElementEditorConfig
+    | undefined = undefined;
 
   private computeLabel = memoizeOne((schema: Schema): string => {
     return computeLabelCallback(this.hass, schema);
@@ -362,7 +360,9 @@ export class AreaCardPlusEditor
             (e.device_id && this.hass!.devices[e.device_id]?.area_id === area))
       );
 
-      return [...new Set(entities.map((e) => computeDomain(e.entity_id)))];
+      return [
+        ...new Set(entities.map((e) => computeDomain(e.entity_id))),
+      ] as string[];
     } else if (domain === "all") {
       const extraEntities = this._config?.extra_entities || [];
 
@@ -402,7 +402,7 @@ export class AreaCardPlusEditor
               numericDeviceClasses.includes(c))
         );
 
-      return [...new Set(classes)];
+      return [...new Set(classes)] as string[];
     }
   }
 
@@ -459,7 +459,7 @@ export class AreaCardPlusEditor
     return options;
   }
 
-  setConfig(config: CardConfig): void {
+  setConfig(config: LovelaceCardConfig): void {
     this._config = {
       ...config,
       columns: config.columns || 4,
@@ -483,7 +483,7 @@ export class AreaCardPlusEditor
 
     if (changedProperties.has("_config")) {
       const previousConfig = changedProperties.get("_config") as
-        | CardConfig
+        | LovelaceCardConfig
         | undefined;
       const previousArea = previousConfig?.area;
       const currentArea = this._config.area;
@@ -516,9 +516,20 @@ export class AreaCardPlusEditor
           (a, b) => TOGGLE_DOMAINS.indexOf(a) - TOGGLE_DOMAINS.indexOf(b)
         );
 
-        const sortedDomains = possibleDomains.sort(
-          (a, b) => domainOrder.indexOf(a) - domainOrder.indexOf(b)
+        const _iconOrder = Object.keys(DOMAIN_ICONS || {});
+        const _iconIndex = new Map<string, number>(
+          _iconOrder.map((d, i) => [d, i])
         );
+        const sortedDomains = possibleDomains.sort((a, b) => {
+          const ia = _iconIndex.has(a)
+            ? _iconIndex.get(a)!
+            : Number.MAX_SAFE_INTEGER;
+          const ib = _iconIndex.has(b)
+            ? _iconIndex.get(b)!
+            : Number.MAX_SAFE_INTEGER;
+          if (ia === ib) return a.localeCompare(b);
+          return ia - ib;
+        });
 
         this._config.toggle_domains = [
           ...sortedToggleDomains.filter((d) => d !== "scene" && d !== "script"),
@@ -540,8 +551,11 @@ export class AreaCardPlusEditor
             this._config = {
               ...(this._config || ({} as any)),
               hidden_entities: newHidden,
-            } as CardConfig;
-            fireEvent(this, "config-changed", { config: { ...this._config } });
+            } as LovelaceCardConfig;
+
+            fireEvent(this, "config-changed", {
+              config: { ...this._config },
+            });
           }
         }
 
@@ -618,8 +632,8 @@ export class AreaCardPlusEditor
     this._config = {
       ...(this._config || ({} as any)),
       hidden_entities,
-    } as CardConfig;
-    fireEvent(this, "config-changed", { config: { ...this._config } });
+    } as LovelaceCardConfig;
+    fireEvent(this, "config-changed", { config: this._config });
   };
 
   private _hiddenCategoryChanged(ev: CustomEvent) {
@@ -627,7 +641,7 @@ export class AreaCardPlusEditor
     this._config = {
       ...(this._config || ({} as any)),
       category_filter: val,
-    } as CardConfig;
+    } as LovelaceCardConfig;
     fireEvent(this, "config-changed", { config: { ...this._config } });
   }
 
@@ -641,7 +655,7 @@ export class AreaCardPlusEditor
     }
     const index = ev.detail;
 
-    this[`_subElementEditor${editorKey}`] = { index };
+    this[`_subElementEditor${editorKey}`] = { index, type: "element" };
   }
 
   private _edit_itemDomain(ev: CustomEvent<number>): void {
@@ -661,7 +675,7 @@ export class AreaCardPlusEditor
   }
 
   private _customizationChanged(
-    ev: CustomEvent<Settings[]>,
+    ev: CustomEvent<LovelaceCardConfig[]>,
     customizationKey: "domain" | "alert" | "cover" | "sensor"
   ): void {
     ev.stopPropagation();
@@ -672,23 +686,31 @@ export class AreaCardPlusEditor
       config: {
         ...this._config,
         [`customization_${customizationKey}`]: ev.detail,
-      } as CardConfig,
+      } as LovelaceCardConfig,
     });
   }
 
-  private _customizationChangedDomain(ev: CustomEvent<Settings[]>): void {
+  private _customizationChangedDomain(
+    ev: CustomEvent<LovelaceCardConfig[]>
+  ): void {
     this._customizationChanged(ev, "domain");
   }
 
-  private _customizationChangedAlert(ev: CustomEvent<Settings[]>): void {
+  private _customizationChangedAlert(
+    ev: CustomEvent<LovelaceCardConfig[]>
+  ): void {
     this._customizationChanged(ev, "alert");
   }
 
-  private _customizationChangedCover(ev: CustomEvent<Settings[]>): void {
+  private _customizationChangedCover(
+    ev: CustomEvent<LovelaceCardConfig[]>
+  ): void {
     this._customizationChanged(ev, "cover");
   }
 
-  private _customizationChangedSensor(ev: CustomEvent<Settings[]>): void {
+  private _customizationChangedSensor(
+    ev: CustomEvent<LovelaceCardConfig[]>
+  ): void {
     this._customizationChanged(ev, "sensor");
   }
 
@@ -723,7 +745,7 @@ export class AreaCardPlusEditor
     if (!this._config || !this.hass) {
       return;
     }
-    this._subElementEditorCustomButton = { index: ev.detail };
+    this._subElementEditorCustomButton = { index: ev.detail, type: "element" };
   }
 
   private _goBackCustomButton(): void {
@@ -739,6 +761,7 @@ export class AreaCardPlusEditor
     if (index !== undefined) {
       const newButtons = [...(this._config.custom_buttons || [])];
       newButtons[index] = ev.detail;
+
       fireEvent(this, "config-changed", {
         config: { ...this._config, custom_buttons: newButtons },
       });
@@ -752,26 +775,24 @@ export class AreaCardPlusEditor
     }
     const updatedButtons = ev.detail; // Changed from ev.detail.value
     fireEvent(this, "config-changed", {
-      config: {
-        ...this._config,
-        custom_buttons: updatedButtons,
-      },
+      config: { ...this._config, custom_buttons: updatedButtons },
     });
   }
 
   private _renderSubElementEditor(
     editorKey: "domain" | "alert" | "cover" | "sensor",
     goBackHandler: () => void,
-    itemChangedHandler: (ev: CustomEvent<Settings>) => void
+    itemChangedHandler: (ev: CustomEvent<LovelaceCardConfig>) => void
   ) {
-    const listName = `customization_${editorKey}` as keyof Settings;
+    const listName = `customization_${editorKey}` as keyof LovelaceCardConfig;
     const subConfigs = this._config?.[listName] as
       | Array<{ type?: string }>
       | undefined;
     const editorKeyCapitalized = `_subElementEditor${
       editorKey.charAt(0).toUpperCase() + editorKey.slice(1)
     }` as keyof this;
-    const idx = (this[editorKeyCapitalized] as SubElementEditor)?.index ?? 0;
+    const idx =
+      (this[editorKeyCapitalized] as SubElementEditorConfig)?.index ?? 0;
     const rawType = subConfigs?.[idx]?.type ?? "unknown";
 
     const match = rawType.match(/^(.+?)\s*-\s*(.+)$/);
@@ -827,7 +848,8 @@ export class AreaCardPlusEditor
     return this._renderSubElementEditor(
       editorKey,
       () => this._goBackByKey(editorKey),
-      (ev: CustomEvent<Settings>) => this._itemChangedByKey(ev, editorKey)
+      (ev: CustomEvent<LovelaceCardConfig>) =>
+        this._itemChangedByKey(ev, editorKey)
     );
   }
 
@@ -839,7 +861,7 @@ export class AreaCardPlusEditor
   }
 
   private _itemChangedByKey(
-    ev: CustomEvent<Settings>,
+    ev: CustomEvent<LovelaceCardConfig>,
     editorKey: "domain" | "alert" | "cover" | "sensor"
   ) {
     const prop = `_subElementEditor${
@@ -855,7 +877,7 @@ export class AreaCardPlusEditor
   }
 
   private _itemChanged(
-    ev: CustomEvent<Settings>,
+    ev: CustomEvent<LovelaceCardConfig>,
     editorTarget: { index?: number } | undefined,
     customizationKey:
       | "customization_domain"
@@ -871,6 +893,7 @@ export class AreaCardPlusEditor
     if (index != undefined) {
       const customization = [...this._config[customizationKey]];
       customization[index] = ev.detail;
+
       fireEvent(this, "config-changed", {
         config: { ...this._config, [customizationKey]: customization },
       });

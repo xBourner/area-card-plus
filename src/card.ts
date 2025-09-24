@@ -4,50 +4,63 @@ import { classMap } from "lit/directives/class-map.js";
 import { styleMap } from "lit/directives/style-map.js";
 import { repeat } from "lit/directives/repeat.js";
 import memoizeOne from "memoize-one";
-import {
-  HomeAssistant,
-  LovelaceCard,
-  computeDomain,
-  formatNumber,
-  hasAction,
-  handleAction,
-  ActionHandlerEvent,
-} from "custom-card-helpers";
 import type {
   HassEntity,
   UnsubscribeFunc,
   Connection,
 } from "home-assistant-js-websocket";
 import {
-  AreaRegistryEntry,
-  DeviceRegistryEntry,
-  EntityRegistryEntry,
-  subscribeAreaRegistry,
-  subscribeDeviceRegistry,
-  subscribeEntityRegistry,
-  subscribeOne,
-  SubscribeMixin,
-  isNumericState,
-  blankBeforeUnit,
-  actionHandler,
-  LovelaceGridOptions,
-  applyThemesOnElement,
-  CardConfig,
   SENSOR_DOMAINS,
   CLIMATE_DOMAINS,
   TOGGLE_DOMAINS,
   OTHER_DOMAINS,
   COVER_DOMAINS,
   ALERT_DOMAINS,
-  UNAVAILABLE_STATES,
-  STATES_OFF,
   DEVICE_CLASSES,
   DOMAIN_ICONS,
-  DEFAULT_ASPECT_RATIO,
-  DomainType,
 } from "./helpers";
 import "./popup-dialog";
-import parseAspectRatio from "./helpers";
+import parseAspectRatio from "./ha/common/util/parse-aspect-ratio";
+import {
+  actionHandler,
+  applyThemesOnElement,
+  LovelaceCardConfig,
+  LovelaceCard,
+  HomeAssistant,
+  hasAction,
+  handleAction,
+  ActionHandlerEvent,
+  computeDomain,
+  formatNumber,
+  AreaRegistryEntry,
+  DeviceRegistryEntry,
+  EntityRegistryEntry,
+  STATES_OFF,
+  UNAVAILABLE,
+  UNKNOWN,
+  isNumericState,
+  blankBeforeUnit,
+  subscribeAreaRegistry,
+  subscribeDeviceRegistry,
+  subscribeEntityRegistry,
+  subscribeOne,
+  SubscribeMixin,
+  LovelaceGridOptions,
+} from "./ha";
+
+const UNAVAILABLE_STATES = [UNAVAILABLE, UNKNOWN];
+const DEFAULT_ASPECT_RATIO = "16:5";
+
+type DomainType =
+  | "light"
+  | "switch"
+  | "fan"
+  | "climate"
+  | "media_player"
+  | "lock"
+  | "vacuum"
+  | "cover"
+  | "binary_sensor";
 
 @customElement("area-card-plus")
 export class AreaCardPlus
@@ -58,19 +71,23 @@ export class AreaCardPlus
     return document.createElement("area-card-plus-editor");
   }
 
-  public static async getStubConfig(hass: HomeAssistant): Promise<CardConfig> {
+  public static async getStubConfig(
+    hass: HomeAssistant
+  ): Promise<LovelaceCardConfig> {
     const conn = hass.connection as unknown as Connection;
     const areas = await subscribeOne(conn, subscribeAreaRegistry);
     return { type: "custom:area-card-plus", area: areas[0]?.area_id || "" };
   }
 
   @property({ attribute: false }) public hass!: HomeAssistant;
-  @state() public _config!: CardConfig;
+  @state() public _config!: LovelaceCardConfig;
   @state() public _areas?: AreaRegistryEntry[];
   @state() public _devices?: DeviceRegistryEntry[];
   @state() public _entities?: EntityRegistryEntry[];
   @state() public selectedDomain: string | null = null;
   @state() public selectedDeviceClass: string | null = null;
+  @state() public selectedGroup: string | null = null;
+  @state() public layout: string = "grid";
 
   private _iconCache: Map<string, string> = new Map();
   private _styleCache: Map<string, string> = new Map();
@@ -349,7 +366,7 @@ export class AreaCardPlus
     };
   }
 
-  public setConfig(config: CardConfig): void {
+  public setConfig(config: LovelaceCardConfig): void {
     if (!config.area) {
       throw new Error("Area Required");
     }
@@ -542,7 +559,7 @@ export class AreaCardPlus
       return;
     }
 
-    handleAction(this, this.hass!, this._config!, ev.detail.action!);
+    handleAction(this, this.hass!, actionConfig, ev.detail.action!);
   }
 
   private _handleDomainAction(domain: string): (ev: CustomEvent) => void {
@@ -721,7 +738,6 @@ export class AreaCardPlus
       return nothing;
     }
 
-
     const designClasses = {
       v2: this._config?.design === "V2",
       row: this._config?.layout === "horizontal",
@@ -734,33 +750,33 @@ export class AreaCardPlus
           ...designClasses,
         })}"
       >
-        ${this._config.custom_buttons.map(
-          (btn: any) => {
-            const colorStyle = btn.color
-              ? `color: var(--${btn.color}-color, ${btn.color});`
-              : "";
-            return html`
-              <div
-                class="icon-with-count hover"
-                @action=${this._makeActionHandler(
-                  "custom_button",
-                  "",
-                  undefined,
-                  btn
-                )}
-                .actionHandler=${actionHandler({
-                  hasHold: hasAction(btn.hold_action),
-                  hasDoubleClick: hasAction(btn.double_tap_action),
-                })}
-              >
-                <ha-icon .icon=${btn.icon} style="${colorStyle}"></ha-icon>
-                ${btn.name
-                  ? html`<span class="custom-button-label" style="${colorStyle}">${btn.name}</span>`
-                  : nothing}
-              </div>
-            `;
-          }
-        )}
+        ${this._config.custom_buttons.map((btn: any) => {
+          const colorStyle = btn.color
+            ? `color: var(--${btn.color}-color, ${btn.color});`
+            : "";
+          return html`
+            <div
+              class="icon-with-count hover"
+              @action=${this._makeActionHandler(
+                "custom_button",
+                "",
+                undefined,
+                btn
+              )}
+              .actionHandler=${actionHandler({
+                hasHold: hasAction(btn.hold_action),
+                hasDoubleClick: hasAction(btn.double_tap_action),
+              })}
+            >
+              <ha-icon .icon=${btn.icon} style="${colorStyle}"></ha-icon>
+              ${btn.name
+                ? html`<span class="custom-button-label" style="${colorStyle}"
+                    >${btn.name}</span
+                  >`
+                : nothing}
+            </div>
+          `;
+        })}
       </div>
     `;
   }
@@ -1114,6 +1130,8 @@ export class AreaCardPlus
               )}
             </div>
 
+            ${this.renderCustomButtons()}
+
             <!-- Buttons -->
             <div
               class="${classMap({
@@ -1195,7 +1213,7 @@ export class AreaCardPlus
           </div>
 
 
-${this.renderCustomButtons()}
+
 
           <div class="${classMap({
             bottom: true,
@@ -1499,22 +1517,18 @@ ${this.renderCustomButtons()}
 
     if (changedProps.has("selectedDomain") && this.selectedDomain) {
       const domain = this.selectedDomain;
-      if (domain.includes(".")) {
-        const entityId = domain;
-        const stateObj = this.hass.states[entityId];
-        if (stateObj) {
-          this.showMoreInfo(stateObj);
-        }
-      } else {
-        this._openDomainPopup(domain);
-      }
+
+      this._openDomainPopup(domain);
+
       setTimeout(() => {
         this.selectedDomain = null;
       }, 0);
     }
 
     const oldHass = changedProps.get("hass") as HomeAssistant | undefined;
-    const oldConfig = changedProps.get("_config") as CardConfig | undefined;
+    const oldConfig = changedProps.get("_config") as
+      | LovelaceCardConfig
+      | undefined;
 
     if (
       (changedProps.has("hass") &&
@@ -1648,7 +1662,8 @@ ${this.renderCustomButtons()}
         flex-direction: row-reverse;
       }
       .alerts,
-      .covers {
+      .covers,
+      .custom_buttons {
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -1657,13 +1672,15 @@ ${this.renderCustomButtons()}
         gap: 2px;
       }
       .alerts.row,
-      .covers.row {
+      .covers.row,
+      .custom_buttons.row {
         flex-direction: row-reverse;
       }
       .buttons {
         display: flex;
         flex-direction: column;
         gap: 2px;
+        margin-right: -3px;
       }
       .buttons.row {
         flex-direction: row-reverse;
@@ -1747,7 +1764,12 @@ ${this.renderCustomButtons()}
       .mirrored .v2 .covers {
         flex-direction: row;
       }
-
+      .v2 .custom_buttons {
+        flex-direction: row-reverse;
+      }
+      .mirrored .v2 .custom_buttons {
+        flex-direction: row;
+      }
       .v2 .alerts {
         flex-direction: row-reverse;
       }
@@ -1782,28 +1804,7 @@ ${this.renderCustomButtons()}
         top: calc(var(--row-size, 3) * 8px + 12px);
         left: calc(var(--row-size, 3) * 15px + 55px);
       }
-      .custom_buttons {
-        display: flex;
-        flex-direction: row;
-        justify-content: flex-end;
-        align-items: flex-start;
-        position: absolute;
-        bottom: 8px;
-        right: 8px;
-        gap: 7px;
-      }
-      .custom_buttons.row {
-        top: unset;
-      }
-      .v2 .custom_buttons {
-        top: 0px;
-        right: 0px;
-        padding: calc(var(--row-size, 3) * 3px) 8px;
-        min-height: 24px;
-        pointer-events: none;
-        flex-direction: column;
-        bottom: unset;
-      }
+
       .v2 .name {
         margin-bottom: calc(var(--row-size, 3) * 1.5px + 1px);
       }

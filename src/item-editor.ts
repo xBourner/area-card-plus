@@ -1,22 +1,14 @@
 import { LitElement, TemplateResult, html, css, CSSResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { HomeAssistant, LovelaceCardConfig } from "custom-card-helpers";
-import { Settings, UiAction } from "./helpers";
-import memoizeOne from "memoize-one";
+import { HomeAssistant, LovelaceCardConfig, UiAction, Schema } from "./ha";
 
-interface Schema {
-  name: string;
-  selector?: any;
-  required?: boolean;
-  default?: any;
-  type?: string;
-}
+import memoizeOne from "memoize-one";
 
 interface ItemConfig extends LovelaceCardConfig {}
 
 @customElement("item-editor")
 export class ItemEditor extends LitElement {
-  @property({ attribute: false }) config?: Settings;
+  @property({ attribute: false }) config?: LovelaceCardConfig;
   @property({ attribute: false }) hass?: HomeAssistant;
   @property({ type: Boolean }) useSensorSchema: boolean = false;
   @state() private getSchema?: string;
@@ -257,6 +249,8 @@ export class ItemEditor extends LitElement {
         return this.hass!.localize(
           "ui.dialogs.entity_registry.editor.invert.label"
         );
+      case "name":
+        return this.hass!.localize(`ui.common.name`);
       default:
         return this.hass!.localize(
           `ui.panel.lovelace.editor.card.area.${schema.name}`
