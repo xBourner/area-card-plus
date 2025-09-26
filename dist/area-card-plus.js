@@ -1,4 +1,4 @@
-const ii = "b1.0", si = {
+const ii = "v1.0", si = {
   version: ii
 };
 /**
