@@ -1288,57 +1288,54 @@ export class AreaCardPlus
           bottom: true,
           ...designClasses,
         })}"
+        style=${`
+          ${
+            this._config?.area_name_color
+              ? `color: var(--${this._config.area_name_color}-color);`
+              : ""
+          }
+          ${
+            this._config?.name_css
+              ? this._config.name_css
+                  .split("\n")
+                  .reduce((acc: string, line: string) => {
+                    const trimmed = line.trim();
+                    if (trimmed && trimmed.includes(":")) {
+                      acc += trimmed.endsWith(";") ? trimmed : `${trimmed};`;
+                      acc += " ";
+                    }
+                    return acc;
+                  }, "")
+              : ""
+          }
+        `}
       >
         <div
-          style=${`
-            ${
-              this._config?.area_name_color
-                ? `color: var(--${this._config.area_name_color}-color);`
-                : ""
-            }
-            ${
-              this._config?.name_css
-                ? this._config.name_css
-                    .split("\n")
-                    .reduce((acc: string, line: string) => {
-                      const trimmed = line.trim();
-                      if (trimmed && trimmed.includes(":")) {
-                        acc += trimmed.endsWith(";") ? trimmed : `${trimmed};`;
-                        acc += " ";
-                      }
-                      return acc;
-                    }, "")
-                : ""
-            }
-          `}
+          class="${classMap({
+            name: true,
+            ...designClasses,
+            "text-large": true,
+            on: true,
+          })}"
+          @action=${this._handleAction}
+          .actionHandler=${actionHandler({
+            hasHold: hasAction(this._config.hold_action),
+            hasDoubleClick: hasAction(this._config.double_tap_action),
+          })}
         >
-          <div
-            class="${classMap({
-              name: true,
-              ...designClasses,
-              "text-large": true,
-              on: true,
-            })}"
-            @action=${this._handleAction}
-            .actionHandler=${actionHandler({
-              hasHold: hasAction(this._config.hold_action),
-              hasDoubleClick: hasAction(this._config.double_tap_action),
-            })}
-          >
-            ${this._config.area_name || area.name}
-          </div>
-          ${this._renderSensors(
-            sensors,
-            entitiesByDomain,
-            area,
-            customizationSensorMap
-          )}
-          ${this._renderClimates(
-            climates,
-            entitiesByDomain,
-            customizationDomainMap
-          )}
+          ${this._config.area_name || area.name}
         </div>
+        ${this._renderSensors(
+          sensors,
+          entitiesByDomain,
+          area,
+          customizationSensorMap
+        )}
+        ${this._renderClimates(
+          climates,
+          entitiesByDomain,
+          customizationDomainMap
+        )}
       </div>
     `;
   }

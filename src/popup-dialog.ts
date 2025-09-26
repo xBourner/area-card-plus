@@ -662,9 +662,6 @@ export class AreaCardPlusPopup extends LitElement {
         .open=${this.open}
         @closed=${this._onClosed}
       >
-        <style>
-          ${AreaCardPlusPopup.styles}
-        </style>
         <div class="dialog-header">
           <ha-icon-button
             slot="navigationIcon"
@@ -677,26 +674,41 @@ export class AreaCardPlusPopup extends LitElement {
           </div>
         </div>
         <div class="dialog-content scrollable">
-          ${!ungroupAreas
-            ? html`${repeat(
-                finalDomainEntries,
-                ([dom]) => dom,
-                ([dom, list]) => html`
+          ${
+            !ungroupAreas
+              ? html`${repeat(
+                  finalDomainEntries,
+                  ([dom]) => dom,
+                  ([dom, list]) => html`
+                    <div class="cards-wrapper">
+                      <h4>
+                        ${dom === "binary_sensor" ||
+                        dom === "sensor" ||
+                        dom === "cover"
+                          ? this._getDomainName(
+                              dom,
+                              selectedDeviceClass || undefined
+                            )
+                          : this._getDomainName(dom)}
+                      </h4>
+                      <div class="entity-cards">
+                        ${repeat(
+                          list,
+                          (entity: HassEntity) => entity.entity_id,
+                          (entity: HassEntity) => html`
+                            <div class="entity-card">
+                              ${this._getOrCreateCard(entity)}
+                            </div>
+                          `
+                        )}
+                      </div>
+                    </div>
+                  `
+                )}`
+              : html`
                   <div class="cards-wrapper">
-                    <h4>
-                      ${dom === "binary_sensor" ||
-                      dom === "sensor" ||
-                      dom === "cover"
-                        ? this._getDomainName(
-                            dom,
-                            selectedDeviceClass || undefined
-                          )
-                        : this._getDomainName(dom)}
-                    </h4>
                     <div class="entity-cards">
-                      ${repeat(
-                        list,
-                        (entity: HassEntity) => entity.entity_id,
+                      ${sorted.map(
                         (entity: HassEntity) => html`
                           <div class="entity-card">
                             ${this._getOrCreateCard(entity)}
@@ -706,18 +718,8 @@ export class AreaCardPlusPopup extends LitElement {
                     </div>
                   </div>
                 `
-              )}`
-            : html`
-                <div class="entity-cards">
-                  ${sorted.map(
-                    (entity: HassEntity) => html`
-                      <div class="entity-card">
-                        ${this._getOrCreateCard(entity)}
-                      </div>
-                    `
-                  )}
-                </div>
-              `}
+          }
+              </div>
         </div>
       </ha-dialog>
     `;
@@ -774,7 +776,7 @@ export class AreaCardPlusPopup extends LitElement {
     }
     .dialog-content.scrollable {
       margin-bottom: 16px;
-      max-height: 70vh;
+      max-height: 80vh;
       overflow-y: auto;
     }
     .dialog-actions {
@@ -803,7 +805,7 @@ export class AreaCardPlusPopup extends LitElement {
       width: calc(var(--columns, 4) * 22.5vw);
       box-sizing: border-box;
       font-size: 1.2em;
-      margin: 0.8em 0.2em;
+      margin: 0.8em 0.2em 0em;
     }
     .entity-cards {
       display: grid;
@@ -813,6 +815,7 @@ export class AreaCardPlusPopup extends LitElement {
       box-sizing: border-box;
       overflow-x: hidden;
       justify-content: center;
+      margin-top: 0.8em;
     }
     .entity-card {
       width: 22.5vw;
