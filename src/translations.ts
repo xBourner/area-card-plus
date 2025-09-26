@@ -1,12 +1,4 @@
-import { HomeAssistant } from "./ha";
-
-interface Schema {
-  name: string;
-  selector?: any;
-  required?: boolean;
-  default?: any;
-  type?: string;
-}
+import { HomeAssistant, Schema } from "./ha";
 
 export function translateEntityState(
   hass: HomeAssistant,

@@ -29,6 +29,55 @@ const UNAVAILABLE_STATES = [UNAVAILABLE, UNKNOWN];
 const OFF_STATES = [UNAVAILABLE_STATES, STATES_OFF];
 
 export class AreaCardPlusPopup extends LitElement {
+  private _swipeStartY: number | null = null;
+  private _swipeStartTime: number | null = null;
+  private _swipeThreshold = 120;
+  private _swipeTimeLimit = 800;
+  connectedCallback(): void {
+    super.connectedCallback();
+    this.addEventListener("touchstart", this._onTouchStart, { passive: true });
+    this.addEventListener("touchend", this._onTouchEnd);
+    window.addEventListener("popstate", this._onPopState);
+  }
+
+  disconnectedCallback(): void {
+    super.disconnectedCallback();
+    this.removeEventListener("touchstart", this._onTouchStart);
+    this.removeEventListener("touchend", this._onTouchEnd);
+    window.removeEventListener("popstate", this._onPopState);
+    this._cardEls.clear();
+  }
+
+  private _onPopState = (ev: PopStateEvent) => {
+    if (this.open) {
+      this._onClosed(ev);
+    }
+  };
+
+  private _onTouchStart = (ev: TouchEvent) => {
+    if (ev.touches && ev.touches.length === 1) {
+      this._swipeStartY = ev.touches[0].clientY;
+      this._swipeStartTime = Date.now();
+    }
+  };
+
+  private _onTouchEnd = (ev: TouchEvent) => {
+    if (
+      this._swipeStartY !== null &&
+      this._swipeStartTime !== null &&
+      ev.changedTouches &&
+      ev.changedTouches.length === 1
+    ) {
+      const endY = ev.changedTouches[0].clientY;
+      const deltaY = endY - this._swipeStartY;
+      const deltaTime = Date.now() - this._swipeStartTime;
+      if (deltaY > this._swipeThreshold && deltaTime < this._swipeTimeLimit) {
+        this._onClosed(ev);
+      }
+    }
+    this._swipeStartY = null;
+    this._swipeStartTime = null;
+  };
   @property({ type: Boolean }) public open = false;
   @property({ type: String }) public selectedDomain?: string;
   @property({ type: String }) public selectedDeviceClass?: string;
@@ -114,11 +163,6 @@ export class AreaCardPlusPopup extends LitElement {
       })
     );
   };
-
-  disconnectedCallback(): void {
-    super.disconnectedCallback();
-    this._cardEls.clear();
-  }
 
   private _toTileConfig(cardConfig: {
     type: string;
@@ -632,8 +676,7 @@ export class AreaCardPlusPopup extends LitElement {
             <h3>${card._config?.area_name || (area && (area as any).name)}</h3>
           </div>
         </div>
-
-        <div class="dialog-content">
+        <div class="dialog-content scrollable">
           ${!ungroupAreas
             ? html`${repeat(
                 finalDomainEntries,
@@ -718,14 +761,21 @@ export class AreaCardPlusPopup extends LitElement {
       justify-content: flex-start;
       align-items: center;
       gap: 8px;
-      margin-bottom: 12px;
       min-width: 15vw;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+      background: transparent;
     }
     .dialog-header .menu-button {
       margin-left: auto;
     }
-    .dialog-content {
+    .dialog-content.scrollable {
       margin-bottom: 16px;
+      max-height: 70vh;
+      overflow-y: auto;
     }
     .dialog-actions {
       text-align: right;

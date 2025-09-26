@@ -35,6 +35,14 @@ abstract class BaseItemsEditor extends LitElement {
       return nothing;
     }
 
+    // Filter SelectOptions to exclude already selected types
+    const selectedTypes = new Set(
+      (this.customization || []).map((conf) => conf.type)
+    );
+    const availableOptions = this.SelectOptions.filter(
+      (option) => !selectedTypes.has(option.value)
+    );
+
     return html`
       <div class="customization">
         ${this.customization &&
@@ -55,12 +63,10 @@ abstract class BaseItemsEditor extends LitElement {
                 @closed=${(ev: any) => ev.stopPropagation()}
                 @value-changed=${this._valueChanged}
               >
-                ${this.SelectOptions.map(
-                  (option) =>
-                    html`<mwc-list-item .value=${option.value}
-                      >${option.label}</mwc-list-item
-                    >`
-                )}
+                <mwc-list-item .value=${conf.type} selected disabled>
+                  ${this.SelectOptions.find((o) => o.value === conf.type)
+                    ?.label || conf.type}
+                </mwc-list-item>
               </ha-select>
 
               <ha-icon-button
@@ -98,7 +104,7 @@ abstract class BaseItemsEditor extends LitElement {
             @closed=${(ev: any) => ev.stopPropagation()}
             @click=${this._addRow}
           >
-            ${this.SelectOptions.map(
+            ${availableOptions.map(
               (option) =>
                 html`<mwc-list-item .value=${option.value}
                   >${option.label}</mwc-list-item
@@ -239,7 +245,7 @@ export class CustomButtonsEditor extends LitElement {
     const newButtons = [...this.custom_buttons];
     newButtons.splice(index, 1);
 
-    fireEvent(this, "config-changed", newButtons as any); // Fixed: direct value, not wrapped
+    fireEvent(this, "config-changed", newButtons as any);
   }
 
   private _addRow(): void {
@@ -249,7 +255,7 @@ export class CustomButtonsEditor extends LitElement {
       tap_action: { action: "none" },
     };
     const newButtons = [...(this.custom_buttons || []), newButton];
-    fireEvent(this, "config-changed", newButtons as any); // Fixed: direct value, not wrapped
+    fireEvent(this, "config-changed", newButtons as any);
   }
 
   protected render() {

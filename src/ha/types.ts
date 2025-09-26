@@ -63,6 +63,14 @@ declare global {
   }
 }
 
+export interface Schema {
+  name: string;
+  selector?: any;
+  required?: boolean;
+  default?: any;
+  type?: string;
+}
+
 interface EntityRegistryDisplayEntry {
   entity_id: string;
   name?: string;

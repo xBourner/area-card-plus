@@ -591,7 +591,6 @@ export class AreaCardPlus
     return this._makeActionHandler("sensor", domain, deviceClass);
   }
 
-  // Unified action handler factory for domain/alert/cover/sensor
   private _makeActionHandler(
     kind: "domain" | "alert" | "cover" | "sensor" | "custom_button",
     domain: string,
@@ -631,7 +630,6 @@ export class AreaCardPlus
           ? customization?.double_tap_action
           : null;
 
-      // Domain-specific toggle / more-info behaviour
       if (kind === "domain") {
         const isToggle =
           actionConfig === "toggle" || actionConfig?.action === "toggle";
@@ -697,7 +695,6 @@ export class AreaCardPlus
         return;
       }
 
-      // Alert / Cover / Sensor behaviour
       const isMoreInfo =
         actionConfig === "more-info" || actionConfig?.action === "more-info";
 
@@ -732,6 +729,192 @@ export class AreaCardPlus
 
       handleAction(this, this.hass!, config, ev.detail.action!);
     };
+  }
+
+  private _renderCovers(
+    covers: Array<{ domain: string; deviceClass: string }>,
+    entitiesByDomain: { [domain: string]: HassEntity[] },
+    customizationCoverMap: Map<string, any>
+  ) {
+    const designClasses = {
+      v2: this._config?.design === "V2",
+      row: this._config?.layout === "horizontal",
+    };
+    return html`
+      <div
+        class="${classMap({
+          covers: true,
+          ...designClasses,
+        })}"
+      >
+        ${repeat(
+          covers,
+          (item) => item.domain + "-" + item.deviceClass,
+          ({ domain, deviceClass }) => {
+            const customization = customizationCoverMap.get(deviceClass);
+            const invert = customization?.invert === true;
+            const activeEntities = entitiesByDomain[domain].filter((entity) => {
+              const entityDeviceClass =
+                entity.attributes.device_class || "default";
+              const isOn = entity.state === "open";
+              return (
+                entityDeviceClass === deviceClass &&
+                (invert ? STATES_OFF.includes(entity.state) : isOn)
+              );
+            });
+            const coverColor =
+              customization?.color || this._config?.cover_color;
+            const coverIcon = customization?.icon;
+            const activeCount = activeEntities.length;
+            return activeCount > 0
+              ? html`
+                  <div
+                    class="icon-with-count"
+                    style=${this._parseCss(
+                      customization?.css || this._config?.cover_css
+                    )}
+                    @action=${this._handleCoverAction(domain, deviceClass)}
+                    .actionHandler=${actionHandler({
+                      hasHold: hasAction(customization?.hold_action),
+                      hasDoubleClick: hasAction(
+                        customization?.double_tap_action
+                      ),
+                    })}
+                  >
+                    <ha-state-icon
+                      class="cover"
+                      style="${(coverColor
+                        ? `color: var(--${coverColor}-color);`
+                        : "") +
+                      " " +
+                      (customization?.icon_css
+                        ? customization.icon_css
+                            .split("\n")
+                            .reduce((acc: string, line: string) => {
+                              const trimmed = line.trim();
+                              if (trimmed && trimmed.includes(":")) {
+                                acc += trimmed.endsWith(";")
+                                  ? trimmed
+                                  : `${trimmed};`;
+                                acc += " ";
+                              }
+                              return acc;
+                            }, "")
+                        : "")}"
+                      .icon=${coverIcon
+                        ? coverIcon
+                        : this._cachedIcon(
+                            domain as DomainType,
+                            invert ? false : true,
+                            deviceClass
+                          )}
+                    ></ha-state-icon>
+                    <span
+                      class="active-count text-small ${activeCount > 0
+                        ? "on"
+                        : "off"}"
+                      >${activeCount}</span
+                    >
+                  </div>
+                `
+              : nothing;
+          }
+        )}
+      </div>
+    `;
+  }
+
+  private _renderAlerts(
+    alerts: Array<{ domain: string; deviceClass: string }>,
+    entitiesByDomain: { [domain: string]: HassEntity[] },
+    customizationAlertMap: Map<string, any>
+  ) {
+    const designClasses = {
+      v2: this._config?.design === "V2",
+      row: this._config?.layout === "horizontal",
+    };
+    return html`
+      <div
+        class="${classMap({
+          alerts: true,
+          ...designClasses,
+        })}"
+      >
+        ${repeat(
+          alerts,
+          (item) => item.domain + "-" + item.deviceClass,
+          ({ domain, deviceClass }) => {
+            const customization = customizationAlertMap.get(deviceClass);
+            const invert = customization?.invert === true;
+            const activeEntities = entitiesByDomain[domain].filter((entity) => {
+              const entityDeviceClass =
+                entity.attributes.device_class || "default";
+              const isOn = entity.state === "on";
+              return (
+                entityDeviceClass === deviceClass &&
+                (invert ? STATES_OFF.includes(entity.state) : isOn)
+              );
+            });
+            const alertColor =
+              customization?.color || this._config?.alert_color;
+            const alertIcon = customization?.icon;
+            const activeCount = activeEntities.length;
+            return activeCount > 0
+              ? html`
+                  <div
+                    class="icon-with-count"
+                    style=${this._parseCss(
+                      customization?.css || this._config?.alert_css
+                    )}
+                    @action=${this._handleAlertAction(domain, deviceClass)}
+                    .actionHandler=${actionHandler({
+                      hasHold: hasAction(customization?.hold_action),
+                      hasDoubleClick: hasAction(
+                        customization?.double_tap_action
+                      ),
+                    })}
+                  >
+                    <ha-state-icon
+                      class="alert"
+                      style="${(alertColor
+                        ? `color: var(--${alertColor}-color);`
+                        : "") +
+                      " " +
+                      (customization?.icon_css
+                        ? customization.icon_css
+                            .split("\n")
+                            .reduce((acc: string, line: string) => {
+                              const trimmed = line.trim();
+                              if (trimmed && trimmed.includes(":")) {
+                                acc += trimmed.endsWith(";")
+                                  ? trimmed
+                                  : `${trimmed};`;
+                                acc += " ";
+                              }
+                              return acc;
+                            }, "")
+                        : "")}"
+                      .icon=${alertIcon
+                        ? alertIcon
+                        : this._cachedIcon(
+                            domain as DomainType,
+                            invert ? false : true,
+                            deviceClass
+                          )}
+                    ></ha-state-icon>
+                    <span
+                      class="active-count text-small ${activeCount > 0
+                        ? "on"
+                        : "off"}"
+                      >${activeCount}</span
+                    >
+                  </div>
+                `
+              : nothing;
+          }
+        )}
+      </div>
+    `;
   }
 
   private renderCustomButtons() {
@@ -781,6 +964,381 @@ export class AreaCardPlus
             </div>
           `;
         })}
+      </div>
+    `;
+  }
+
+  private _renderButtons(
+    buttons: string[],
+    entitiesByDomain: { [domain: string]: HassEntity[] },
+    customizationDomainMap: Map<string, any>
+  ) {
+    const designClasses = {
+      v2: this._config?.design === "V2",
+      row: this._config?.layout === "horizontal",
+    };
+    return html`
+      <div
+        class="${classMap({
+          buttons: true,
+          ...designClasses,
+        })}"
+      >
+        ${repeat(
+          buttons,
+          (domain: string) => domain,
+          (domain: string) => {
+            if (domain === "climate") {
+              const climateCustomization =
+                this._config?.customization_domain?.find(
+                  (item: { type: string }) => item.type === "climate"
+                );
+              const displayMode = (climateCustomization as any)?.display_mode;
+              if (displayMode !== "icon" && displayMode !== "text_icon") {
+                return nothing;
+              }
+            }
+            const customization = customizationDomainMap.get(domain);
+            const domainColor =
+              customization?.color || this._config?.domain_color;
+            const domainIcon = customization?.icon;
+            const activeEntities = (
+              entitiesByDomain[domain as string] as HassEntity[]
+            ).filter(
+              (entity: HassEntity) =>
+                !UNAVAILABLE_STATES.includes(entity.state) &&
+                !STATES_OFF.includes(entity.state)
+            );
+            const activeCount = activeEntities.length;
+            if (this._config.show_active && activeCount === 0) {
+              return nothing;
+            }
+            return html`
+              <div
+                class="icon-with-count hover"
+                style=${this._parseCss(
+                  customization?.css || this._config?.domain_css
+                )}
+                @action=${this._handleDomainAction(domain as string)}
+                .actionHandler=${actionHandler({
+                  hasHold: hasAction(customization?.hold_action),
+                  hasDoubleClick: hasAction(customization?.double_tap_action),
+                })}
+              >
+                <ha-state-icon
+                  style=${domainColor
+                    ? `color: var(--${domainColor}-color);`
+                    : this._config?.domain_color
+                    ? `color: ${this._config.domain_color};`
+                    : ""}
+                  class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
+                  .domain=${domain}
+                  .icon=${domainIcon
+                    ? domainIcon
+                    : this._cachedIcon(domain as DomainType, activeCount > 0)}
+                ></ha-state-icon>
+                <span
+                  class="active-count text-small ${activeCount > 0
+                    ? "on"
+                    : "off"}"
+                >
+                  ${activeCount}
+                </span>
+              </div>
+            `;
+          }
+        )}
+      </div>
+    `;
+  }
+
+  private _renderSensors(
+    sensors: Array<{ domain: string; deviceClass: string; index: number }>,
+    entitiesByDomain: { [domain: string]: HassEntity[] },
+    area: AreaRegistryEntry,
+    customizationSensorMap: Map<string, any>
+  ) {
+    return html`
+      <div class="sensors">
+        ${this._config?.wrap_sensor_icons
+          ? repeat(
+              sensors,
+              (item) => item.domain + "-" + item.deviceClass,
+              ({ domain, deviceClass, index }) => {
+                const matchingEntities = entitiesByDomain[domain].filter(
+                  (entity) => entity.attributes.device_class === deviceClass
+                );
+                if (matchingEntities.length === 0) {
+                  return nothing;
+                }
+                const areaSensorEntityId = (() => {
+                  switch (deviceClass) {
+                    case "temperature":
+                      return area.temperature_entity_id;
+                    case "humidity":
+                      return area.humidity_entity_id;
+                    default:
+                      return null;
+                  }
+                })();
+                const areaEntity = areaSensorEntityId
+                  ? this.hass.states[areaSensorEntityId]
+                  : undefined;
+                const customization = customizationSensorMap.get(deviceClass);
+                const sensorColor =
+                  customization?.color || this._config?.sensor_color;
+                const invert = customization?.invert === true;
+                const hasOnEntity = matchingEntities.some(
+                  (e) =>
+                    !UNAVAILABLE_STATES.includes(e.state) &&
+                    !STATES_OFF.includes(e.state)
+                );
+                if (invert && hasOnEntity) {
+                  return nothing;
+                }
+                const icon = this._config?.show_sensor_icons
+                  ? html`<ha-domain-icon
+                      style=${sensorColor
+                        ? `color: var(--${sensorColor}-color);`
+                        : ""}
+                      .hass=${this.hass}
+                      .domain=${domain}
+                      .deviceClass=${deviceClass}
+                    ></ha-domain-icon>`
+                  : null;
+                const value = html`<span
+                  class="sensor-value"
+                  @action=${this._handleSensorAction(domain, deviceClass)}
+                  .actionHandler=${actionHandler({
+                    hasHold: hasAction(customization?.hold_action),
+                    hasDoubleClick: hasAction(customization?.double_tap_action),
+                  })}
+                  style=${`${
+                    sensorColor ? `color: var(--${sensorColor}-color);` : ""
+                  } ${this._parseCss(customization?.css)}`}
+                >
+                  ${!this._config?.show_sensor_icons &&
+                  !this._config?.wrap_sensor_icons &&
+                  index > 0
+                    ? " - "
+                    : ""}
+                  ${areaEntity
+                    ? this.hass.formatEntityState(areaEntity)
+                    : this._average(domain, deviceClass)}
+                </span>`;
+                return html`<div class="sensor-row off">${icon}${value}</div>`;
+              }
+            )
+          : html`<div class="sensor text-medium off">
+              ${repeat(
+                sensors,
+                (item) => item.domain + "-" + item.deviceClass,
+                ({ domain, deviceClass, index }) => {
+                  const matchingEntities = entitiesByDomain[domain].filter(
+                    (entity) => entity.attributes.device_class === deviceClass
+                  );
+                  if (matchingEntities.length === 0) {
+                    return nothing;
+                  }
+                  const areaSensorEntityId = (() => {
+                    switch (deviceClass) {
+                      case "temperature":
+                        return area.temperature_entity_id;
+                      case "humidity":
+                        return area.humidity_entity_id;
+                      default:
+                        return null;
+                    }
+                  })();
+                  const areaEntity = areaSensorEntityId
+                    ? this.hass.states[areaSensorEntityId]
+                    : undefined;
+                  const customization = customizationSensorMap.get(deviceClass);
+                  const sensorColor =
+                    customization?.color || this._config?.sensor_color;
+                  const invert = customization?.invert === true;
+                  const hasOnEntity = matchingEntities.some(
+                    (e) =>
+                      !UNAVAILABLE_STATES.includes(e.state) &&
+                      !STATES_OFF.includes(e.state)
+                  );
+                  if (invert && hasOnEntity) {
+                    return nothing;
+                  }
+                  const icon = this._config?.show_sensor_icons
+                    ? html`<ha-domain-icon
+                        style=${sensorColor
+                          ? `color: var(--${sensorColor}-color);`
+                          : ""}
+                        .hass=${this.hass}
+                        .domain=${domain}
+                        .deviceClass=${deviceClass}
+                      ></ha-domain-icon>`
+                    : null;
+                  const value = html`<span
+                    class="sensor-value"
+                    @action=${this._handleSensorAction(domain, deviceClass)}
+                    .actionHandler=${actionHandler({
+                      hasHold: hasAction(customization?.hold_action),
+                      hasDoubleClick: hasAction(
+                        customization?.double_tap_action
+                      ),
+                    })}
+                    style=${`${
+                      sensorColor ? `color: var(--${sensorColor}-color);` : ""
+                    } ${this._parseCss(customization?.css)}`}
+                  >
+                    ${!this._config?.show_sensor_icons &&
+                    !this._config?.wrap_sensor_icons &&
+                    index > 0
+                      ? " - "
+                      : ""}
+                    ${areaEntity
+                      ? this.hass.formatEntityState(areaEntity)
+                      : this._average(domain, deviceClass)}
+                  </span>`;
+                  return html`${icon}${value}`;
+                }
+              )}
+            </div>`}
+      </div>
+    `;
+  }
+
+  private _renderClimates(
+    climates: Array<{ domain: string }>,
+    entitiesByDomain: { [domain: string]: HassEntity[] },
+    customizationDomainMap: Map<string, any>
+  ) {
+    return html`
+      <div class="climate text-small off">
+        ${repeat(
+          climates,
+          (item) => item.domain,
+          ({ domain }) => {
+            const entities = entitiesByDomain[domain];
+            const activeTemperatures = entities
+              .filter((entity) => {
+                const hvacAction = entity.attributes.hvac_action;
+                const state = entity.state;
+                const isActive =
+                  !UNAVAILABLE_STATES.includes(state) &&
+                  !STATES_OFF.includes(state);
+                if (hvacAction !== undefined) {
+                  const isHeatingCooling =
+                    hvacAction !== "idle" && hvacAction !== "off";
+                  const isHeatButIdle =
+                    state === "heat" &&
+                    (hvacAction === "idle" || hvacAction === "off");
+                  return isActive && isHeatingCooling && !isHeatButIdle;
+                }
+                return isActive;
+              })
+              .map((entity) => {
+                const temperature = entity.attributes.temperature || "N/A";
+                return `${temperature} ${
+                  this.hass?.config?.unit_system?.temperature || ""
+                }`;
+              });
+            if (activeTemperatures.length === 0) {
+              return nothing;
+            }
+            const customization = customizationDomainMap.get(domain);
+            const displayMode = (customization as any)?.display_mode;
+            if (displayMode === "icon") {
+              return nothing;
+            }
+            const domainColor = customization?.color;
+            const textStyle = `${
+              domainColor
+                ? `color: var(--${domainColor}-color);`
+                : this._config?.domain_color
+                ? `color: ${this._config.domain_color};`
+                : ""
+            } ${this._parseCss(customization?.css)}`;
+            return html`<div
+              class="climate"
+              style=${textStyle}
+              @action=${this._handleDomainAction(domain)}
+              .actionHandler=${actionHandler({
+                hasHold: hasAction(customization?.hold_action),
+                hasDoubleClick: hasAction(customization?.double_tap_action),
+              })}
+            >
+              (${activeTemperatures.join(", ")})
+            </div>`;
+          }
+        )}
+      </div>
+    `;
+  }
+
+  private _renderBottom(
+    area: AreaRegistryEntry,
+    designClasses: Record<string, boolean>,
+    sensors: Array<{ domain: string; deviceClass: string; index: number }>,
+    entitiesByDomain: { [domain: string]: HassEntity[] },
+    customizationSensorMap: Map<string, any>,
+    climates: Array<{ domain: string }>,
+    customizationDomainMap: Map<string, any>
+  ) {
+    return html`
+      <div
+        class="${classMap({
+          bottom: true,
+          ...designClasses,
+        })}"
+      >
+        <div
+          style=${`
+            ${
+              this._config?.area_name_color
+                ? `color: var(--${this._config.area_name_color}-color);`
+                : ""
+            }
+            ${
+              this._config?.name_css
+                ? this._config.name_css
+                    .split("\n")
+                    .reduce((acc: string, line: string) => {
+                      const trimmed = line.trim();
+                      if (trimmed && trimmed.includes(":")) {
+                        acc += trimmed.endsWith(";") ? trimmed : `${trimmed};`;
+                        acc += " ";
+                      }
+                      return acc;
+                    }, "")
+                : ""
+            }
+          `}
+        >
+          <div
+            class="${classMap({
+              name: true,
+              ...designClasses,
+              "text-large": true,
+              on: true,
+            })}"
+            @action=${this._handleAction}
+            .actionHandler=${actionHandler({
+              hasHold: hasAction(this._config.hold_action),
+              hasDoubleClick: hasAction(this._config.double_tap_action),
+            })}
+          >
+            ${this._config.area_name || area.name}
+          </div>
+          ${this._renderSensors(
+            sensors,
+            entitiesByDomain,
+            area,
+            customizationSensorMap
+          )}
+          ${this._renderClimates(
+            climates,
+            entitiesByDomain,
+            customizationDomainMap
+          )}
+        </div>
       </div>
     `;
   }
@@ -869,7 +1427,6 @@ export class AreaCardPlus
     )
       .filter((domain) => domain in entitiesByDomain)
       .map((domain) => ({ domain }));
-    // Normalize display_type and compute flags for what to show.
     const display = (this._config?.display_type || "").toString().toLowerCase();
     const showCamera = display.includes("camera");
     const showPicture =
@@ -903,20 +1460,18 @@ export class AreaCardPlus
           paddingBottom: ignoreAspectRatio ? "0" : "12em",
         })}
       >
-        ${
-          (showCamera && cameraEntityId) || (showPicture && area.picture)
-            ? html`
-                <hui-image
-                  .config=${this._config}
-                  .hass=${this.hass}
-                  .image=${showCamera ? undefined : area.picture}
-                  .cameraImage=${showCamera ? cameraEntityId : undefined}
-                  .cameraView=${this._config.camera_view}
-                  fitMode="cover"
-                ></hui-image>
-              `
-            : nothing
-        }
+        ${(showCamera && cameraEntityId) || (showPicture && area.picture)
+          ? html`
+              <hui-image
+                .config=${this._config}
+                .hass=${this.hass}
+                .image=${showCamera ? undefined : area.picture}
+                .cameraImage=${showCamera ? cameraEntityId : undefined}
+                .cameraView=${this._config.camera_view}
+                fitMode="cover"
+              ></hui-image>
+            `
+          : nothing}
 
         <div
           class="${classMap({
@@ -925,16 +1480,14 @@ export class AreaCardPlus
           })}"
           style=${styleMap(iconContainerStyles)}
         >
-          ${
-            showIcon
-              ? html`
-                  <ha-icon
-                    style=${styleMap(iconStyles)}
-                    icon=${this._config.area_icon || area.icon}
-                  ></ha-icon>
-                `
-              : nothing
-          }
+          ${showIcon
+            ? html`
+                <ha-icon
+                  style=${styleMap(iconStyles)}
+                  icon=${this._config.area_icon || area.icon}
+                ></ha-icon>
+              `
+            : nothing}
         </div>
 
         <div
@@ -956,548 +1509,37 @@ export class AreaCardPlus
             style=${styleMap(designStyles)}
           >
             <!-- Covers -->
-            <div
-              class="${classMap({
-                covers: true,
-                ...designClasses,
-              })}"
-            >
-              ${repeat(
-                covers,
-                (item) => item.domain + "-" + item.deviceClass,
-                ({ domain, deviceClass }) => {
-                  const customization = customizationCoverMap.get(deviceClass);
-                  const invert = customization?.invert === true;
-                  const activeEntities = entitiesByDomain[domain].filter(
-                    (entity) => {
-                      const entityDeviceClass =
-                        entity.attributes.device_class || "default";
-                      const isActive = !STATES_OFF.includes(entity.state);
-                      return (
-                        entityDeviceClass === deviceClass &&
-                        (invert ? STATES_OFF.includes(entity.state) : isActive)
-                      );
-                    }
-                  );
-                  const coverColor =
-                    customization?.color || this._config?.cover_color;
-                  const coverIcon = customization?.icon;
-                  const activeCount = activeEntities.length;
-                  return activeCount > 0
-                    ? html`
-                        <div
-                          class="icon-with-count"
-                          style=${this._parseCss(
-                            customization?.css || this._config?.cover_css
-                          )}
-                          @action=${this._handleCoverAction(
-                            domain,
-                            deviceClass
-                          )}
-                          .actionHandler=${actionHandler({
-                            hasHold: hasAction(customization?.hold_action),
-                            hasDoubleClick: hasAction(
-                              customization?.double_tap_action
-                            ),
-                          })}
-                        >
-                          <ha-state-icon
-                            class="cover"
-                            style="${(coverColor
-                              ? `color: var(--${coverColor}-color);`
-                              : "") +
-                            " " +
-                            (customization?.icon_css
-                              ? customization.icon_css
-                                  .split("\n")
-                                  .reduce((acc: string, line: string) => {
-                                    const trimmed = line.trim();
-                                    if (trimmed && trimmed.includes(":")) {
-                                      acc += trimmed.endsWith(";")
-                                        ? trimmed
-                                        : `${trimmed};`;
-                                      acc += " ";
-                                    }
-                                    return acc;
-                                  }, "")
-                              : "")}"
-                            .icon=${coverIcon
-                              ? coverIcon
-                              : this._cachedIcon(
-                                  domain as DomainType,
-                                  invert ? false : true,
-                                  deviceClass
-                                )}
-                          ></ha-state-icon>
-                          <span
-                            class="active-count text-small ${activeCount > 0
-                              ? "on"
-                              : "off"}"
-                            >${activeCount}</span
-                          >
-                        </div>
-                      `
-                    : nothing;
-                }
-              )}
-            </div>
+            ${this._renderCovers(
+              covers,
+              entitiesByDomain,
+              customizationCoverMap
+            )}
 
             <!-- Alerts -->
-            <div
-              class="${classMap({
-                alerts: true,
-                ...designClasses,
-              })}"
-            >
-              ${repeat(
-                alerts,
-                (item) => item.domain + "-" + item.deviceClass,
-                ({ domain, deviceClass }) => {
-                  const customization = customizationAlertMap.get(deviceClass);
-                  const invert = customization?.invert === true;
-                  const activeEntities = entitiesByDomain[domain].filter(
-                    (entity) => {
-                      const entityDeviceClass =
-                        entity.attributes.device_class || "default";
-                      const isOn = entity.state === "on";
-                      return (
-                        entityDeviceClass === deviceClass &&
-                        (invert ? STATES_OFF.includes(entity.state) : isOn)
-                      );
-                    }
-                  );
-                  const alertColor =
-                    customization?.color || this._config?.alert_color;
-                  const alertIcon = customization?.icon;
-                  const activeCount = activeEntities.length;
-                  return activeCount > 0
-                    ? html`
-                        <div
-                          class="icon-with-count"
-                          style=${this._parseCss(
-                            customization?.css || this._config?.alert_css
-                          )}
-                          @action=${this._handleAlertAction(
-                            domain,
-                            deviceClass
-                          )}
-                          .actionHandler=${actionHandler({
-                            hasHold: hasAction(customization?.hold_action),
-                            hasDoubleClick: hasAction(
-                              customization?.double_tap_action
-                            ),
-                          })}
-                        >
-                          <ha-state-icon
-                            class="alert"
-                            style="${(alertColor
-                              ? `color: var(--${alertColor}-color);`
-                              : "") +
-                            " " +
-                            (customization?.icon_css
-                              ? customization.icon_css
-                                  .split("\n")
-                                  .reduce((acc: string, line: string) => {
-                                    const trimmed = line.trim();
-                                    if (trimmed && trimmed.includes(":")) {
-                                      acc += trimmed.endsWith(";")
-                                        ? trimmed
-                                        : `${trimmed};`;
-                                      acc += " ";
-                                    }
-                                    return acc;
-                                  }, "")
-                              : "")}"
-                            .icon=${alertIcon
-                              ? alertIcon
-                              : this._cachedIcon(
-                                  domain as DomainType,
-                                  invert ? false : true,
-                                  deviceClass
-                                )}
-                          ></ha-state-icon>
-                          <span
-                            class="active-count text-small ${activeCount > 0
-                              ? "on"
-                              : "off"}"
-                            >${activeCount}</span
-                          >
-                        </div>
-                      `
-                    : nothing;
-                }
-              )}
-            </div>
-
+            ${this._renderAlerts(
+              alerts,
+              entitiesByDomain,
+              customizationAlertMap
+            )}
             ${this.renderCustomButtons()}
 
             <!-- Buttons -->
-            <div
-              class="${classMap({
-                buttons: true,
-                ...designClasses,
-              })}"
-            >
-              ${repeat(
-                buttons,
-                (domain: string) => domain,
-                (domain: string) => {
-                  if (domain === "climate") {
-                    const climateCustomization =
-                      this._config?.customization_domain?.find(
-                        (item: { type: string }) => item.type === "climate"
-                      );
-                    const displayMode = (climateCustomization as any)
-                      ?.display_mode;
-                    if (displayMode !== "icon" && displayMode !== "text_icon") {
-                      return nothing;
-                    }
-                  }
-                  const customization = customizationDomainMap.get(domain);
-                  const domainColor =
-                    customization?.color || this._config?.domain_color;
-                  const domainIcon = customization?.icon;
-                  const activeEntities = (
-                    entitiesByDomain[domain as string] as HassEntity[]
-                  ).filter(
-                    (entity: HassEntity) =>
-                      !UNAVAILABLE_STATES.includes(entity.state) &&
-                      !STATES_OFF.includes(entity.state)
-                  );
-                  const activeCount = activeEntities.length;
-                  if (this._config.show_active && activeCount === 0) {
-                    return nothing;
-                  }
-                  return html`
-                    <div
-                      class="icon-with-count hover"
-                      style=${this._parseCss(
-                        customization?.css || this._config?.domain_css
-                      )}
-                      @action=${this._handleDomainAction(domain as string)}
-                      .actionHandler=${actionHandler({
-                        hasHold: hasAction(customization?.hold_action),
-                        hasDoubleClick: hasAction(
-                          customization?.double_tap_action
-                        ),
-                      })}
-                    >
-                      <ha-state-icon
-                        style=${domainColor
-                          ? `color: var(--${domainColor}-color);`
-                          : this._config?.domain_color
-                          ? `color: ${this._config.domain_color};`
-                          : ""}
-                        class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
-                        .domain=${domain}
-                        .icon=${domainIcon
-                          ? domainIcon
-                          : this._cachedIcon(
-                              domain as DomainType,
-                              activeCount > 0
-                            )}
-                      ></ha-state-icon>
-                      <span
-                        class="active-count text-small ${activeCount > 0
-                          ? "on"
-                          : "off"}"
-                      >
-                        ${activeCount}
-                      </span>
-                    </div>
-                  `;
-                }
-              )}
-            </div>
+            ${this._renderButtons(
+              buttons,
+              entitiesByDomain,
+              customizationDomainMap
+            )}
           </div>
 
-
-
-
-          <div class="${classMap({
-            bottom: true,
-            ...designClasses,
-          })}">
-              <div style=${`${
-                this._config?.area_name_color
-                  ? `color: var(--${this._config.area_name_color}-color);`
-                  : ""
-              } ${
-                this._config?.name_css
-                  ? this._config.name_css
-                      .split("\n")
-                      .reduce((acc: string, line: string) => {
-                        const trimmed = line.trim();
-                        if (trimmed && trimmed.includes(":")) {
-                          acc += trimmed.endsWith(";")
-                            ? trimmed
-                            : `${trimmed};`;
-                          acc += " ";
-                        }
-                        return acc;
-                      }, "")
-                  : ""
-              }`}"
-              <div class="${classMap({
-                name: true,
-                ...designClasses,
-                "text-large": true,
-                on: true,
-              })}"
-                @action=${this._handleAction}
-                .actionHandler=${actionHandler({
-                  hasHold: hasAction(this._config.hold_action),
-                  hasDoubleClick: hasAction(this._config.double_tap_action),
-                })}
-              >
-                ${this._config.area_name || area.name}
-              </div>
-
-              <!-- Sensors -->
-              <div class="sensors">
-                ${
-                  this._config?.wrap_sensor_icons
-                    ? repeat(
-                        sensors,
-                        (item) => item.domain + "-" + item.deviceClass,
-                        ({ domain, deviceClass, index }) => {
-                          const matchingEntities = entitiesByDomain[
-                            domain
-                          ].filter(
-                            (entity) =>
-                              entity.attributes.device_class === deviceClass
-                          );
-                          if (matchingEntities.length === 0) {
-                            return nothing;
-                          }
-
-                          const areaSensorEntityId = (() => {
-                            switch (deviceClass) {
-                              case "temperature":
-                                return area.temperature_entity_id;
-                              case "humidity":
-                                return area.humidity_entity_id;
-                              default:
-                                return null;
-                            }
-                          })();
-                          const areaEntity = areaSensorEntityId
-                            ? this.hass.states[areaSensorEntityId]
-                            : undefined;
-
-                          const customization =
-                            customizationSensorMap.get(deviceClass);
-                          const sensorColor =
-                            customization?.color || this._config?.sensor_color;
-                          const invert = customization?.invert === true;
-                          const hasOnEntity = matchingEntities.some(
-                            (e) =>
-                              !UNAVAILABLE_STATES.includes(e.state) &&
-                              !STATES_OFF.includes(e.state)
-                          );
-                          if (invert && hasOnEntity) {
-                            return nothing;
-                          }
-
-                          const icon = this._config?.show_sensor_icons
-                            ? html`<ha-domain-icon
-                                style=${sensorColor
-                                  ? `color: var(--${sensorColor}-color);`
-                                  : ""}
-                                .hass=${this.hass}
-                                .domain=${domain}
-                                .deviceClass=${deviceClass}
-                              ></ha-domain-icon>`
-                            : null;
-
-                          const value = html`<span
-                            class="sensor-value"
-                            @action=${this._handleSensorAction(
-                              domain,
-                              deviceClass
-                            )}
-                            .actionHandler=${actionHandler({
-                              hasHold: hasAction(customization?.hold_action),
-                              hasDoubleClick: hasAction(
-                                customization?.double_tap_action
-                              ),
-                            })}
-                            style=${`${
-                              sensorColor
-                                ? `color: var(--${sensorColor}-color);`
-                                : ""
-                            } ${this._parseCss(customization?.css)}`}
-                          >
-                            ${!this._config?.show_sensor_icons &&
-                            !this._config?.wrap_sensor_icons &&
-                            index > 0
-                              ? " - "
-                              : ""}
-                            ${areaEntity
-                              ? this.hass.formatEntityState(areaEntity)
-                              : this._average(domain, deviceClass)}
-                          </span>`;
-
-                          return html`<div class="sensor-row off">
-                            ${icon}${value}
-                          </div>`;
-                        }
-                      )
-                    : html`<div class="sensor text-medium off">
-                        ${repeat(
-                          sensors,
-                          (item) => item.domain + "-" + item.deviceClass,
-                          ({ domain, deviceClass, index }) => {
-                            const matchingEntities = entitiesByDomain[
-                              domain
-                            ].filter(
-                              (entity) =>
-                                entity.attributes.device_class === deviceClass
-                            );
-                            if (matchingEntities.length === 0) {
-                              return nothing;
-                            }
-
-                            const areaSensorEntityId = (() => {
-                              switch (deviceClass) {
-                                case "temperature":
-                                  return area.temperature_entity_id;
-                                case "humidity":
-                                  return area.humidity_entity_id;
-                                default:
-                                  return null;
-                              }
-                            })();
-                            const areaEntity = areaSensorEntityId
-                              ? this.hass.states[areaSensorEntityId]
-                              : undefined;
-
-                            const customization =
-                              customizationSensorMap.get(deviceClass);
-                            const sensorColor =
-                              customization?.color ||
-                              this._config?.sensor_color;
-                            const invert = customization?.invert === true;
-                            const hasOnEntity = matchingEntities.some(
-                              (e) =>
-                                !UNAVAILABLE_STATES.includes(e.state) &&
-                                !STATES_OFF.includes(e.state)
-                            );
-                            if (invert && hasOnEntity) {
-                              return nothing;
-                            }
-
-                            const icon = this._config?.show_sensor_icons
-                              ? html`<ha-domain-icon
-                                  style=${sensorColor
-                                    ? `color: var(--${sensorColor}-color);`
-                                    : ""}
-                                  .hass=${this.hass}
-                                  .domain=${domain}
-                                  .deviceClass=${deviceClass}
-                                ></ha-domain-icon>`
-                              : null;
-
-                            const value = html`<span
-                              class="sensor-value"
-                              @action=${this._handleSensorAction(
-                                domain,
-                                deviceClass
-                              )}
-                              .actionHandler=${actionHandler({
-                                hasHold: hasAction(customization?.hold_action),
-                                hasDoubleClick: hasAction(
-                                  customization?.double_tap_action
-                                ),
-                              })}
-                              style=${`${
-                                sensorColor
-                                  ? `color: var(--${sensorColor}-color);`
-                                  : ""
-                              } ${this._parseCss(customization?.css)}`}
-                            >
-                              ${!this._config?.show_sensor_icons &&
-                              !this._config?.wrap_sensor_icons &&
-                              index > 0
-                                ? " - "
-                                : ""}
-                              ${areaEntity
-                                ? this.hass.formatEntityState(areaEntity)
-                                : this._average(domain, deviceClass)}
-                            </span>`;
-
-                            return html`${icon}${value}`;
-                          }
-                        )}
-                      </div>`
-                }
-              </div>
-
-              <!-- Climates -->
-              <div class="climate text-small off">
-                ${repeat(
-                  climates,
-                  (item) => item.domain,
-                  ({ domain }) => {
-                    const entities = entitiesByDomain[domain];
-                    const activeTemperatures = entities
-                      .filter((entity) => {
-                        const hvacAction = entity.attributes.hvac_action;
-                        const state = entity.state;
-                        const isActive =
-                          !UNAVAILABLE_STATES.includes(state) &&
-                          !STATES_OFF.includes(state);
-                        if (hvacAction !== undefined) {
-                          const isHeatingCooling =
-                            hvacAction !== "idle" && hvacAction !== "off";
-                          const isHeatButIdle =
-                            state === "heat" &&
-                            (hvacAction === "idle" || hvacAction === "off");
-                          return isActive && isHeatingCooling && !isHeatButIdle;
-                        }
-                        return isActive;
-                      })
-                      .map((entity) => {
-                        const temperature =
-                          entity.attributes.temperature || "N/A";
-                        return `${temperature} ${
-                          this.hass?.config?.unit_system?.temperature || ""
-                        }`;
-                      });
-                    if (activeTemperatures.length === 0) {
-                      return nothing;
-                    }
-                    const customization = customizationDomainMap.get(domain);
-                    const displayMode = (customization as any)?.display_mode;
-                    if (displayMode === "icon") {
-                      return nothing;
-                    }
-                    const domainColor = customization?.color;
-                    const textStyle = `${
-                      domainColor
-                        ? `color: var(--${domainColor}-color);`
-                        : this._config?.domain_color
-                        ? `color: ${this._config.domain_color};`
-                        : ""
-                    } ${this._parseCss(customization?.css)}`;
-                    return html`<div
-                      class="climate"
-                      style=${textStyle}
-                      @action=${this._handleDomainAction(domain)}
-                      .actionHandler=${actionHandler({
-                        hasHold: hasAction(customization?.hold_action),
-                        hasDoubleClick: hasAction(
-                          customization?.double_tap_action
-                        ),
-                      })}
-                    >
-                      (${activeTemperatures.join(", ")})
-                    </div>`;
-                  }
-                )}
-              </div>
-            </div>
-          </div>
+          ${this._renderBottom(
+            area,
+            designClasses,
+            sensors,
+            entitiesByDomain,
+            customizationSensorMap,
+            climates,
+            customizationDomainMap
+          )}
         </div>
       </ha-card>
     `;
