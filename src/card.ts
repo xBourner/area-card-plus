@@ -1750,6 +1750,7 @@ export class AreaCardPlus
       .name {
         font-weight: bold;
         margin-bottom: 8px;
+        z-index: 1;
       }
       .name.row {
         margin-bottom: 0;
