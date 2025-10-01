@@ -767,7 +767,8 @@ export class AreaCardPlus
               return (
                 entityDeviceClass === deviceClass &&
                 (invert ? STATES_OFF.includes(entity.state) : isOn) &&
-                !excludedEntities.includes(entity.entity_id)
+                !excludedEntities.includes(entity.entity_id) &&
+                this._filterByCategory(entity.entity_id)
               );
             });
             const coverColor =
@@ -862,7 +863,8 @@ export class AreaCardPlus
               return (
                 entityDeviceClass === deviceClass &&
                 (invert ? STATES_OFF.includes(entity.state) : isOn) &&
-                !excludedEntities.includes(entity.entity_id)
+                !excludedEntities.includes(entity.entity_id) &&
+                this._filterByCategory(entity.entity_id)
               );
             });
             const alertColor =
@@ -978,6 +980,20 @@ export class AreaCardPlus
     `;
   }
 
+  private _filterByCategory(entityId: string): boolean {
+    const categoryFilter: string | undefined = this._config?.category_filter;
+    const registryEntities = this._entities || [];
+    if (!categoryFilter) return true;
+    const entry = registryEntities.find(
+      (e) => (e as any).entity_id === entityId
+    );
+    const cat = (entry as any)?.entity_category;
+    if (!cat) return true;
+    if (categoryFilter === "config") return cat !== "config";
+    if (categoryFilter === "diagnostic") return cat !== "diagnostic";
+    return true;
+  }
+
   private _renderButtons(
     buttons: string[],
     entitiesByDomain: { [domain: string]: HassEntity[] },
@@ -1014,14 +1030,14 @@ export class AreaCardPlus
             const domainColor =
               customization?.color || this._config?.domain_color;
             const domainIcon = customization?.icon;
-            // Filter out entities that are hidden globally (flat array of entity_ids)
             const activeEntities = (
               entitiesByDomain[domain as string] as HassEntity[]
             ).filter(
               (entity: HassEntity) =>
                 !UNAVAILABLE_STATES.includes(entity.state) &&
                 !STATES_OFF.includes(entity.state) &&
-                !excludedEntities.includes(entity.entity_id)
+                !excludedEntities.includes(entity.entity_id) &&
+                this._filterByCategory(entity.entity_id)
             );
             const activeCount = activeEntities.length;
             if (this._config.show_active && activeCount === 0) {
@@ -1110,7 +1126,8 @@ export class AreaCardPlus
                   (e) =>
                     !UNAVAILABLE_STATES.includes(e.state) &&
                     !STATES_OFF.includes(e.state) &&
-                    !excludedEntities.includes(e.entity_id)
+                    !excludedEntities.includes(e.entity_id) &&
+                    this._filterByCategory(e.entity_id)
                 );
                 if (invert && hasOnEntity) {
                   return nothing;
@@ -1247,7 +1264,8 @@ export class AreaCardPlus
                 const isActive =
                   !UNAVAILABLE_STATES.includes(state) &&
                   !STATES_OFF.includes(state) &&
-                  !excludedEntities.includes(entity.entity_id);
+                  !excludedEntities.includes(entity.entity_id) &&
+                  this._filterByCategory(entity.entity_id);
                 if (hvacAction !== undefined) {
                   const isHeatingCooling =
                     hvacAction !== "idle" && hvacAction !== "off";
@@ -1403,13 +1421,36 @@ export class AreaCardPlus
 
     const ignoreAspectRatio = this.layout === "grid";
 
-    const entitiesByDomain = this._entitiesByDomain(
+    const entitiesByDomainRaw = this._entitiesByDomain(
       this._config.area,
       this._devicesInArea(this._config.area, this._devices),
       this._entities,
       this._deviceClasses,
       this.hass.states
     );
+
+    // Category filter logic
+    const registryEntities = this._entities || [];
+    const categoryFilter: string | undefined = this._config?.category_filter;
+    const filterByCategory = (entityId: string) => {
+      if (!categoryFilter) return true;
+      const entry = registryEntities.find(
+        (e) => (e as any).entity_id === entityId
+      );
+      const cat = (entry as any)?.entity_category;
+      if (!cat) return true;
+      if (categoryFilter === "config") return cat !== "config";
+      if (categoryFilter === "diagnostic") return cat !== "diagnostic";
+      return true;
+    };
+
+    // Apply category filter to entitiesByDomain
+    const entitiesByDomain: { [domain: string]: HassEntity[] } = {};
+    Object.entries(entitiesByDomainRaw).forEach(([domain, entities]) => {
+      entitiesByDomain[domain] = entities.filter((entity) =>
+        filterByCategory(entity.entity_id)
+      );
+    });
     const area = this._area(this._config.area, this._areas);
 
     const customizationDomainMap = new Map<string, any>();

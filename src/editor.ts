@@ -1397,7 +1397,7 @@ export class AreaCardPlusEditor
                     name: "category_filter",
                     selector: {
                       select: {
-                        options: ["config", "diagnostic", "config+diagnostic"],
+                        options: ["config", "diagnostic"],
                         mode: "dropdown",
                       },
                     },
