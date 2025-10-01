@@ -260,14 +260,17 @@ export class AreaCardPlus
   }
 
   private _average(domain: string, deviceClass?: string): string | undefined {
+    const excludedEntities = this._config?.excluded_entities || [];
     const entities = this._entitiesByDomain(
       this._config!.area,
       this._devicesInArea(this._config!.area, this._devices!),
       this._entities!,
       this._deviceClasses,
       this.hass.states
-    )[domain].filter((entity) =>
-      deviceClass ? entity.attributes.device_class === deviceClass : true
+    )[domain].filter(
+      (entity) =>
+        (deviceClass ? entity.attributes.device_class === deviceClass : true) &&
+        !excludedEntities.includes(entity.entity_id)
     );
     if (!entities || entities.length === 0) {
       return undefined;
@@ -719,6 +722,9 @@ export class AreaCardPlus
           }
           return;
         }
+        if (ev.detail.action === "tap" && !customization?.tap_action) {
+          return;
+        }
       }
 
       const config = {
@@ -736,6 +742,7 @@ export class AreaCardPlus
     entitiesByDomain: { [domain: string]: HassEntity[] },
     customizationCoverMap: Map<string, any>
   ) {
+    const excludedEntities = this._config?.excluded_entities || [];
     const designClasses = {
       v2: this._config?.design === "V2",
       row: this._config?.layout === "horizontal",
@@ -759,7 +766,8 @@ export class AreaCardPlus
               const isOn = entity.state === "open";
               return (
                 entityDeviceClass === deviceClass &&
-                (invert ? STATES_OFF.includes(entity.state) : isOn)
+                (invert ? STATES_OFF.includes(entity.state) : isOn) &&
+                !excludedEntities.includes(entity.entity_id)
               );
             });
             const coverColor =
@@ -769,7 +777,7 @@ export class AreaCardPlus
             return activeCount > 0
               ? html`
                   <div
-                    class="icon-with-count"
+                    class="icon-with-count hover"
                     style=${this._parseCss(
                       customization?.css || this._config?.cover_css
                     )}
@@ -833,6 +841,7 @@ export class AreaCardPlus
       v2: this._config?.design === "V2",
       row: this._config?.layout === "horizontal",
     };
+    const excludedEntities = this._config?.excluded_entities || [];
     return html`
       <div
         class="${classMap({
@@ -852,7 +861,8 @@ export class AreaCardPlus
               const isOn = entity.state === "on";
               return (
                 entityDeviceClass === deviceClass &&
-                (invert ? STATES_OFF.includes(entity.state) : isOn)
+                (invert ? STATES_OFF.includes(entity.state) : isOn) &&
+                !excludedEntities.includes(entity.entity_id)
               );
             });
             const alertColor =
@@ -862,7 +872,7 @@ export class AreaCardPlus
             return activeCount > 0
               ? html`
                   <div
-                    class="icon-with-count"
+                    class="icon-with-count hover"
                     style=${this._parseCss(
                       customization?.css || this._config?.alert_css
                     )}
@@ -977,6 +987,8 @@ export class AreaCardPlus
       v2: this._config?.design === "V2",
       row: this._config?.layout === "horizontal",
     };
+    const excludedEntities = this._config?.excluded_entities || [];
+
     return html`
       <div
         class="${classMap({
@@ -1002,12 +1014,14 @@ export class AreaCardPlus
             const domainColor =
               customization?.color || this._config?.domain_color;
             const domainIcon = customization?.icon;
+            // Filter out entities that are hidden globally (flat array of entity_ids)
             const activeEntities = (
               entitiesByDomain[domain as string] as HassEntity[]
             ).filter(
               (entity: HassEntity) =>
                 !UNAVAILABLE_STATES.includes(entity.state) &&
-                !STATES_OFF.includes(entity.state)
+                !STATES_OFF.includes(entity.state) &&
+                !excludedEntities.includes(entity.entity_id)
             );
             const activeCount = activeEntities.length;
             if (this._config.show_active && activeCount === 0) {
@@ -1058,6 +1072,8 @@ export class AreaCardPlus
     area: AreaRegistryEntry,
     customizationSensorMap: Map<string, any>
   ) {
+    const excludedEntities = this._config?.excluded_entities || [];
+
     return html`
       <div class="sensors">
         ${this._config?.wrap_sensor_icons
@@ -1066,7 +1082,9 @@ export class AreaCardPlus
               (item) => item.domain + "-" + item.deviceClass,
               ({ domain, deviceClass, index }) => {
                 const matchingEntities = entitiesByDomain[domain].filter(
-                  (entity) => entity.attributes.device_class === deviceClass
+                  (entity) =>
+                    entity.attributes.device_class === deviceClass &&
+                    !excludedEntities.includes(entity.entity_id)
                 );
                 if (matchingEntities.length === 0) {
                   return nothing;
@@ -1091,7 +1109,8 @@ export class AreaCardPlus
                 const hasOnEntity = matchingEntities.some(
                   (e) =>
                     !UNAVAILABLE_STATES.includes(e.state) &&
-                    !STATES_OFF.includes(e.state)
+                    !STATES_OFF.includes(e.state) &&
+                    !excludedEntities.includes(e.entity_id)
                 );
                 if (invert && hasOnEntity) {
                   return nothing;
@@ -1135,7 +1154,9 @@ export class AreaCardPlus
                 (item) => item.domain + "-" + item.deviceClass,
                 ({ domain, deviceClass, index }) => {
                   const matchingEntities = entitiesByDomain[domain].filter(
-                    (entity) => entity.attributes.device_class === deviceClass
+                    (entity) =>
+                      entity.attributes.device_class === deviceClass &&
+                      !excludedEntities.includes(entity.entity_id)
                   );
                   if (matchingEntities.length === 0) {
                     return nothing;
@@ -1160,7 +1181,8 @@ export class AreaCardPlus
                   const hasOnEntity = matchingEntities.some(
                     (e) =>
                       !UNAVAILABLE_STATES.includes(e.state) &&
-                      !STATES_OFF.includes(e.state)
+                      !STATES_OFF.includes(e.state) &&
+                      !excludedEntities.includes(e.entity_id)
                   );
                   if (invert && hasOnEntity) {
                     return nothing;
@@ -1210,6 +1232,7 @@ export class AreaCardPlus
     entitiesByDomain: { [domain: string]: HassEntity[] },
     customizationDomainMap: Map<string, any>
   ) {
+    const excludedEntities = this._config?.excluded_entities || [];
     return html`
       <div class="climate text-small off">
         ${repeat(
@@ -1223,14 +1246,12 @@ export class AreaCardPlus
                 const state = entity.state;
                 const isActive =
                   !UNAVAILABLE_STATES.includes(state) &&
-                  !STATES_OFF.includes(state);
+                  !STATES_OFF.includes(state) &&
+                  !excludedEntities.includes(entity.entity_id);
                 if (hvacAction !== undefined) {
                   const isHeatingCooling =
                     hvacAction !== "idle" && hvacAction !== "off";
-                  const isHeatButIdle =
-                    state === "heat" &&
-                    (hvacAction === "idle" || hvacAction === "off");
-                  return isActive && isHeatingCooling && !isHeatButIdle;
+                  return isActive && isHeatingCooling;
                 }
                 return isActive;
               })
@@ -1860,6 +1881,7 @@ export class AreaCardPlus
           border-radius: 50%;
           display: flex;
           padding: 16px;
+          color: var(--card-background-color);
         }
       }
 

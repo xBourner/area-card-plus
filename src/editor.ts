@@ -30,6 +30,8 @@ import {
   mdiEye,
   mdiEyeOff,
   mdiGestureTapButton,
+  mdiEyeOutline,
+  mdiEyeOffOutline,
 } from "@mdi/js";
 import "./items-editor";
 import "./item-editor";
@@ -677,6 +679,23 @@ export class AreaCardPlusEditor
     this._config = {
       ...(this._config || ({} as any)),
       hidden_entities,
+    } as LovelaceCardConfig;
+    fireEvent(this, "config-changed", { config: this._config });
+  };
+
+  private _isExcludedEntity(entity_id: string): boolean {
+    const list = this._config?.excluded_entities ?? [];
+    return Array.isArray(list) && list.includes(entity_id);
+  }
+
+  private _toggleEntityExcluded = (entity_id: string) => {
+    const current = new Set(this._config?.excluded_entities ?? []);
+    if (current.has(entity_id)) current.delete(entity_id);
+    else current.add(entity_id);
+    const excluded_entities = Array.from(current);
+    this._config = {
+      ...(this._config || ({} as any)),
+      excluded_entities,
     } as LovelaceCardConfig;
     fireEvent(this, "config-changed", { config: this._config });
   };
@@ -1439,6 +1458,20 @@ export class AreaCardPlusEditor
                                           @click=${() =>
                                             this._toggleEntityHidden(id)}
                                         ></ha-icon-button>
+                                        <ha-icon-button
+                                          .path=${this._isExcludedEntity(id)
+                                            ? mdiEyeOutline
+                                            : mdiEyeOffOutline}
+                                          .label=${this._isExcludedEntity(id)
+                                            ? this.hass.localize(
+                                                "ui.common.show"
+                                              ) ?? "Show"
+                                            : this.hass.localize(
+                                                "ui.common.hide"
+                                              ) ?? "Hide"}
+                                          @click=${() =>
+                                            this._toggleEntityExcluded(id)}
+                                        ></ha-icon-button>
                                       </div>
                                     `
                                   )}
@@ -1463,6 +1496,17 @@ export class AreaCardPlusEditor
                                     : this.hass.localize("ui.common.hide") ??
                                       "Hide"}
                                   @click=${() => this._toggleEntityHidden(id)}
+                                ></ha-icon-button>
+                                <ha-icon-button
+                                  .path=${this._isExcludedEntity(id)
+                                    ? mdiEyeOutline
+                                    : mdiEyeOffOutline}
+                                  .label=${this._isExcludedEntity(id)
+                                    ? this.hass.localize("ui.common.show") ??
+                                      "Show"
+                                    : this.hass.localize("ui.common.hide") ??
+                                      "Hide"}
+                                  @click=${() => this._toggleEntityExcluded(id)}
                                 ></ha-icon-button>
                               </div>
                             `

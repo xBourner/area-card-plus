@@ -31,7 +31,7 @@ const OFF_STATES = [UNAVAILABLE_STATES, STATES_OFF];
 export class AreaCardPlusPopup extends LitElement {
   private _swipeStartY: number | null = null;
   private _swipeStartTime: number | null = null;
-  private _swipeThreshold = 120;
+  private _swipeThreshold = 250;
   private _swipeTimeLimit = 800;
   connectedCallback(): void {
     super.connectedCallback();
@@ -749,7 +749,6 @@ export class AreaCardPlusPopup extends LitElement {
     :host([hidden]) {
       display: none;
     }
-
     ha-dialog {
       --dialog-content-padding: 12px;
       --mdc-dialog-min-width: calc((var(--columns, 4) * 22.5vw) + 3vw);
@@ -757,7 +756,6 @@ export class AreaCardPlusPopup extends LitElement {
       box-sizing: border-box;
       overflow-x: auto;
     }
-
     .dialog-header {
       display: flex;
       justify-content: flex-start;
@@ -778,11 +776,12 @@ export class AreaCardPlusPopup extends LitElement {
       margin-bottom: 16px;
       max-height: 80vh;
       overflow-y: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
     }
-    .dialog-actions {
-      text-align: right;
+    .dialog-content.scrollable::-webkit-scrollbar {
+      display: none;
     }
-
     .cards-wrapper {
       display: flex;
       flex-direction: column;
@@ -791,15 +790,6 @@ export class AreaCardPlusPopup extends LitElement {
       box-sizing: border-box;
       width: 100%;
       overflow-x: auto;
-    }
-    .entity-list {
-      list-style: none;
-      padding: 0 8px;
-      margin: 0;
-    }
-    .entity-list .entity-item {
-      list-style: none;
-      margin: 0.2em 0;
     }
     h4 {
       width: calc(var(--columns, 4) * 22.5vw);
