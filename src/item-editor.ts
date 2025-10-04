@@ -65,6 +65,13 @@ export class ItemEditor extends LitElement {
             ],
           },
         },
+      },
+    {
+        name: "show_set_temperature",
+        selector: {
+          boolean: {
+          },
+        },
       });
     }
 
@@ -251,6 +258,8 @@ export class ItemEditor extends LitElement {
         );
       case "name":
         return this.hass!.localize(`ui.common.name`);
+      case "show_set_temperature":
+        return "Show Set Temperature";
       default:
         return this.hass!.localize(
           `ui.panel.lovelace.editor.card.area.${schema.name}`

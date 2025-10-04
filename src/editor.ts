@@ -1388,7 +1388,6 @@ export class AreaCardPlusEditor
               ${this.computeLabel({ name: "hidden_entities" })}
             </div>
             <div class="content">
-              <!-- Category filter selector for hidden entities -->
               <ha-form
                 .hass=${this.hass}
                 .data=${{ category_filter: this._config?.category_filter }}
@@ -1397,7 +1396,7 @@ export class AreaCardPlusEditor
                     name: "category_filter",
                     selector: {
                       select: {
-                        options: ["config", "diagnostic"],
+                        options: ["config", "diagnostic", "config+diagnostic"],
                         mode: "dropdown",
                       },
                     },
@@ -1446,8 +1445,8 @@ export class AreaCardPlusEditor
                                         </span>
                                         <ha-icon-button
                                           .path=${this._isHiddenEntity(id)
-                                            ? mdiEye
-                                            : mdiEyeOff}
+                                            ? mdiEyeOff
+                                            : mdiEye}
                                           .label=${this._isHiddenEntity(id)
                                             ? this.hass.localize(
                                                 "ui.common.show"
@@ -1460,15 +1459,11 @@ export class AreaCardPlusEditor
                                         ></ha-icon-button>
                                         <ha-icon-button
                                           .path=${this._isExcludedEntity(id)
-                                            ? mdiEyeOutline
-                                            : mdiEyeOffOutline}
+                                            ? mdiEyeOffOutline
+                                            : mdiEyeOutline}
                                           .label=${this._isExcludedEntity(id)
-                                            ? this.hass.localize(
-                                                "ui.common.show"
-                                              ) ?? "Show"
-                                            : this.hass.localize(
-                                                "ui.common.hide"
-                                              ) ?? "Hide"}
+                                            ? "Include"
+                                            : "Exclude"}
                                           @click=${() =>
                                             this._toggleEntityExcluded(id)}
                                         ></ha-icon-button>
@@ -1488,8 +1483,8 @@ export class AreaCardPlusEditor
                                 </span>
                                 <ha-icon-button
                                   .path=${this._isHiddenEntity(id)
-                                    ? mdiEye
-                                    : mdiEyeOff}
+                                    ? mdiEyeOff
+                                    : mdiEye}
                                   .label=${this._isHiddenEntity(id)
                                     ? this.hass.localize("ui.common.show") ??
                                       "Show"
@@ -1499,13 +1494,11 @@ export class AreaCardPlusEditor
                                 ></ha-icon-button>
                                 <ha-icon-button
                                   .path=${this._isExcludedEntity(id)
-                                    ? mdiEyeOutline
-                                    : mdiEyeOffOutline}
+                                    ? mdiEyeOffOutline
+                                    : mdiEyeOutline}
                                   .label=${this._isExcludedEntity(id)
-                                    ? this.hass.localize("ui.common.show") ??
-                                      "Show"
-                                    : this.hass.localize("ui.common.hide") ??
-                                      "Hide"}
+                                    ? "Include"
+                                    : "Exclude"}
                                   @click=${() => this._toggleEntityExcluded(id)}
                                 ></ha-icon-button>
                               </div>
