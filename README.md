@@ -98,6 +98,10 @@ After adding the repository to your HA instance you need to add the card to one 
 Just choose an area an the card will do the rest. <br>
 The card needs to work with your areas so you need to assign your relevant devices/entities to your areas.
 
+### Configuration:
+
+See more in [Wiki](https://github.com/xBourner/area-card-plus/wiki)
+
 
 <p align="right">
   <a href="#top">
