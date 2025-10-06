@@ -84,7 +84,7 @@ This card i highly influenced by [Dwains Dashboard](https://github.com/dwainsche
 
 For more info look at [How to add Custom Repositories](https://hacs.xyz/docs/faq/custom_repositories/)
 
-#### Usage:
+### Usage:
 
 After adding the repository to your HA instance you need to add the card to one of your dashboards. <br>
 Just choose an area an the card will do the rest. <br>
