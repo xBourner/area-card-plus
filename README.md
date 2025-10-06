@@ -1,6 +1,4 @@
-<a name="top"></a>
-
-# Area Card Plus
+<h1 id="top">Area Card Plus</h1>
 
 [![(https://hacs.xyz)](https://img.shields.io/badge/hacs-default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/xBourner/area-card-plus/total?style=for-the-badge)
@@ -70,12 +68,6 @@ This card i highly influenced by [Dwains Dashboard](https://github.com/dwainsche
 
 <br>
 
-<p align="right">
-  <a href="#top">
-    <img src="https://github.com/xBourner/status-card/blob/main/.github/img/top.png" alt="Back to Top" width="4%">
-  </a>
-</p>
-
 ## Installation
 
 ###  HACS Installation (Recommended)
@@ -102,14 +94,6 @@ The card needs to work with your areas so you need to assign your relevant devic
 
 See more in [Wiki](https://github.com/xBourner/area-card-plus/wiki)
 
-
-<p align="right">
-  <a href="#top">
-    <img src="https://github.com/xBourner/status-card/blob/main/.github/img/top.png" alt="Back to Top" width="4%">
-  </a>
-</p>
-
-
 # Feedback
 
 To see the latest changes please look at: [Releases](https://github.com/xBourner/area-card-plus/releases)
@@ -118,11 +102,9 @@ To see the latest changes please look at: [Releases](https://github.com/xBourner
 Thank you for using my custom cards. Please leave some feedback or a star.
 If you have any problems, suggestions for improvements or want to connect with me you can joing my discord: https://discord.gg/RfVx7hmZD3
 
-<p align="right">
-  <a href="#top">
-    <img src="https://github.com/xBourner/status-card/blob/main/.github/img/top.png" alt="Back to Top" width="4%">
-  </a>
-</p>
+<br><hr>
+
+[🔝 Back to top](#top)
 
 
 
