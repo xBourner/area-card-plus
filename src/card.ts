@@ -991,7 +991,8 @@ export class AreaCardPlus
     if (!cat) return true;
     if (categoryFilter === "config") return cat !== "config";
     if (categoryFilter === "diagnostic") return cat !== "diagnostic";
-    if (categoryFilter === "config+diagnostic") return cat !== "config" && cat !== "diagnostic";
+    if (categoryFilter === "config+diagnostic")
+      return cat !== "config" && cat !== "diagnostic";
     return true;
   }
 
@@ -1031,26 +1032,85 @@ export class AreaCardPlus
             const domainColor =
               customization?.color || this._config?.domain_color;
             const domainIcon = customization?.icon;
-            const activeEntities = (
+
+            const climateCustomization =
+              domain === "climate"
+                ? this._config?.customization_domain?.find(
+                    (item: { type: string }) => item.type === "climate"
+                  )
+                : undefined;
+            const displayMode = (climateCustomization as any)?.display_mode;
+            const climateShowSetTemp = (climateCustomization as any)
+              ?.show_set_temperature;
+            const climateSpecial =
+              domain === "climate" &&
+              (displayMode === "icon" || displayMode === "text_icon") &&
+              climateShowSetTemp === true;
+            const baselineEntities = (
               entitiesByDomain[domain as string] as HassEntity[]
             ).filter((entity: HassEntity) => {
               if (UNAVAILABLE_STATES.includes(entity.state)) return false;
               if (excludedEntities.includes(entity.entity_id)) return false;
               if (!this._filterByCategory(entity.entity_id)) return false;
-              if (domain === "climate") {
-                const hvacAction = entity.attributes?.hvac_action;
-                if (hvacAction !== undefined && hvacAction !== null) {
-                  const hvacLower = hvacAction.toString().toLowerCase();
-                  if (hvacLower === "off" || hvacLower === "idle") return false;
-                  return true;
-                }
-                const stateLower = (entity.state ?? "").toString().toLowerCase();
-                if (stateLower === "off" || stateLower === "idle") return false;
-                return true;
-              }
-              if (STATES_OFF.includes(entity.state)) return false;
               return true;
             });
+
+            let activeEntities: HassEntity[] = [];
+            let climateIconColor: string | undefined = undefined;
+
+            if (climateSpecial) {
+              activeEntities = baselineEntities;
+              let heating = false;
+              let cooling = false;
+              for (const entity of baselineEntities) {
+                const hvacAction = entity.attributes?.hvac_action ?? null;
+                const state = (entity.state ?? "").toString().toLowerCase();
+                if (hvacAction !== null && hvacAction !== undefined) {
+                  const hvacLower = hvacAction.toString().toLowerCase();
+                  heating =
+                    heating ||
+                    hvacLower.includes("heat") ||
+                    hvacLower.includes("heating");
+                  cooling =
+                    cooling ||
+                    hvacLower.includes("cool") ||
+                    hvacLower.includes("cooling");
+                } else {
+                  heating =
+                    heating ||
+                    state.includes("heat") ||
+                    state.includes("heating");
+                  cooling =
+                    cooling ||
+                    state.includes("cool") ||
+                    state.includes("cooling");
+                }
+                if (heating && cooling) break;
+              }
+              if (heating) climateIconColor = "red";
+              else if (cooling) climateIconColor = "cornflowerblue";
+              console.log("color", climateIconColor);
+            } else {
+              activeEntities = baselineEntities.filter((entity: HassEntity) => {
+                if (domain === "climate") {
+                  const hvacAction = entity.attributes?.hvac_action;
+                  if (hvacAction !== undefined && hvacAction !== null) {
+                    const hvacLower = hvacAction.toString().toLowerCase();
+                    if (hvacLower === "off" || hvacLower === "idle")
+                      return false;
+                    return true;
+                  }
+                  const stateLower = (entity.state ?? "")
+                    .toString()
+                    .toLowerCase();
+                  if (stateLower === "off" || stateLower === "idle")
+                    return false;
+                  return true;
+                }
+                if (STATES_OFF.includes(entity.state)) return false;
+                return true;
+              });
+            }
             const activeCount = activeEntities.length;
             if (this._config.show_active && activeCount === 0) {
               return nothing;
@@ -1068,7 +1128,9 @@ export class AreaCardPlus
                 })}
               >
                 <ha-state-icon
-                  style=${domainColor
+                  style=${climateIconColor
+                    ? `color: ${climateIconColor};`
+                    : domainColor
                     ? `color: var(--${domainColor}-color);`
                     : this._config?.domain_color
                     ? `color: ${this._config.domain_color};`
@@ -1146,9 +1208,9 @@ export class AreaCardPlus
                 }
                 const icon = this._config?.show_sensor_icons
                   ? html`<ha-domain-icon
-                      style=${sensorColor
-                        ? `color: var(--${sensorColor}-color);`
-                        : ""}
+                      style=${`${
+                        sensorColor ? `color: var(--${sensorColor}-color);` : ""
+                      } ${this._parseCss(customization?.css)}`}
                       .hass=${this.hass}
                       .domain=${domain}
                       .deviceClass=${deviceClass}
@@ -1218,9 +1280,11 @@ export class AreaCardPlus
                   }
                   const icon = this._config?.show_sensor_icons
                     ? html`<ha-domain-icon
-                        style=${sensorColor
-                          ? `color: var(--${sensorColor}-color);`
-                          : ""}
+                        style=${`${
+                          sensorColor
+                            ? `color: var(--${sensorColor}-color);`
+                            : ""
+                        } ${this._parseCss(customization?.css)}`}
                         .hass=${this.hass}
                         .domain=${domain}
                         .deviceClass=${deviceClass}
@@ -1256,68 +1320,138 @@ export class AreaCardPlus
     `;
   }
 
-private _renderClimates(
-  climates: Array<{ domain: string }>,
-  entitiesByDomain: { [domain: string]: HassEntity[] },
-  customizationDomainMap: Map<string, any>
-) {
-  const excludedEntities = this._config?.excluded_entities || [];
-  return html`
-    <div class="climate text-small off">
-      ${repeat(
-        climates,
-        (item) => item.domain,
-        ({ domain }) => {
-          const entities = entitiesByDomain[domain] || [];
-          const customization = customizationDomainMap.get(domain) || {};
-          const displayMode = (customization as any)?.display_mode;
-          if (displayMode === "icon") {
-            return nothing;
-          }
+  private _renderClimates(
+    climates: Array<{ domain: string }>,
+    entitiesByDomain: { [domain: string]: HassEntity[] },
+    customizationDomainMap: Map<string, any>
+  ) {
+    const excludedEntities = this._config?.excluded_entities || [];
+    return html`
+      <div class="climate text-small off">
+        ${repeat(
+          climates,
+          (item) => item.domain,
+          ({ domain }) => {
+            const entities = entitiesByDomain[domain] || [];
+            const customization = customizationDomainMap.get(domain) || {};
+            const displayMode = (customization as any)?.display_mode;
+            if (displayMode === "icon") {
+              return nothing;
+            }
 
-          if ((customization as any)?.show_set_temperature === true) {
-            const tempsSpans = entities
+            if ((customization as any)?.show_set_temperature === true) {
+              const tempsTemplates = entities
+                .filter((entity) => {
+                  if (excludedEntities.includes(entity.entity_id)) return false;
+                  if (!this._filterByCategory(entity.entity_id)) return false;
+                  return true;
+                })
+                .map((entity) => {
+                  const rawTemp =
+                    entity.attributes?.temperature ??
+                    entity.attributes?.target_temperature ??
+                    null;
+                  if (rawTemp === null || rawTemp === undefined) return null;
+                  const num = Number(rawTemp);
+                  if (Number.isNaN(num)) return null;
+
+                  const unit =
+                    this.hass?.config?.unit_system?.temperature || "";
+                  const hvacAction = entity.attributes?.hvac_action ?? null;
+                  const state = (entity.state ?? "").toString().toLowerCase();
+
+                  const hvacLower = (hvacAction ?? state)
+                    .toString()
+                    .toLowerCase();
+                  const heating =
+                    hvacLower.includes("heat") || hvacLower.includes("heating");
+                  const cooling =
+                    hvacLower.includes("cool") || hvacLower.includes("cooling");
+
+                  const color = heating
+                    ? "red"
+                    : cooling
+                    ? "cornflowerblue"
+                    : "var(--secondary-text-color)";
+
+                  return html`<span style="color:${color};"
+                    >${num}${unit ? ` ${unit}` : ""}</span
+                  >`;
+                })
+                .filter((t) => t !== null) as Array<unknown>;
+
+              if (tempsTemplates.length === 0) return nothing;
+
+              const joinedTemplates = tempsTemplates.reduce(
+                (acc: any[], cur, i) => {
+                  if (i === 0) {
+                    acc.push(cur);
+                  } else {
+                    acc.push(
+                      html`<span style="color: var(--secondary-text-color)"
+                        >,
+                      </span>`
+                    );
+                    acc.push(cur);
+                  }
+                  return acc;
+                },
+                []
+              );
+
+              const parentStyle = `${this._parseCss(customization?.css)}`;
+
+              return html`<div
+                class="climate"
+                style=${parentStyle}
+                @action=${this._handleDomainAction(domain)}
+                .actionHandler=${actionHandler({
+                  hasHold: hasAction(customization?.hold_action),
+                  hasDoubleClick: hasAction(customization?.double_tap_action),
+                })}
+              >
+                <span style="color: var(--secondary-text-color)">(</span
+                >${joinedTemplates}<span
+                  style="color: var(--secondary-text-color)"
+                  >)</span
+                >
+              </div>`;
+            }
+
+            const activeTemperatures = (entities || [])
               .filter((entity) => {
-                if (excludedEntities.includes(entity.entity_id)) return false;
-                if (!this._filterByCategory(entity.entity_id)) return false;
-                return true;
-              })
-              .map((entity) => {
-                const rawTemp =
-                  entity.attributes?.temperature ??
-                  entity.attributes?.target_temperature ??
-                  null;
-                if (rawTemp === null || rawTemp === undefined) return null;
-                const num = Number(rawTemp);
-                if (Number.isNaN(num)) return null;
+                const hvacAction = entity.attributes?.hvac_action;
+                const state = entity.state;
+                const isActive =
+                  !UNAVAILABLE_STATES.includes(state) &&
+                  !STATES_OFF.includes(state) &&
+                  !excludedEntities.includes(entity.entity_id) &&
+                  this._filterByCategory(entity.entity_id);
 
-                const unit = this.hass?.config?.unit_system?.temperature || "";
-                const hvacAction = entity.attributes?.hvac_action ?? null;
-                const state = (entity.state ?? "").toString().toLowerCase();
-                let heating = false;
-                let cooling = false;
-                if (hvacAction !== null && hvacAction !== undefined) {
+                if (hvacAction !== undefined && hvacAction !== null) {
                   const hvacLower = hvacAction.toString().toLowerCase();
-                  heating = hvacLower.includes("heat") || hvacLower.includes("heating");
-                  cooling = hvacLower.includes("cool") || hvacLower.includes("cooling");
-                } else {
-                  heating = state.includes("heat") || state.includes("heating");
-                  cooling = state.includes("cool") || state.includes("cooling");
+                  const isHeatingCooling =
+                    hvacLower !== "idle" && hvacLower !== "off";
+                  return isActive && isHeatingCooling;
                 }
 
-                let tempStyle = "color: var(--secondary-text-color);";
-                if (heating) tempStyle = "color: red;";
-                else if (cooling) tempStyle = "color: cornflowerblue;";
-
-                return html`<span style="${tempStyle}">${num}${unit ? ` ${unit}` : ""}</span>`;
+                const stateLower = (state ?? "").toString().toLowerCase();
+                const isHeatingCoolingByState =
+                  stateLower.includes("heat") ||
+                  stateLower.includes("cool") ||
+                  (stateLower !== "idle" && stateLower !== "off");
+                return isActive && isHeatingCoolingByState;
               })
-              .filter((s) => s !== null) as Array<unknown>;
+              .map((entity) => {
+                const temperature = entity.attributes?.temperature ?? "N/A";
+                return `${temperature} ${
+                  this.hass?.config?.unit_system?.temperature || ""
+                }`;
+              });
 
-            if (tempsSpans.length === 0) return nothing;
-
-            const tempsWithSep = tempsSpans.flatMap((t: any, i: number) =>
-              i === 0 ? [t] : [html`, `, t]
-            );
+            if (activeTemperatures.length === 0) {
+              return nothing;
+            }
 
             const domainColor = customization?.color;
             const textStyle = `${
@@ -1337,67 +1471,13 @@ private _renderClimates(
                 hasDoubleClick: hasAction(customization?.double_tap_action),
               })}
             >
-              (${tempsWithSep})
+              (${activeTemperatures.join(", ")})
             </div>`;
           }
-
-          const activeTemperatures = (entities || [])
-            .filter((entity) => {
-              const hvacAction = entity.attributes?.hvac_action;
-              const state = entity.state;
-              const isActive =
-                !UNAVAILABLE_STATES.includes(state) &&
-                !STATES_OFF.includes(state) &&
-                !excludedEntities.includes(entity.entity_id) &&
-                this._filterByCategory(entity.entity_id);
-
-              if (hvacAction !== undefined && hvacAction !== null) {
-                const hvacLower = hvacAction.toString().toLowerCase();
-                const isHeatingCooling = hvacLower !== "idle" && hvacLower !== "off";
-                return isActive && isHeatingCooling;
-              }
-
-              const stateLower = (state ?? "").toString().toLowerCase();
-              const isHeatingCoolingByState =
-                stateLower.includes("heat") ||
-                stateLower.includes("cool") ||
-                (stateLower !== "idle" && stateLower !== "off");
-              return isActive && isHeatingCoolingByState;
-            })
-            .map((entity) => {
-              const temperature = entity.attributes?.temperature ?? "N/A";
-              return `${temperature} ${this.hass?.config?.unit_system?.temperature || ""}`;
-            });
-
-          if (activeTemperatures.length === 0) {
-            return nothing;
-          }
-
-          const domainColor = customization?.color;
-          const textStyle = `${
-            domainColor
-              ? `color: var(--${domainColor}-color);`
-              : this._config?.domain_color
-              ? `color: ${this._config.domain_color};`
-              : ""
-          } ${this._parseCss(customization?.css)}`;
-
-          return html`<div
-            class="climate"
-            style=${textStyle}
-            @action=${this._handleDomainAction(domain)}
-            .actionHandler=${actionHandler({
-              hasHold: hasAction(customization?.hold_action),
-              hasDoubleClick: hasAction(customization?.double_tap_action),
-            })}
-          >
-            (${activeTemperatures.join(", ")})
-          </div>`;
-        }
-      )}
-    </div>
-  `;
-}
+        )}
+      </div>
+    `;
+  }
 
   private _renderBottom(
     area: AreaRegistryEntry,
@@ -1527,7 +1607,8 @@ private _renderClimates(
       if (!cat) return true;
       if (categoryFilter === "config") return cat !== "config";
       if (categoryFilter === "diagnostic") return cat !== "diagnostic";
-      if (categoryFilter === "config+diagnostic") return cat !== "config" && cat !== "diagnostic";
+      if (categoryFilter === "config+diagnostic")
+        return cat !== "config" && cat !== "diagnostic";
       return true;
     };
 
