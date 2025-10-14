@@ -1,0 +1,106 @@
+name: Bug Report
+description: File a bug report.
+title: '[Bug]: '
+labels:
+- bug
+assignees:
+- xBourner
+body:
+- type: markdown
+  attributes:
+    value: 'Thanks for taking the time to fill out this bug report!'
+- type: textarea
+  id: what-happened
+  attributes:
+    label: What happened?
+    description: Please tell me what exactly happened while using the card. The more detailed, the better.
+    placeholder: Tell us what you see!
+  validations:
+    required: true
+- type: textarea
+  id: to-reproduce
+  attributes:
+    label: 'To Reproduce:'
+    placeholder: Steps to reproduce the behavior
+  validations:
+    required: true
+- type: textarea
+  id: screenshots
+  attributes:
+    label: Screenshots
+    placeholder: If applicable, add screenshots to help explain your problem.
+- type: dropdown
+  id: ha_version
+  attributes:
+    label: HA Version
+    description: What version of HA are you running?
+    options:
+    - 2025.10.2
+    - 2025.10.1
+    - 2025.10.0b7
+    - 2025.10.0b6
+    - 2025.10.0b5
+    - 2025.10.0b4
+    - 2025.10.0b3
+    - 2025.10.0b2
+    - 2025.10.0b1
+    - 2025.10.0b0
+    - 2025.10.0
+    - 2025.9.4
+    - 2025.9.3
+    - 2025.9.2
+    - 2025.9.1
+    - 2025.9.0b6
+    - 2025.9.0b5
+    - 2025.9.0b4
+    - 2025.9.0b3
+    - 2025.9.0b2
+    - 2025.9.0b1
+    - 2025.9.0b0
+    - 2025.9.0
+    - 2025.8.3
+    - 2025.8.2
+    - 2025.8.1
+    - 2025.8.0b5
+    - 2025.8.0b4
+    - 2025.8.0b3
+    - 2025.8.0b2
+    - 2025.8.0b1
+    - 2025.8.0b0
+    - 2025.8.0
+    default: 0
+  validations:
+    required: true
+- type: dropdown
+  id: card_version
+  attributes:
+    label: Card Version
+    description: What version of the card are you running?
+    options:
+    - 1
+    default: 0
+  validations:
+    required: true
+- type: dropdown
+  id: browsers
+  attributes:
+    label: What browsers are you seeing the problem on?
+    description: Browser/App
+    multiple: true
+    options:
+    - Firefox
+    - Chrome
+    - Safari
+    - Microsoft Edge
+    - HA App on Android
+    - HA App on iOS
+  validations:
+    required: true    
+- type: checkboxes
+  id: terms
+  attributes:
+    label: Agreement
+    options:
+    - label: I agree that I updated HA and the card to the latest version and deleted
+        my cache or reinstalled the HA app before submitting this bug.
+      required: true
