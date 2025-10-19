@@ -48,7 +48,7 @@ const hi = (t) => new Kt(typeof t == "string" ? t : t + "", void 0, _t), xe = (t
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const { is: mi, defineProperty: _i, getOwnPropertyDescriptor: pi, getOwnPropertyNames: fi, getOwnPropertySymbols: gi, getPrototypeOf: vi } = Object, de = globalThis, At = de.trustedTypes, yi = At ? At.emptyScript : "", Qe = de.reactiveElementPolyfillSupport, He = (t, e) => t, Ge = { toAttribute(t, e) {
+const { is: mi, defineProperty: _i, getOwnPropertyDescriptor: pi, getOwnPropertyNames: fi, getOwnPropertySymbols: gi, getPrototypeOf: vi } = Object, de = globalThis, At = de.trustedTypes, yi = At ? At.emptyScript : "", Qe = de.reactiveElementPolyfillSupport, ze = (t, e) => t, Ge = { toAttribute(t, e) {
   switch (e) {
     case Boolean:
       t = t ? yi : null;
@@ -106,13 +106,13 @@ let $e = class extends HTMLElement {
     return this.elementProperties.get(e) ?? Et;
   }
   static _$Ei() {
-    if (this.hasOwnProperty(He("elementProperties"))) return;
+    if (this.hasOwnProperty(ze("elementProperties"))) return;
     const e = vi(this);
     e.finalize(), e.l !== void 0 && (this.l = [...e.l]), this.elementProperties = new Map(e.elementProperties);
   }
   static finalize() {
-    if (this.hasOwnProperty(He("finalized"))) return;
-    if (this.finalized = !0, this._$Ei(), this.hasOwnProperty(He("properties"))) {
+    if (this.hasOwnProperty(ze("finalized"))) return;
+    if (this.finalized = !0, this._$Ei(), this.hasOwnProperty(ze("properties"))) {
       const i = this.properties, s = [...fi(i), ...gi(i)];
       for (const o of s) this.createProperty(o, i[o]);
     }
@@ -281,15 +281,15 @@ let $e = class extends HTMLElement {
   firstUpdated(e) {
   }
 };
-$e.elementStyles = [], $e.shadowRootOptions = { mode: "open" }, $e[He("elementProperties")] = /* @__PURE__ */ new Map(), $e[He("finalized")] = /* @__PURE__ */ new Map(), Qe == null || Qe({ ReactiveElement: $e }), (de.reactiveElementVersions ?? (de.reactiveElementVersions = [])).push("2.1.1");
+$e.elementStyles = [], $e.shadowRootOptions = { mode: "open" }, $e[ze("elementProperties")] = /* @__PURE__ */ new Map(), $e[ze("finalized")] = /* @__PURE__ */ new Map(), Qe == null || Qe({ ReactiveElement: $e }), (de.reactiveElementVersions ?? (de.reactiveElementVersions = [])).push("2.1.1");
 /**
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const ze = globalThis, Ze = ze.trustedTypes, St = Ze ? Ze.createPolicy("lit-html", { createHTML: (t) => t }) : void 0, Wt = "$lit$", le = `lit$${Math.random().toFixed(9).slice(2)}$`, Gt = "?" + le, bi = `<${Gt}>`, ge = document, Pe = () => ge.createComment(""), Te = (t) => t === null || typeof t != "object" && typeof t != "function", ft = Array.isArray, $i = (t) => ft(t) || typeof (t == null ? void 0 : t[Symbol.iterator]) == "function", et = `[ 	
+const He = globalThis, Ze = He.trustedTypes, St = Ze ? Ze.createPolicy("lit-html", { createHTML: (t) => t }) : void 0, Wt = "$lit$", le = `lit$${Math.random().toFixed(9).slice(2)}$`, Gt = "?" + le, bi = `<${Gt}>`, ge = document, Pe = () => ge.createComment(""), Te = (t) => t === null || typeof t != "object" && typeof t != "function", ft = Array.isArray, $i = (t) => ft(t) || typeof (t == null ? void 0 : t[Symbol.iterator]) == "function", et = `[ 	
 \f\r]`, De = /<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g, Ot = /-->/g, kt = />/g, me = RegExp(`>|${et}(?:([^\\s"'>=/]+)(${et}*=${et}*(?:[^ 	
-\f\r"'\`<>=]|("|')|))|$)`, "g"), Dt = /'/g, Lt = /"/g, Zt = /^(?:script|style|textarea|title)$/i, wi = (t) => (e, ...i) => ({ _$litType$: t, strings: e, values: i }), $ = wi(1), ie = Symbol.for("lit-noChange"), x = Symbol.for("lit-nothing"), Ht = /* @__PURE__ */ new WeakMap(), pe = ge.createTreeWalker(ge, 129);
+\f\r"'\`<>=]|("|')|))|$)`, "g"), Dt = /'/g, Lt = /"/g, Zt = /^(?:script|style|textarea|title)$/i, wi = (t) => (e, ...i) => ({ _$litType$: t, strings: e, values: i }), $ = wi(1), ie = Symbol.for("lit-noChange"), x = Symbol.for("lit-nothing"), zt = /* @__PURE__ */ new WeakMap(), pe = ge.createTreeWalker(ge, 129);
 function Xt(t, e) {
   if (!ft(t) || !t.hasOwnProperty("raw")) throw Error("invalid template strings array");
   return St !== void 0 ? St.createHTML(e) : e;
@@ -419,8 +419,8 @@ class Ae {
     }
   }
   _$AC(e) {
-    let i = Ht.get(e.strings);
-    return i === void 0 && Ht.set(e.strings, i = new Be(e)), i;
+    let i = zt.get(e.strings);
+    return i === void 0 && zt.set(e.strings, i = new Be(e)), i;
   }
   k(e) {
     ft(this._$AH) || (this._$AH = [], this._$AR());
@@ -507,8 +507,8 @@ class Oi {
     Ce(this, e);
   }
 }
-const ki = { I: Ae }, tt = ze.litHtmlPolyfillSupport;
-tt == null || tt(Be, Ae), (ze.litHtmlVersions ?? (ze.litHtmlVersions = [])).push("3.3.1");
+const ki = { I: Ae }, tt = He.litHtmlPolyfillSupport;
+tt == null || tt(Be, Ae), (He.litHtmlVersions ?? (He.litHtmlVersions = [])).push("3.3.1");
 const Di = (t, e, i) => {
   const s = (i == null ? void 0 : i.renderBefore) ?? e;
   let o = s._$litPart$;
@@ -569,7 +569,7 @@ const re = (t) => (e, i) => {
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const Li = { attribute: !0, type: String, converter: Ge, reflect: !1, hasChanged: pt }, Hi = (t = Li, e, i) => {
+const Li = { attribute: !0, type: String, converter: Ge, reflect: !1, hasChanged: pt }, zi = (t = Li, e, i) => {
   const { kind: s, metadata: o } = i;
   let n = globalThis.litPropertyMetadata.get(o);
   if (n === void 0 && globalThis.litPropertyMetadata.set(o, n = /* @__PURE__ */ new Map()), s === "setter" && ((t = Object.create(t)).wrapped = !0), n.set(i.name, t), s === "accessor") {
@@ -590,8 +590,8 @@ const Li = { attribute: !0, type: String, converter: Ge, reflect: !1, hasChanged
   }
   throw Error("Unsupported decorator location: " + s);
 };
-function H(t) {
-  return (e, i) => typeof i == "object" ? Hi(t, e, i) : ((s, o, n) => {
+function z(t) {
+  return (e, i) => typeof i == "object" ? zi(t, e, i) : ((s, o, n) => {
     const a = o.hasOwnProperty(n);
     return o.constructor.createProperty(n, s), a ? Object.getOwnPropertyDescriptor(o, n) : void 0;
   })(t, e, i);
@@ -602,7 +602,7 @@ function H(t) {
  * SPDX-License-Identifier: BSD-3-Clause
  */
 function B(t) {
-  return H({ ...t, state: !0, attribute: !1 });
+  return z({ ...t, state: !0, attribute: !1 });
 }
 /**
  * @license
@@ -660,7 +660,7 @@ const Q = Je(class extends Ye {
  * Copyright 2018 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const Jt = "important", zi = " !" + Jt, Re = Je(class extends Ye {
+const Jt = "important", Hi = " !" + Jt, Re = Je(class extends Ye {
   constructor(t) {
     var e;
     if (super(t), t.type !== gt.ATTRIBUTE || t.name !== "style" || ((e = t.strings) == null ? void 0 : e.length) > 2) throw Error("The `styleMap` directive must be used in the `style` attribute and must be the only part in the attribute.");
@@ -679,7 +679,7 @@ const Jt = "important", zi = " !" + Jt, Re = Je(class extends Ye {
       const o = e[s];
       if (o != null) {
         this.ft.add(s);
-        const n = typeof o == "string" && o.endsWith(zi);
+        const n = typeof o == "string" && o.endsWith(Hi);
         s.includes("-") || n ? i.setProperty(s, n ? o.slice(0, -11) : o, n ? Jt : "") : i[s] = o;
       }
     }
@@ -691,11 +691,11 @@ const Jt = "important", zi = " !" + Jt, Re = Je(class extends Ye {
  * Copyright 2020 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const { I: Mi } = ki, zt = () => document.createComment(""), Le = (t, e, i) => {
+const { I: Mi } = ki, Ht = () => document.createComment(""), Le = (t, e, i) => {
   var n;
   const s = t._$AA.parentNode, o = e === void 0 ? t._$AB : e._$AA;
   if (i === void 0) {
-    const a = s.insertBefore(zt(), o), r = s.insertBefore(zt(), o);
+    const a = s.insertBefore(Ht(), o), r = s.insertBefore(Ht(), o);
     i = new Mi(a, r, t, t.options);
   } else {
     const a = i._$AB.nextSibling, r = i._$AM, c = r !== t;
@@ -1304,7 +1304,7 @@ const cs = (t) => {
     }
   }
   return rs([
-    H({ attribute: !1 })
+    z({ attribute: !1 })
   ], e.prototype, "hass"), e;
 }, We = (t, e) => {
   if (t === e)
@@ -2027,7 +2027,6 @@ $t.styles = xe`
       position: sticky;
       top: 0;
       z-index: 10;
-      padding-bottom: 8px;
       border-bottom: 1px solid rgba(0, 0, 0, 0.07);
       background: transparent;
     }
@@ -2054,10 +2053,11 @@ $t.styles = xe`
       overflow-x: auto;
     }
     h4 {
-      width: calc(var(--columns, 4) * 22.5vw);
+      width: 100%;
+      padding-left: 1.5em;
       box-sizing: border-box;
       font-size: 1.2em;
-      margin: 0.8em 0.2em 0em;
+      margin: 0.6em 0;
     }
     .entity-cards {
       display: grid;
@@ -2067,7 +2067,6 @@ $t.styles = xe`
       box-sizing: border-box;
       overflow-x: hidden;
       justify-content: center;
-      margin-top: 0.8em;
     }
     .entity-card {
       width: 22.5vw;
@@ -2080,14 +2079,37 @@ $t.styles = xe`
         --mdc-dialog-max-width: 96vw;
       }
       .entity-card {
+        width: 30vw;
+      }
+      .entity-cards {
+        grid-template-columns: repeat(3, 30vw);
+      }
+      h4 {
+        width: 100%;
+        font-size: 1.2em;
+        margin: 0.6em 0;
+        padding: 0 1em;
+        box-sizing: border-box;
+      }
+    }
+
+    @media (max-width: 900px) {
+      ha-dialog {
+        --mdc-dialog-min-width: 96vw;
+        --mdc-dialog-max-width: 96vw;
+      }
+      .entity-card {
         width: 45vw;
       }
       .entity-cards {
-        grid-template-columns: repeat(var(--columns, 2), 45vw);
+        grid-template-columns: repeat(2, 45vw);
       }
       h4 {
-        width: calc(var(--columns, 2) * 45vw);
-        margin: 0.8em 0.2em;
+        width: 100%;
+        font-size: 1.2em;
+        margin: 0.6em 0;
+        padding: 0 1em;
+        box-sizing: border-box;
       }
     }
 
@@ -2112,32 +2134,32 @@ $t.styles = xe`
         width: 100%;
         font-size: 1.2em;
         margin: 0.6em 0;
-        padding: 0 8px;
+        padding: 0 0.3em;
         box-sizing: border-box;
       }
     }
   `;
 let Z = $t;
 he([
-  H({ type: Boolean })
+  z({ type: Boolean })
 ], Z.prototype, "open");
 he([
-  H({ type: String })
+  z({ type: String })
 ], Z.prototype, "selectedDomain");
 he([
-  H({ type: String })
+  z({ type: String })
 ], Z.prototype, "selectedDeviceClass");
 he([
-  H({ type: String })
+  z({ type: String })
 ], Z.prototype, "content");
 he([
-  H({ type: Array })
+  z({ type: Array })
 ], Z.prototype, "entities");
 he([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], Z.prototype, "hass");
 he([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], Z.prototype, "card");
 he([
   B()
@@ -3014,7 +3036,7 @@ let X = class extends cs(te) {
     };
     let o = 3;
     try {
-      const z = ((J = this.shadowRoot) == null ? void 0 : J.host) || document.documentElement, ce = getComputedStyle(z).getPropertyValue("--row-size");
+      const H = ((J = this.shadowRoot) == null ? void 0 : J.host) || document.documentElement, ce = getComputedStyle(H).getPropertyValue("--row-size");
       ce && (o = Number(ce.trim()) || 3);
     } catch {
     }
@@ -3024,38 +3046,38 @@ let X = class extends cs(te) {
       this._entities,
       this._deviceClasses,
       this.hass.states
-    ), d = this._entities || [], l = (Se = this._config) == null ? void 0 : Se.category_filter, u = (z) => {
+    ), d = this._entities || [], l = (Se = this._config) == null ? void 0 : Se.category_filter, u = (H) => {
       if (!l) return !0;
       const ce = d.find(
-        (ci) => ci.entity_id === z
+        (ci) => ci.entity_id === H
       ), ue = ce == null ? void 0 : ce.entity_category;
       return ue ? l === "config" ? ue !== "config" : l === "diagnostic" ? ue !== "diagnostic" : l === "config+diagnostic" ? ue !== "config" && ue !== "diagnostic" : !0 : !0;
     }, m = {};
-    Object.entries(c).forEach(([z, ce]) => {
-      m[z] = ce.filter(
+    Object.entries(c).forEach(([H, ce]) => {
+      m[H] = ce.filter(
         (ue) => u(ue.entity_id)
       );
     });
     const h = this._area(this._config.area, this._areas), p = /* @__PURE__ */ new Map();
     (((O = this._config) == null ? void 0 : O.customization_domain) || []).forEach(
-      (z) => p.set(z.type, z)
+      (H) => p.set(H.type, H)
     );
     const f = /* @__PURE__ */ new Map();
     (((L = this._config) == null ? void 0 : L.customization_cover) || []).forEach(
-      (z) => f.set(z.type, z)
+      (H) => f.set(H.type, H)
     );
     const _ = /* @__PURE__ */ new Map();
     (((D = this._config) == null ? void 0 : D.customization_alert) || []).forEach(
-      (z) => _.set(z.type, z)
+      (H) => _.set(H.type, H)
     );
     const b = /* @__PURE__ */ new Map();
     (((U = this._config) == null ? void 0 : U.customization_sensor) || []).forEach(
-      (z) => b.set(z.type, z)
+      (H) => b.set(H.type, H)
     );
     const y = this._computeCovers(m, this._deviceClasses), v = this._computeAlerts(m, this._deviceClasses), g = this._computeButtons(
       this._config.toggle_domains,
       m
-    ), w = this._computeSensors(m, this._deviceClasses), S = ((Y = (q = this._config) == null ? void 0 : q.toggle_domains) != null && Y.includes("climate") ? at : []).filter((z) => z in m).map((z) => ({ domain: z })), C = (((Oe = this._config) == null ? void 0 : Oe.display_type) || "").toString().toLowerCase(), A = C.includes("camera"), N = C.includes("picture") || C.includes("image"), K = C === "" ? !0 : C.includes("icon"), G = this._computeCameraEntity(
+    ), w = this._computeSensors(m, this._deviceClasses), S = ((Y = (q = this._config) == null ? void 0 : q.toggle_domains) != null && Y.includes("climate") ? at : []).filter((H) => H in m).map((H) => ({ domain: H })), C = (((Oe = this._config) == null ? void 0 : Oe.display_type) || "").toString().toLowerCase(), A = C.includes("camera"), N = C.includes("picture") || C.includes("image"), K = C === "" ? !0 : C.includes("icon"), G = this._computeCameraEntity(
       A,
       m
     );
@@ -3446,7 +3468,7 @@ let X = class extends cs(te) {
   }
 };
 se([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], X.prototype, "hass", 2);
 se([
   B()
@@ -3620,10 +3642,10 @@ class ye extends te {
   }
 }
 F([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], ye.prototype, "hass", 2);
 F([
-  H({ type: Array })
+  z({ type: Array })
 ], ye.prototype, "SelectOptions", 2);
 let ct = class extends ye {
   get customization() {
@@ -3631,7 +3653,7 @@ let ct = class extends ye {
   }
 };
 F([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], ct.prototype, "customization_domain", 2);
 ct = F([
   re("domain-items-editor")
@@ -3642,7 +3664,7 @@ let lt = class extends ye {
   }
 };
 F([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], lt.prototype, "customization_alert", 2);
 lt = F([
   re("alert-items-editor")
@@ -3653,7 +3675,7 @@ let dt = class extends ye {
   }
 };
 F([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], dt.prototype, "customization_cover", 2);
 dt = F([
   re("cover-items-editor")
@@ -3664,7 +3686,7 @@ let ht = class extends ye {
   }
 };
 F([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], ht.prototype, "customization_sensor", 2);
 ht = F([
   re("sensor-items-editor")
@@ -3675,7 +3697,7 @@ let ut = class extends ye {
   }
 };
 F([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], ut.prototype, "customization_popup", 2);
 ut = F([
   re("popup-items-editor")
@@ -3777,10 +3799,10 @@ Ie.styles = xe`
     }
   `;
 F([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], Ie.prototype, "hass", 2);
 F([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], Ie.prototype, "custom_buttons", 2);
 Ie = F([
   re("custom-buttons-editor")
@@ -4055,13 +4077,13 @@ let ve = class extends te {
   }
 };
 Ee([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], ve.prototype, "config", 2);
 Ee([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], ve.prototype, "hass", 2);
 Ee([
-  H({ type: Boolean })
+  z({ type: Boolean })
 ], ve.prototype, "useSensorSchema", 2);
 Ee([
   B()
@@ -5142,7 +5164,7 @@ W.styles = xe`
     }
   `;
 oe([
-  H({ attribute: !1 })
+  z({ attribute: !1 })
 ], W.prototype, "hass", 2);
 oe([
   B()
