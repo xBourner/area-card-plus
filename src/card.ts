@@ -1940,7 +1940,6 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
         left: unset;
         right: 16px;
         text-align: end;
-        align-items: end;
       }
       .name {
         font-weight: bold;
