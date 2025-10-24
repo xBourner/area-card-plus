@@ -39,8 +39,6 @@ const UNAVAILABLE_STATES = [UNAVAILABLE, UNKNOWN];
 
 export const DEFAULT_ASPECT_RATIO = "16:9";
 
-//test
-
 type DomainType =
   | "light"
   | "switch"
