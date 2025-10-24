@@ -1,0 +1,125 @@
+name: Update Issue Template
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+  schedule:
+    - cron: '0 0 * * *' # optional: täglicher Cron-Lauf
+
+jobs:
+  update-template:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      # 1️⃣ Checkout Repository
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2️⃣ Sammle alle Tags vom eigenen Repo (für card_version)
+      - name: Get card version tags
+        id: get_card_tags
+        run: |
+          # Alle Tags sortiert, inkl. Beta/Pre-Releases
+          TAGS=$(git tag --sort=-v:refname | jq -R -s -c 'split("\n")[:-1]')
+          echo "CARD_TAGS=$TAGS" >> $GITHUB_ENV
+          echo "Found card tags: $TAGS"
+
+
+      # 3️⃣ Sammle letzte 3 Major.Minor-Versionen inkl. Betas von HA
+      - name: Get HA tags
+        id: get_ha_tags
+        run: |
+          HA_TAGS=$(git ls-remote --tags https://github.com/home-assistant/core.git \
+            | awk '{print $2}' \
+            | sed 's|refs/tags/||' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?$' \
+            | sort -Vr)
+
+          # Filter letzte 3 Major.Minor-Versionen
+          HA_FINAL=$(echo "$HA_TAGS" | awk -F. '{print $1"."$2}' | uniq | head -n 3 | while read v; do grep "^$v" <<<"$HA_TAGS"; done)
+
+          # JSON-Liste erstellen
+          HA_JSON=$(echo "$HA_FINAL" | jq -R -s -c 'split("\n")[:-1]')
+          echo "HA_TAGS=$HA_JSON" >> $GITHUB_ENV
+          echo "Found HA tags: $HA_JSON"
+
+      # 4️⃣ Python-Skript: Issue Template aktualisieren
+      - name: Update Issue Template with Python
+        env:
+          CARD_TAGS: ${{ env.CARD_TAGS }}
+          HA_TAGS: ${{ env.HA_TAGS }}
+        run: |
+          python - <<'PY'
+          import os, sys, json
+          try:
+              import yaml
+          except ImportError:
+              import subprocess
+              subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", "pyyaml"])
+              import yaml
+
+          CARD_TAGS_JSON = os.environ.get("CARD_TAGS", "[]")
+          HA_TAGS_JSON = os.environ.get("HA_TAGS", "[]")
+
+          try:
+              card_tags = json.loads(CARD_TAGS_JSON)
+          except Exception as e:
+              print("Error parsing CARD_TAGS JSON:", e)
+              card_tags = []
+
+          try:
+              ha_tags = json.loads(HA_TAGS_JSON)
+          except Exception as e:
+              print("Error parsing HA_TAGS JSON:", e)
+              ha_tags = []
+
+          FILE = ".github/ISSUE_TEMPLATE/bug_report.yml"
+          if not os.path.exists(FILE):
+              print(f"Error: {FILE} not found")
+              sys.exit(1)
+
+          with open(FILE, "r", encoding="utf-8") as f:
+              data = yaml.safe_load(f)
+
+          if data is None:
+              print("Error: YAML file empty or invalid")
+              sys.exit(1)
+
+          updated_card = updated_ha = False
+          for item in data.get("body", []):
+              if isinstance(item, dict):
+                  if item.get("id") == "card_version":
+                      attrs = item.get("attributes") or {}
+                      attrs["options"] = card_tags
+                      item["attributes"] = attrs
+                      updated_card = True
+                  elif item.get("id") == "ha_version":
+                      attrs = item.get("attributes") or {}
+                      attrs["options"] = ha_tags
+                      item["attributes"] = attrs
+                      updated_ha = True
+
+          if not updated_card:
+              print("Warning: Kein Eintrag mit id 'card_version' gefunden.")
+          if not updated_ha:
+              print("Warning: Kein Eintrag mit id 'ha_version' gefunden.")
+
+          with open(FILE, "w", encoding="utf-8") as f:
+              yaml.safe_dump(data, f, allow_unicode=True, sort_keys=False)
+
+          print(f"Successfully updated {FILE}")
+          PY
+
+      # 5️⃣ Commit und Push
+      - name: Commit and Push changes
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: Update issue template with latest tags
+          file_pattern: .github/ISSUE_TEMPLATE/bug_report.yml
+          branch: main
