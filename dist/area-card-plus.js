@@ -1963,7 +1963,7 @@ let re = class extends Q {
         var c;
         const o = ((c = this._config) == null ? void 0 : c.hidden_entities) || [], n = Object.values(this.hass.entities).filter((r) => {
           var l;
-          return !r.hidden_by && (r.area_id ? r.area_id === t : r.device_id && e.has(r.device_id)) && (!((l = this._config) != null && l.label) || r.labels && r.labels.some(
+          return !r.hidden && (r.area_id ? r.area_id === t : r.device_id && e.has(r.device_id)) && (!((l = this._config) != null && l.label) || r.labels && r.labels.some(
             (d) => this._config.label.includes(d)
           )) && !o.includes(r.entity_id);
         }).map((r) => r.entity_id), a = {};
@@ -2508,7 +2508,7 @@ let re = class extends Q {
               D = D || q.includes("heat") || q.includes("heating"), P = P || q.includes("cool") || q.includes("cooling");
             if (D && P) break;
           }
-          D ? b = "red" : P && (b = "cornflowerblue"), console.log("color", b);
+          D ? b = "red" : P && (b = "cornflowerblue");
         } else
           y = p.filter((D) => {
             var P;

@@ -154,7 +154,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       const entityIdsWithFilter = Object.values(this.hass.entities)
         .filter((e: any) => {
           return (
-            !e.hidden_by &&
+            !e.hidden &&
             (e.area_id
               ? e.area_id === areaId
               : e.device_id && devicesInArea.has(e.device_id)) &&
@@ -1049,7 +1049,6 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
               }
               if (heating) climateIconColor = "red";
               else if (cooling) climateIconColor = "cornflowerblue";
-              console.log("color", climateIconColor);
             } else {
               activeEntities = baselineEntities.filter((entity: HassEntity) => {
                 if (domain === "climate") {
