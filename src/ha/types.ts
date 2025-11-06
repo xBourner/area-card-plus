@@ -252,5 +252,3 @@ export interface HomeAssistant {
   ): string;
   formatEntityAttributeName(stateObj: HassEntity, attribute: string): string;
 }
-
-export type Constructor<T = any> = new (...args: any[]) => T;

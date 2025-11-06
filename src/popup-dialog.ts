@@ -5,8 +5,7 @@ import {
   LovelaceCard,
   HomeAssistant,
   computeDomain,
-  UNAVAILABLE,
-  UNKNOWN,
+  UNAVAILABLE_STATES,
   STATES_OFF,
   caseInsensitiveStringCompare,
   Schema,
@@ -21,8 +20,6 @@ import {
 import { mdiClose } from "@mdi/js";
 import { computeLabelCallback, translateEntityState } from "./translations";
 import memoizeOne from "memoize-one";
-
-const UNAVAILABLE_STATES = [UNAVAILABLE, UNKNOWN];
 
 const OFF_STATES = [UNAVAILABLE_STATES, STATES_OFF];
 
@@ -105,7 +102,7 @@ export class AreaCardPlusPopup extends LitElement {
     this.selectedDomain = params.selectedDomain;
     this.selectedDeviceClass = params.selectedDeviceClass;
     this.selectedGroup = params.selectedGroup;
-  this.card = params.card as LovelaceCard & { areas?: any[] };
+    this.card = params.card as LovelaceCard & { areas?: any[] };
     this._cardEls.clear();
     this.open = true;
     this.requestUpdate();
@@ -532,8 +529,11 @@ export class AreaCardPlusPopup extends LitElement {
     const card: any = this.card;
     const areaId: string = card._config?.area;
     const devicesArr: any[] =
-      (card._devices && Array.isArray(card._devices) ? card._devices :
-        card.hass && card.hass.devices ? Object.values(card.hass.devices) : []);
+      card._devices && Array.isArray(card._devices)
+        ? card._devices
+        : card.hass && card.hass.devices
+        ? Object.values(card.hass.devices)
+        : [];
 
     const devicesInArea: Set<string> =
       card._devicesInArea?.(areaId, devicesArr) ?? new Set<string>();
@@ -682,7 +682,7 @@ export class AreaCardPlusPopup extends LitElement {
       displayColumns = Math.min(displayColumns, Math.max(1, maxEntityCount));
     }
 
-  const area = card._area?.(card._config?.area, card.hass?.areas) ?? null;
+    const area = card._area?.(card._config?.area, card.hass?.areas) ?? null;
 
     return html`
       <ha-dialog

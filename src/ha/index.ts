@@ -6,7 +6,6 @@ export * from "./common/number/format_number";
 export * from "./common/string/compare";
 export * from "./common/translations/blank_before_unit";
 export * from "./common/translations/localize";
-export * from "./data/entity";
 export * from "./data/lovelace";
 export * from "./data/selector";
 export * from "./data/sensor";

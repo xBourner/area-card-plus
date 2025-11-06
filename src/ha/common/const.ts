@@ -31,3 +31,8 @@ export const DOMAINS_TOGGLE = new Set([
   "humidifier",
   "valve",
 ]);
+
+const UNAVAILABLE = "unavailable";
+const UNKNOWN = "unknown";
+
+export const UNAVAILABLE_STATES = [UNAVAILABLE, UNKNOWN];
