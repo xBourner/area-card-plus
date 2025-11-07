@@ -2061,7 +2061,7 @@ let re = class extends Y {
           ...s ? { color: `var(--${s}-color)` } : {}
         };
         if (!i) return o;
-        const n = this._parseCss(i);
+        const n = this._getParsedCss(i);
         return { ...o, ...n };
       }
     );
@@ -2089,13 +2089,17 @@ let re = class extends Y {
     if (!t.area)
       throw new Error("Area Required");
     this._config = t, this._deviceClasses = { ...nt }, t.sensor_classes && (this._deviceClasses.sensor = t.sensor_classes), t.alert_classes && (this._deviceClasses.binary_sensor = t.alert_classes), t.cover_classes && (this._deviceClasses.cover = t.cover_classes), this._iconCache.clear(), this._styleCache.clear(), this._customizationDomainMap.clear(), (((e = this._config) == null ? void 0 : e.customization_domain) || []).forEach((a) => {
-      a.css && (a._parsedCss = this._parseCss(a.css)), a.icon_css && (a._parsedIconCss = this._parseCss(a.icon_css)), this._customizationDomainMap.set(a.type, a);
+      const c = { ...a || {} };
+      a != null && a.css && (c._parsedCss = this._parseCss(a.css)), a != null && a.icon_css && (c._parsedIconCss = this._parseCss(a.icon_css)), this._customizationDomainMap.set(c.type, c);
     }), this._customizationCoverMap.clear(), (((i = this._config) == null ? void 0 : i.customization_cover) || []).forEach((a) => {
-      a.css && (a._parsedCss = this._parseCss(a.css)), a.icon_css && (a._parsedIconCss = this._parseCss(a.icon_css)), this._customizationCoverMap.set(a.type, a);
+      const c = { ...a || {} };
+      a != null && a.css && (c._parsedCss = this._parseCss(a.css)), a != null && a.icon_css && (c._parsedIconCss = this._parseCss(a.icon_css)), this._customizationCoverMap.set(c.type, c);
     }), this._customizationAlertMap.clear(), (((s = this._config) == null ? void 0 : s.customization_alert) || []).forEach((a) => {
-      a.css && (a._parsedCss = this._parseCss(a.css)), a.icon_css && (a._parsedIconCss = this._parseCss(a.icon_css)), this._customizationAlertMap.set(a.type, a);
+      const c = { ...a || {} };
+      a != null && a.css && (c._parsedCss = this._parseCss(a.css)), a != null && a.icon_css && (c._parsedIconCss = this._parseCss(a.icon_css)), this._customizationAlertMap.set(c.type, c);
     }), this._customizationSensorMap.clear(), (((o = this._config) == null ? void 0 : o.customization_sensor) || []).forEach((a) => {
-      a.css && (a._parsedCss = this._parseCss(a.css)), a.icon_css && (a._parsedIconCss = this._parseCss(a.icon_css)), this._customizationSensorMap.set(a.type, a);
+      const c = { ...a || {} };
+      a != null && a.css && (c._parsedCss = this._parseCss(a.css)), a != null && a.icon_css && (c._parsedIconCss = this._parseCss(a.icon_css)), this._customizationSensorMap.set(c.type, c);
     }), this._hiddenEntitiesSet = new Set(((n = this._config) == null ? void 0 : n.hidden_entities) || []), this._excludedEntitiesSet = new Set(((r = this._config) == null ? void 0 : r.excluded_entities) || []), this._actionHandlerCache.clear();
   }
   updated(t) {
@@ -2387,8 +2391,9 @@ let re = class extends Y {
                   <div
                     class="icon-with-count hover"
                     style=${N(
-          this._parseCss(
-            (l == null ? void 0 : l.css) || ((_ = this._config) == null ? void 0 : _.cover_css)
+          this._getParsedCss(
+            (l == null ? void 0 : l.css) || ((_ = this._config) == null ? void 0 : _.cover_css),
+            l
           )
         )}
                     @action=${this._handleCoverAction(a, c)}
@@ -2451,8 +2456,9 @@ let re = class extends Y {
                   <div
                     class="icon-with-count hover"
                     style=${N(
-          this._parseCss(
-            (l == null ? void 0 : l.css) || ((_ = this._config) == null ? void 0 : _.alert_css)
+          this._getParsedCss(
+            (l == null ? void 0 : l.css) || ((_ = this._config) == null ? void 0 : _.alert_css),
+            l
           )
         )}
                     @action=${this._handleAlertAction(a, c)}
@@ -2676,7 +2682,7 @@ let re = class extends Y {
         })}
                   style=${N({
           ...h ? { color: `var(--${h}-color)` } : {},
-          ...this._parseCss(d == null ? void 0 : d.css)
+          ...this._getParsedCss(d == null ? void 0 : d.css, d)
         })}
                 >
                   ${!((v = this._config) != null && v.show_sensor_icons) && !((w = this._config) != null && w.wrap_sensor_icons) && c > 0 ? " - " : ""}
@@ -2712,7 +2718,10 @@ let re = class extends Y {
         const _ = (y = this._config) != null && y.show_sensor_icons ? $`<ha-domain-icon
                         style=${N({
           ...h ? { color: `var(--${h}-color)` } : {},
-          ...this._parseCss(d == null ? void 0 : d.css)
+          ...this._getParsedCss(
+            d == null ? void 0 : d.css,
+            d
+          )
         })}
                         .hass=${this.hass}
                         .domain=${r}
@@ -2776,7 +2785,7 @@ let re = class extends Y {
             []
           ), g = {
             ...a != null && a.color ? { color: `var(--${a.color}-color)` } : {},
-            ...this._parseCss(a == null ? void 0 : a.css)
+            ...this._getParsedCss(a == null ? void 0 : a.css, a)
           };
           return $`<div
                 class="climate"
@@ -2812,7 +2821,7 @@ let re = class extends Y {
         const m = a == null ? void 0 : a.color, u = {
           ...m ? { color: `var(--${m}-color)` } : {},
           ...!m && ((d = this._config) != null && d.domain_color) ? { color: this._config.domain_color } : {},
-          ...this._parseCss(a == null ? void 0 : a.css)
+          ...this._getParsedCss(a == null ? void 0 : a.css, a)
         };
         return $`<div
               class="climate"
@@ -2848,7 +2857,7 @@ let re = class extends Y {
     })}"
           style=${N({
       ...(a = this._config) != null && a.area_name_color ? { color: `var(--${this._config.area_name_color}-color)` } : {},
-      ...this._parseCss((c = this._config) == null ? void 0 : c.name_css)
+      ...this._getParsedCss((c = this._config) == null ? void 0 : c.name_css, this._config)
     })}
           @action=${this._handleAction}
           .actionHandler=${W({

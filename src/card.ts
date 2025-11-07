@@ -114,27 +114,31 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     this._styleCache.clear();
     this._customizationDomainMap.clear();
     (this._config?.customization_domain || []).forEach((c: any) => {
-      if (c.css) c._parsedCss = this._parseCss(c.css);
-      if (c.icon_css) c._parsedIconCss = this._parseCss(c.icon_css);
-      this._customizationDomainMap.set(c.type, c);
+      const copy = { ...(c || {}) } as any;
+      if (c?.css) copy._parsedCss = this._parseCss(c.css);
+      if (c?.icon_css) copy._parsedIconCss = this._parseCss(c.icon_css);
+      this._customizationDomainMap.set(copy.type, copy);
     });
     this._customizationCoverMap.clear();
     (this._config?.customization_cover || []).forEach((c: any) => {
-      if (c.css) c._parsedCss = this._parseCss(c.css);
-      if (c.icon_css) c._parsedIconCss = this._parseCss(c.icon_css);
-      this._customizationCoverMap.set(c.type, c);
+      const copy = { ...(c || {}) } as any;
+      if (c?.css) copy._parsedCss = this._parseCss(c.css);
+      if (c?.icon_css) copy._parsedIconCss = this._parseCss(c.icon_css);
+      this._customizationCoverMap.set(copy.type, copy);
     });
     this._customizationAlertMap.clear();
     (this._config?.customization_alert || []).forEach((c: any) => {
-      if (c.css) c._parsedCss = this._parseCss(c.css);
-      if (c.icon_css) c._parsedIconCss = this._parseCss(c.icon_css);
-      this._customizationAlertMap.set(c.type, c);
+      const copy = { ...(c || {}) } as any;
+      if (c?.css) copy._parsedCss = this._parseCss(c.css);
+      if (c?.icon_css) copy._parsedIconCss = this._parseCss(c.icon_css);
+      this._customizationAlertMap.set(copy.type, copy);
     });
     this._customizationSensorMap.clear();
     (this._config?.customization_sensor || []).forEach((c: any) => {
-      if (c.css) c._parsedCss = this._parseCss(c.css);
-      if (c.icon_css) c._parsedIconCss = this._parseCss(c.icon_css);
-      this._customizationSensorMap.set(c.type, c);
+      const copy = { ...(c || {}) } as any;
+      if (c?.css) copy._parsedCss = this._parseCss(c.css);
+      if (c?.icon_css) copy._parsedIconCss = this._parseCss(c.icon_css);
+      this._customizationSensorMap.set(copy.type, copy);
     });
     this._hiddenEntitiesSet = new Set(this._config?.hidden_entities || []);
     this._excludedEntitiesSet = new Set(this._config?.excluded_entities || []);
@@ -526,7 +530,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
       if (!icon_css) return base;
 
-      const cssRules = this._parseCss(icon_css);
+      const cssRules = this._getParsedCss(icon_css);
 
       return { ...base, ...cssRules };
     }
@@ -839,8 +843,9 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                   <div
                     class="icon-with-count hover"
                     style=${styleMap(
-                      this._parseCss(
-                        customization?.css || this._config?.cover_css
+                      this._getParsedCss(
+                        customization?.css || this._config?.cover_css,
+                        customization
                       )
                     )}
                     @action=${this._handleCoverAction(domain, deviceClass)}
@@ -928,8 +933,9 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                   <div
                     class="icon-with-count hover"
                     style=${styleMap(
-                      this._parseCss(
-                        customization?.css || this._config?.alert_css
+                      this._getParsedCss(
+                        customization?.css || this._config?.alert_css,
+                        customization
                       )
                     )}
                     @action=${this._handleAlertAction(domain, deviceClass)}
@@ -1272,7 +1278,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                     ...(sensorColor
                       ? { color: `var(--${sensorColor}-color)` }
                       : {}),
-                    ...this._parseCss(customization?.css),
+                    ...this._getParsedCss(customization?.css, customization),
                   })}
                 >
                   ${!this._config?.show_sensor_icons &&
@@ -1332,7 +1338,10 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                           ...(sensorColor
                             ? { color: `var(--${sensorColor}-color)` }
                             : {}),
-                          ...this._parseCss(customization?.css),
+                          ...this._getParsedCss(
+                            customization?.css,
+                            customization
+                          ),
                         })}
                         .hass=${this.hass}
                         .domain=${domain}
@@ -1456,7 +1465,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                 ...(customization?.color
                   ? { color: `var(--${customization.color}-color)` }
                   : {}),
-                ...this._parseCss(customization?.css),
+                ...this._getParsedCss(customization?.css, customization),
               };
 
               return html`<div
@@ -1517,7 +1526,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
               ...(!domainColor && this._config?.domain_color
                 ? { color: this._config.domain_color }
                 : {}),
-              ...this._parseCss(customization?.css),
+              ...this._getParsedCss(customization?.css, customization),
             };
 
             return html`<div
@@ -1564,7 +1573,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             ...(this._config?.area_name_color
               ? { color: `var(--${this._config.area_name_color}-color)` }
               : {}),
-            ...this._parseCss(this._config?.name_css),
+            ...this._getParsedCss(this._config?.name_css, this._config),
           })}
           @action=${this._handleAction}
           .actionHandler=${actionHandler({
