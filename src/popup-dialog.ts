@@ -7,7 +7,6 @@ import {
   computeDomain,
   UNAVAILABLE_STATES,
   STATES_OFF,
-  caseInsensitiveStringCompare,
   Schema,
 } from "./ha";
 import { HassEntity } from "home-assistant-js-websocket";
@@ -16,10 +15,19 @@ import {
   ALERT_DOMAINS,
   COVER_DOMAINS,
   DOMAIN_ICONS,
-} from "./helpers";
+} from "./const";
 import { mdiClose } from "@mdi/js";
 import { computeLabelCallback, translateEntityState } from "./translations";
 import memoizeOne from "memoize-one";
+import {
+  getEntitiesIndex,
+  compareByFriendlyName,
+  filterByCategory,
+  getAreaEntityIds,
+  getDevicesInArea,
+} from "./helpers";
+
+const EMPTY_SET = new Set<string>();
 
 const OFF_STATES = [UNAVAILABLE_STATES, STATES_OFF];
 
@@ -63,27 +71,6 @@ export class AreaCardPlusPopup extends LitElement {
 
   @state() public selectedGroup?: number;
   private _cardEls: Map<string, HTMLElement> = new Map();
-
-  private getFriendlyName(
-    states: { [entity_id: string]: HassEntity },
-    entityId: string
-  ): string {
-    return (
-      (states?.[entityId]?.attributes?.friendly_name as string) || entityId
-    );
-  }
-
-  private compareByFriendlyName(
-    states: { [entity_id: string]: HassEntity },
-    language?: string
-  ): (a: string, b: string) => number {
-    return (a: string, b: string) =>
-      caseInsensitiveStringCompare(
-        this.getFriendlyName(states, a),
-        this.getFriendlyName(states, b),
-        language
-      );
-  }
 
   public async showDialog(params: {
     title?: string;
@@ -446,11 +433,121 @@ export class AreaCardPlusPopup extends LitElement {
     },
   };
 
-  protected shouldUpdate(changedProps: PropertyValues): boolean {
-    if (!this.open) {
-      return changedProps.has("open");
+  private _getCandidateEntityIds = memoizeOne(
+    (
+      registryEntitiesOrMap: any,
+      cardConfig: any,
+      areaId: string,
+      devicesInArea: Set<string>,
+      popupDomains: string[],
+      selectedDomain?: string | null,
+      index?: Map<string, Set<string>>
+    ): string[] => {
+      const hiddenEntitiesSet = new Set<string>(
+        cardConfig?.hidden_entities || []
+      );
+
+      const candidates = getAreaEntityIds(
+        areaId,
+        devicesInArea as any,
+        registryEntitiesOrMap,
+        hiddenEntitiesSet,
+        cardConfig?.label,
+        index
+      );
+
+      const categoryFilter = cardConfig?.category_filter;
+      const filterByCategoryFn = (entityId: string) =>
+        filterByCategory(entityId, registryEntitiesOrMap, categoryFilter);
+
+      return candidates.filter((entityId) => {
+        if (!filterByCategoryFn(entityId)) return false;
+        const domain = computeDomain(entityId);
+        if (popupDomains.length > 0 && !popupDomains.includes(domain))
+          return false;
+        if (selectedDomain && domain !== selectedDomain) return false;
+        return true;
+      });
     }
-    return true;
+  );
+
+  protected shouldUpdate(changedProps: PropertyValues): boolean {
+    if (changedProps.has("open") || changedProps.has("card")) {
+      return true;
+    }
+
+    if (!this.open) {
+      return false;
+    }
+
+    if (
+      changedProps.has("selectedDomain") ||
+      changedProps.has("selectedDeviceClass") ||
+      changedProps.has("selectedGroup") ||
+      changedProps.has("entities") ||
+      changedProps.has("content")
+    ) {
+      return true;
+    }
+
+    if (!changedProps.has("hass")) {
+      return false;
+    }
+
+    const oldHass = changedProps.get("hass") as HomeAssistant | undefined;
+    if (
+      !oldHass ||
+      oldHass.themes !== this.hass!.themes ||
+      oldHass.locale !== this.hass!.locale
+    ) {
+      return true;
+    }
+
+    const card: any = this.card;
+    if (!card) return false;
+
+    const areaId: string = card._config?.area;
+    const devicesArr: any =
+      card._devices && Array.isArray(card._devices)
+        ? card._devices
+        : card.hass && card.hass.devices
+        ? card.hass.devices
+        : {};
+
+    const entitiesIndex = getEntitiesIndex(
+      this.hass!.entities,
+      this.hass!.devices
+    );
+
+    const devicesInArea: Set<string> = entitiesIndex
+      ? EMPTY_SET
+      : getDevicesInArea(areaId, devicesArr);
+
+    const candidates = this._getCandidateEntityIds(
+      this.hass!.entities,
+      card._config,
+      areaId,
+      devicesInArea,
+      card._config?.popup_domains || [],
+      this.selectedDomain || null,
+      entitiesIndex
+    );
+
+    const extraEntities: string[] = card._config?.extra_entities || [];
+
+    for (const id of candidates) {
+      if (!oldHass.states[id] || oldHass.states[id] !== this.hass!.states[id]) {
+        return true;
+      }
+    }
+
+    for (const id of extraEntities) {
+      if (!oldHass.states[id] || oldHass.states[id] !== this.hass!.states[id]) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   private _getOrCreateCard(entity: HassEntity): HTMLElement {
@@ -495,7 +592,7 @@ export class AreaCardPlusPopup extends LitElement {
     const mode = (this.card as any)?._config?.popup_sort || "name";
     const arr = entities.slice();
     if (mode === "state") {
-      const cmp = this.compareByFriendlyName(
+      const cmp = compareByFriendlyName(
         this.hass!.states,
         this.hass!.locale.language
       );
@@ -516,7 +613,7 @@ export class AreaCardPlusPopup extends LitElement {
         return cmp(a.entity_id, b.entity_id);
       });
     }
-    const cmp = this.compareByFriendlyName(
+    const cmp = compareByFriendlyName(
       this.hass!.states,
       this.hass!.locale.language
     );
@@ -528,38 +625,22 @@ export class AreaCardPlusPopup extends LitElement {
 
     const card: any = this.card;
     const areaId: string = card._config?.area;
-    const devicesArr: any[] =
+    const devicesArr: any =
       card._devices && Array.isArray(card._devices)
         ? card._devices
         : card.hass && card.hass.devices
-        ? Object.values(card.hass.devices)
-        : [];
+        ? card.hass.devices
+        : {};
 
-    const devicesInArea: Set<string> =
-      card._devicesInArea?.(areaId, devicesArr) ?? new Set<string>();
+    const entitiesIndex =
+      card.hass && card.hass.devices && card.hass.entities
+        ? getEntitiesIndex(card.hass.entities, card.hass.devices)
+        : undefined;
+    const devicesInArea: Set<string> = entitiesIndex
+      ? EMPTY_SET
+      : getDevicesInArea(areaId, devicesArr);
 
-    const registryEntities: any[] =
-      card._entities && Array.isArray(card._entities)
-        ? card._entities
-        : card.hass && card.hass.entities
-        ? Object.values(card.hass.entities).map((d: any) => ({
-            id: d.entity_id,
-            entity_id: d.entity_id,
-            name: d.name ?? null,
-            icon: null,
-            platform: d.platform ?? "",
-            config_entry_id: null,
-            device_id: d.device_id ?? null,
-            area_id: d.area_id ?? null,
-            disabled_by: null,
-            hidden_by: d.hidden ? ("user" as any) : (null as any),
-            entity_category: d.entity_category ?? null,
-            has_entity_name: !!d.name,
-            unique_id: d.entity_id,
-            options: null,
-            labels: Array.isArray((d as any).labels) ? (d as any).labels : [],
-          }))
-        : [];
+    const registryEntities: any[] = [];
     const states = this.hass.states;
     const popupDomains: string[] = card._config?.popup_domains || [];
     const hiddenEntities: string[] = card._config?.hidden_entities || [];
@@ -569,55 +650,48 @@ export class AreaCardPlusPopup extends LitElement {
     const categoryFilter: string | undefined = card._config?.category_filter;
     const selectedDomain = this.selectedDomain || null;
     const selectedDeviceClass = this.selectedDeviceClass || null;
-    const filterByCategory = (entityId: string) => {
-      if (!categoryFilter) return true;
-      const entry = registryEntities.find(
-        (e) => (e as any).entity_id === entityId
-      );
-      const cat = (entry as any)?.entity_category;
-      if (!cat) return true;
-      if (categoryFilter === "config") return cat !== "config";
-      if (categoryFilter === "diagnostic") return cat !== "diagnostic";
-      if (categoryFilter === "config+diagnostic")
-        return cat !== "config" && cat !== "diagnostic";
-      return true;
-    };
+    const filterByCategoryFn = (entityId: string) =>
+      filterByCategory(entityId, this.hass!.entities, categoryFilter);
 
-    const entitiesInArea = registryEntities.reduce<string[]>(
-      (acc, entry: any) => {
-        if (
-          !entry.hidden_by &&
-          (entry.area_id
-            ? entry.area_id === areaId
-            : entry.device_id && devicesInArea.has(entry.device_id)) &&
-          (!labelFilter ||
-            (entry.labels &&
-              entry.labels.some((l: string) =>
-                (labelFilter as any).includes(l)
-              )))
-        ) {
-          const entityId = entry.entity_id;
-          if (
-            !hiddenEntities.includes(entityId) &&
-            filterByCategory(entityId) &&
-            (!hideUnavailable ||
-              !UNAVAILABLE_STATES.includes(states[entityId]?.state))
-          ) {
-            acc.push(entityId);
-          }
-        }
+    let candidates: string[] = [];
+
+    if (this.entities && this.entities.length > 0) {
+      candidates = this.entities.reduce<string[]>((acc, entity) => {
+        const entityId = entity.entity_id;
+        if (!filterByCategoryFn(entityId)) return acc;
+
+        const domain = computeDomain(entityId);
+        if (popupDomains.length > 0 && !popupDomains.includes(domain))
+          return acc;
+        if (selectedDomain && domain !== selectedDomain) return acc;
+
+        acc.push(entityId);
         return acc;
-      },
-      [] as string[]
-    );
+      }, []);
+    } else {
+      candidates = this._getCandidateEntityIds(
+        this.hass.entities,
+        card._config,
+        areaId,
+        devicesInArea,
+        popupDomains,
+        selectedDomain,
+        entitiesIndex
+      );
+    }
 
     let ents: HassEntity[] = [];
-    for (const entityId of entitiesInArea) {
-      const domain = computeDomain(entityId);
-      if (popupDomains.length > 0 && !popupDomains.includes(domain)) continue;
+    for (const entityId of candidates) {
       const stateObj = states[entityId];
       if (!stateObj) continue;
-      if (selectedDomain && domain !== selectedDomain) continue;
+
+      if (
+        (hideUnavailable || false) &&
+        UNAVAILABLE_STATES.includes(stateObj.state)
+      ) {
+        continue;
+      }
+
       if (
         selectedDeviceClass &&
         (stateObj.attributes as any).device_class !== selectedDeviceClass
@@ -637,7 +711,10 @@ export class AreaCardPlusPopup extends LitElement {
         (st.attributes as any).device_class !== selectedDeviceClass
       )
         continue;
-      if (filterByCategory(extra) && !ents.some((e) => e.entity_id === extra)) {
+      if (
+        filterByCategoryFn(extra) &&
+        !ents.some((e) => e.entity_id === extra)
+      ) {
         ents.push(st);
       }
     }
@@ -680,6 +757,24 @@ export class AreaCardPlusPopup extends LitElement {
         ? Math.max(...finalDomainEntries.map(([, list]) => list.length))
         : 0;
       displayColumns = Math.min(displayColumns, Math.max(1, maxEntityCount));
+    }
+
+    const hasEntities = finalDomainEntries.length > 0 || sorted.length > 0;
+
+    if (!hasEntities) {
+      return html`
+        <area-card-plus-popup-dialog
+          .open=${this.open}
+          .title=${this.title}
+          @closed=${this._onClosed}
+        >
+          <div class="content">
+            ${this.content ||
+            this.hass.localize("ui.panel.lovelace.cards.entity.no_entities") ||
+            "No entities"}
+          </div>
+        </area-card-plus-popup-dialog>
+      `;
     }
 
     const area = card._area?.(card._config?.area, card.hass?.areas) ?? null;

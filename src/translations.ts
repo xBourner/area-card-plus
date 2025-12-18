@@ -20,12 +20,6 @@ export function computeLabelCallback(
       return `${hass!.localize(
         "ui.panel.lovelace.editor.card.generic.theme"
       )} (${hass!.localize("ui.panel.lovelace.editor.card.config.optional")})`;
-    case "area":
-      return hass!.localize("ui.panel.lovelace.editor.card.area.name");
-    case "navigation_path":
-      return hass!.localize(
-        "ui.panel.lovelace.editor.action-editor.navigation_path"
-      );
     case "area_name":
       return (
         hass!.localize("ui.panel.lovelace.editor.card.area.name") +
@@ -173,8 +167,7 @@ export function computeLabelCallback(
       return hass!.localize(
         `ui.panel.lovelace.editor.card.generic.${schema.name}`
       );
-    case "show_camera":
-      return hass!.localize(`ui.panel.lovelace.editor.card.area.show_camera`);
+
 
     default:
       return hass!.localize(

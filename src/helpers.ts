@@ -1,152 +1,273 @@
-export const SENSOR_DOMAINS = ["sensor"];
-export const ALERT_DOMAINS = ["binary_sensor"];
-export const COVER_DOMAINS = ["cover"];
-export const CLIMATE_DOMAINS = ["climate"];
-export const OTHER_DOMAINS = ["camera"];
-export const TOGGLE_DOMAINS = [
-  "light",
-  "switch",
-  "fan",
-  "media_player",
-  "lock",
-  "vacuum",
-  "cover",
-  "script",
-  "scene",
-];
+import memoizeOne from "memoize-one";
+import { HomeAssistant } from "./ha";
+import { HassEntity } from "home-assistant-js-websocket";
+import {
+  ALERT_DOMAINS,
+  CLIMATE_DOMAINS,
+  COVER_DOMAINS,
+  DOMAIN_ICONS,
+  DomainType,
+  OTHER_DOMAINS,
+  SENSOR_DOMAINS,
+  TOGGLE_DOMAINS,
+} from "./const";
+import {
+  caseInsensitiveStringCompare,
+  computeDomain,
+  formatNumber,
+  isNumericState,
+  blankBeforeUnit,
+} from "./ha";
 
-export const DEVICE_CLASSES = {
-  sensor: ["temperature", "humidity"],
-  binary_sensor: ["motion", "window"],
-  cover: ["garage"],
+export const getFriendlyName = (
+  states: { [entity_id: string]: HassEntity },
+  entityId: string
+): string => {
+  return (states?.[entityId]?.attributes?.friendly_name as string) || entityId;
 };
 
-export const DOMAIN_ICONS = {
-  alarm_control_panel: { on: "mdi:alarm-light", off: "mdi:alarm-light-off" },
-  siren: { on: "mdi:bell-ring", off: "mdi:bell_off" },
-  lock: { on: "mdi:lock-open", off: "mdi:lock" },
-  light: { on: "mdi:lightbulb", off: "mdi:lightbulb-off" },
-  media_player: { on: "mdi:cast", off: "mdi:cast-off" },
-  climate: { on: "mdi:thermostat", off: "mdi:thermostat-cog" },
-  humidifier: { on: "mdi:air-humidifier", off: "mdi:air-humidifier-off" },
-  switch: {
-    on: "mdi:toggle-switch",
-    off: "mdi:toggle-switch-off",
-    switch: { on: "mdi:toggle-switch", off: "mdi:toggle-switch-off" },
-    outlet: { on: "mdi:power-plug", off: "mdi:power-plug-off" },
-  },
-  vacuum: { on: "mdi:robot-vacuum", off: "mdi:robot-vacuum-off" },
-  lawn_mower: { on: "robot-mower", off: "mdi:robot-mower" },
-  fan: { on: "mdi:fan", off: "mdi:fan-off" },
+export const compareByFriendlyName = (
+  states: { [entity_id: string]: HassEntity },
+  language?: string
+): ((a: string, b: string) => number) => {
+  return (a: string, b: string) =>
+    caseInsensitiveStringCompare(
+      getFriendlyName(states, a),
+      getFriendlyName(states, b),
+      language
+    );
+};
 
-  cover: {
-    on: "mdi:garage-open",
-    off: "mdi:garage",
-    garage: { on: "mdi:garage-open", off: "mdi:garage" },
-    door: { on: "mdi:door-open", off: "mdi:door-closed" },
-    gate: { on: "mdi:gate-open", off: "mdi:gate" },
-    blind: { on: "mdi:blinds-open", off: "mdi:blinds" },
-    curtain: { on: "mdi:curtains", off: "mdi:curtains-closed" },
-    damper: { on: "mdi:valve-open", off: "mdi:valve-closed" },
-    awning: { on: "mdi:awning-outline", off: "mdi:awning-outline" },
-    shutter: { on: "mdi:window-shutter-open", off: "mdi:window-shutter" },
-    shade: { on: "mdi:roller-shade", off: "mdi:roller-shade-closed" },
-    window: { on: "mdi:window-open", off: "mdi:window-closed" },
-  },
-  binary_sensor: {
-    on: "mdi:power-off",
-    off: "mdi:power-off",
-    motion: { on: "mdi:motion-sensor", off: "mdi:motion-sensor-off" },
-    moisture: { on: "mdi:water-alert", off: "mdi:water-off" },
-    window: { on: "mdi:window-open", off: "mdi:window-closed" },
-    door: { on: "mdi:door-open", off: "mdi:door-closed" },
-    lock: { on: "mdi:lock-open", off: "mdi:lock" },
-    presence: { on: "mdi:home-outline", off: "mdi:home-export-outline" },
-    occupancy: { on: "mdi:seat", off: "mdi:seat-outline" },
-    vibration: { on: "mdi:vibrate", off: "mdi:vibrate-off" },
-    opening: { on: "mdi:shield-lock-open", off: "mdi:shield-lock" },
-    garage_door: { on: "mdi:garage-open", off: "mdi:garage" },
-    problem: {
-      on: "mdi:alert-circle-outline",
-      off: "mdi:alert-circle-check-outline",
-    },
-    smoke: {
-      on: "mdi:smoke-detector-outline",
-      off: "mdi:smoke-detector-off-outline",
-    },
-    running: { on: "mdi:play", off: "mdi:pause" },
-    plug: { on: "mdi:power-plug", off: "mdi:power-plug-off" },
-    power: { on: "mdi:power", off: "mdi:power-off" },
-    battery: { on: "mdi:battery-alert", off: "mdi:battery" },
-    battery_charging: { on: "mdi:battery-charging", off: "mdi:battery-check" },
-    gas: { on: "mdi:gas-station-outline", off: "mdi:gas-station-off-outline" },
-    carbon_monoxide: { on: "mdi:molecule-co", off: "mdi:molecule-co" },
-    cold: { on: "mdi:snowflake", off: "mdi:snowflake-off" },
-    heat: { on: "mdi:weather-sunny", off: "mdi:weather-sunny-off" },
-    connectivity: { on: "mdi:connection", off: "mdi:connection" },
-    safety: { on: "mdi:shield-alert-outline", off: "mdi:shield-check-outline" },
-    sound: { on: "mdi:volume-high", off: "mdi:volume-off" },
-    update: { on: "mdi:autorenew", off: "mdi:autorenew-off" },
-    tamper: { on: "mdi:shield-home", off: "mdi:shield-home" },
-    light: { on: "mdi:lightbulb-outline", off: "mdi:lightbulb-off-outline" },
-    moving: { on: "mdi:car", off: "mdi:car-off" },
-  },
-  person: { on: "mdi:account", off: "mdi:account-off" },
-  device_tracker: { on: "mdi:account", off: "mdi:account-off" },
-  valve: { on: "mdi:valve", off: "mdi:valve-closed" },
-  water_heater: { on: "mdi:water-boiler", off: "mdi:water-pump-off" },
-  remote: { on: "mdi:remote", off: "mdi:remote-off" },
-  update: { on: "mdi:autorenew", off: "mdi:autorenew-off" },
-  air_quality: { on: "mdi:air-filter", off: "mdi:air-filter" },
-  camera: { on: "mdi:camera", off: "mdi:camera-off" },
-  calendar: { on: "mdi:calendar", off: "mdi:calendar-remove" },
-  scene: { on: "mdi:movie", off: "mdi:movie-off" },
-  notifications: { on: "mdi:bell", off: "mdi:bell-off" },
-  sensor: { on: "mdi:gauge", off: "mdi:gauge" },
-  script: { on: "mdi:script-text", off: "mdi:script-text" },
-  tags: { on: "mdi:tag-multiple", off: "mdi:tag-multiple" },
-  select: { on: "mdi:format-list-bulleted", off: "mdi:format-list-bulleted" },
-  automation: { on: "mdi:robot", off: "mdi:robot-off" },
-  button: { on: "mdi:gesture-tap-button", off: "mdi:gesture-tap-button" },
-  number: { on: "mdi:numeric", off: "mdi:numeric" },
-  conversation: { on: "mdi:comment-multiple", off: "mdi:comment-multiple" },
-  assist_satellite: {
-    on: "mdi:satellite-variant",
-    off: "mdi:satellite-variant",
-  },
-  counter: { on: "mdi:counter", off: "mdi:counter" },
-  event: { on: "mdi:calendar-star", off: "mdi:calendar-star" },
-  group: {
-    on: "mdi:google-circles-communities",
-    off: "mdi:google-circles-communities",
-  },
-  image: { on: "mdi:image", off: "mdi:image-off" },
-  image_processing: {
-    on: "mdi:image-filter-center-focus",
-    off: "mdi:image-filter-center-focus",
-  },
-  input_boolean: { on: "mdi:toggle-switch", off: "mdi:toggle-switch-off" },
-  input_datetime: { on: "mdi:calendar-clock", off: "mdi:calendar-clock" },
-  input_number: { on: "mdi:numeric", off: "mdi:numeric" },
-  input_select: {
-    on: "mdi:format-list-bulleted",
-    off: "mdi:format-list-bulleted",
-  },
-  input_text: { on: "mdi:text-box", off: "mdi:text-box" },
-  stt: { on: "mdi:record-rec", off: "mdi:record" },
-  sun: { on: "mdi:weather-sunny", off: "mdi:weather-night" },
-  text: { on: "mdi:text-box", off: "mdi:text-box" },
-  date: { on: "mdi:calendar", off: "mdi:calendar-remove" },
-  datetime: { on: "mdi:calendar-clock", off: "mdi:calendar-clock" },
-  time: { on: "mdi:clock-outline", off: "mdi:clock-off" },
-  timer: { on: "mdi:timer-outline", off: "mdi:timer-off" },
-  todo: {
-    on: "mdi:check-circle-outline",
-    off: "mdi:checkbox-blank-circle-outline",
-  },
-  tts: { on: "mdi:volume-high", off: "mdi:volume-off" },
-  wake_word: { on: "mdi:microphone", off: "mdi:microphone-off" },
-  weather: { on: "mdi:weather-partly-cloudy", off: "mdi:weather-night" },
-  zone: { on: "mdi:map-marker", off: "mdi:map-marker-off" },
-  geo_location: { on: "mdi:map-marker", off: "mdi:map-marker-off" },
+export const getEntitiesIndex = memoizeOne(
+  (
+    entities: HomeAssistant["entities"],
+    devices: HomeAssistant["devices"]
+  ): Map<string, Set<string>> => {
+    const index = new Map<string, Set<string>>();
+
+    const add = (areaId: string, entityId: string) => {
+      if (!index.has(areaId)) index.set(areaId, new Set());
+      index.get(areaId)!.add(entityId);
+    };
+
+    for (const entity of Object.values(entities)) {
+      if (entity.area_id) {
+        add(entity.area_id, entity.entity_id);
+      } else if (entity.device_id) {
+        const device = devices[entity.device_id];
+        if (device && device.area_id) {
+          add(device.area_id, entity.entity_id);
+        }
+      }
+    }
+    return index;
+  }
+);
+
+export const getAreaEntityIds = memoizeOne(
+  (
+    areaId: string,
+    devicesInArea: Set<string>,
+    entities: HomeAssistant["entities"],
+    hiddenEntitiesSet: Set<string>,
+    labelConfig: string[] | undefined,
+    index?: Map<string, Set<string>>
+  ): string[] => {
+    let candidates: string[] = [];
+
+    if (index && index.has(areaId)) {
+      candidates = Array.from(index.get(areaId)!);
+    } else {
+      candidates = Object.values(entities)
+        .filter((e: any) => {
+          if (!e.area_id && !e.device_id) return false;
+          if (e.area_id) {
+            if (e.area_id !== areaId) return false;
+          } else {
+            if (!devicesInArea.has(e.device_id)) return false;
+          }
+          return true;
+        })
+        .map((e: any) => e.entity_id);
+    }
+
+    return candidates.filter((id) => {
+      const e: any = entities[id];
+      if (!e) return false;
+
+      if (e.hidden || hiddenEntitiesSet.has(id)) return false;
+
+      if (Array.isArray(labelConfig) && labelConfig.length > 0) {
+        return (
+          e.labels && e.labels.some((l: string) => labelConfig.includes(l))
+        );
+      }
+      return true;
+    });
+  }
+);
+
+export const getEntitiesByDomain = memoizeOne(
+  (
+    entityIds: string[],
+    states: HomeAssistant["states"],
+    deviceClasses: { [key: string]: string[] }
+  ) => {
+    const entitiesByDomain: { [domain: string]: HassEntity[] } = {};
+
+    for (const entity of entityIds) {
+      const domain = computeDomain(entity);
+
+      if (
+        !TOGGLE_DOMAINS.includes(domain) &&
+        !SENSOR_DOMAINS.includes(domain) &&
+        !ALERT_DOMAINS.includes(domain) &&
+        !COVER_DOMAINS.includes(domain) &&
+        !OTHER_DOMAINS.includes(domain) &&
+        !CLIMATE_DOMAINS.includes(domain)
+      ) {
+        continue;
+      }
+
+      const stateObj: HassEntity | undefined = states[entity];
+      if (!stateObj) {
+        continue;
+      }
+
+      if (
+        (ALERT_DOMAINS.includes(domain) ||
+          SENSOR_DOMAINS.includes(domain) ||
+          COVER_DOMAINS.includes(domain)) &&
+        !deviceClasses[domain].includes(stateObj.attributes.device_class || "")
+      ) {
+        continue;
+      }
+
+      if (!(domain in entitiesByDomain)) {
+        entitiesByDomain[domain] = [];
+      }
+      entitiesByDomain[domain].push(stateObj);
+    }
+
+    return entitiesByDomain;
+  }
+);
+
+export const getDevicesInArea = memoizeOne(
+  (areaId: string | undefined, devices: Record<string, any> | undefined) =>
+    new Set(
+      areaId && devices
+        ? Object.values(devices).reduce<string[]>((acc, device) => {
+            if (device.area_id === areaId) acc.push(device.id);
+            return acc;
+          }, [])
+        : []
+    )
+);
+
+export const findArea = memoizeOne(
+  (
+    areaId: string | undefined,
+    areas: any[] | Record<string, any> | undefined
+  ) => {
+    const areaList: any[] = Array.isArray(areas)
+      ? areas
+      : areas
+      ? Object.values(areas)
+      : [];
+    return areaList.find((area) => area.area_id === areaId) || null;
+  }
+);
+
+export const filterByCategory = (
+  entityId: string,
+  hassEntities: HomeAssistant["entities"],
+  categoryFilter?: string
+): boolean => {
+  if (!categoryFilter) return true;
+
+  const entry: any = (hassEntities as any)?.[entityId];
+  if (!entry) return true;
+
+  const cat: string | null =
+    typeof entry.entity_category === "string" ? entry.entity_category : null;
+
+  if (!cat) return true;
+
+  switch (categoryFilter) {
+    case "config":
+      return cat !== "config";
+    case "diagnostic":
+      return cat !== "diagnostic";
+    case "config+diagnostic":
+      return cat !== "config" && cat !== "diagnostic";
+    default:
+      return true;
+  }
+};
+
+export const calculateAverage = (
+  domain: string,
+  deviceClass: string | undefined,
+  entities: HassEntity[],
+  locale: any
+): string | undefined => {
+  if (!entities || entities.length === 0) {
+    return undefined;
+  }
+
+  let uom: any;
+  const values = entities.filter((entity) => {
+    if (!isNumericState(entity) || isNaN(Number(entity.state))) {
+      return false;
+    }
+    if (!uom) {
+      uom = entity.attributes.unit_of_measurement;
+      return true;
+    }
+    return entity.attributes.unit_of_measurement === uom;
+  });
+
+  if (!values.length) {
+    return undefined;
+  }
+
+  const sum = values.reduce((total, entity) => total + Number(entity.state), 0);
+
+  if (deviceClass === "power") {
+    return `${formatNumber(sum, locale, {
+      maximumFractionDigits: 1,
+    })}${uom ? blankBeforeUnit(uom, locale) : ""}${uom || ""}`;
+  } else {
+    return `${formatNumber(sum / values.length, locale, {
+      maximumFractionDigits: 1,
+    })}${uom ? blankBeforeUnit(uom, locale) : ""}${uom || ""}`;
+  }
+};
+
+export const getIcon = (
+  domain: DomainType,
+  on: boolean,
+  deviceClass?: string
+): string => {
+  if (domain in DOMAIN_ICONS) {
+    const icons = DOMAIN_ICONS[domain] as any;
+
+    if (deviceClass && typeof icons === "object") {
+      const dc = (icons as Record<string, any>)[deviceClass];
+      if (dc) {
+        if (typeof dc === "string") return dc;
+        if (typeof dc === "object" && "on" in dc && "off" in dc)
+          return on ? dc.on : dc.off;
+      }
+    }
+
+    if (typeof icons === "object" && "on" in icons && "off" in icons) {
+      return on ? icons.on : icons.off;
+    }
+
+    if (typeof icons === "string") return icons;
+  }
+
+  return "";
 };

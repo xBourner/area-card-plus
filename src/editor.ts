@@ -5,36 +5,54 @@ import {
   HomeAssistant,
   LovelaceCardEditor,
   LovelaceCardConfig,
-  caseInsensitiveStringCompare,
   getSensorNumericDeviceClasses,
-  UiAction,
   fireEvent,
   SelectOption,
   Schema,
   SubElementEditorConfig,
 } from "./ha";
+import {
+  compareByFriendlyName,
+  getEntitiesIndex,
+  getAreaEntityIds,
+  getDevicesInArea,
+} from "./helpers";
 import memoizeOne from "memoize-one";
 import {
   DEVICE_CLASSES,
   TOGGLE_DOMAINS,
   CLIMATE_DOMAINS,
   DOMAIN_ICONS,
-} from "./helpers";
+} from "./const";
+import {
+  getConfigSchema,
+  getAppearanceSchema,
+  getActionsSchema,
+  getBinarySchema,
+  getCoverSchema,
+  getSensorSchema,
+  getToggleSchema,
+  getStyleSchema,
+} from "./editor-schema";
 import {
   mdiAlert,
   mdiGarage,
   mdiChartBoxMultiple,
   mdiCube,
   mdiViewDashboardVariant,
+  mdiGestureTapButton,
   mdiEye,
   mdiEyeOff,
-  mdiGestureTapButton,
   mdiEyeOutline,
   mdiEyeOffOutline,
+  mdiHelpCircle,
+  mdiChevronLeft,
 } from "@mdi/js";
 import "./items-editor";
 import "./item-editor";
 import { computeLabelCallback } from "./translations";
+
+const EMPTY_SET = new Set<string>();
 
 export type AreaCardDisplayType =
   | "icon"
@@ -49,8 +67,11 @@ export class AreaCardPlusEditor
   implements LovelaceCardEditor
 {
   @property({ attribute: false }) public hass!: HomeAssistant;
+  @property({ attribute: false }) public lovelace?: any;
   @state() private _config?: LovelaceCardConfig;
-  @state() public _entities?: any[];
+
+  @state() private _activeTab = "config";
+
   @state() private _numericDeviceClasses?: string[];
   @state() private _subElementEditorDomain: SubElementEditorConfig | undefined =
     undefined;
@@ -64,244 +85,51 @@ export class AreaCardPlusEditor
     | SubElementEditorConfig
     | undefined = undefined;
 
-  private computeLabel = memoizeOne((schema: Schema): string => {
-    return computeLabelCallback(this.hass, schema);
-  });
-
-  private _schema = memoizeOne(
-    (designVersion: string, displayType: AreaCardDisplayType) => {
-      const localize = (key: string) => this.hass!.localize(key) || key;
-      const actions: UiAction[] = [
-        "more-info",
-        "navigate",
-        "url",
-        "perform-action",
-        "none",
-      ];
-
-      return [
-        { name: "area", selector: { area: {} } },
-
-        {
-          name: "appearance",
-          flatten: true,
-          type: "expandable",
-          icon: "mdi:palette",
-          schema: [
-            {
-              name: "",
-              type: "grid",
-              schema: [
-                { name: "area_name", selector: { text: {} } },
-                {
-                  name: "area_name_color",
-                  selector: {
-                    ui_color: { default_color: "state", include_state: true },
-                  },
-                },
-                { name: "area_icon", selector: { icon: {} } },
-                {
-                  name: "area_icon_color",
-                  selector: {
-                    ui_color: { default_color: "state", include_state: true },
-                  },
-                },
-                {
-                  name: "display_type",
-                  selector: {
-                    select: {
-                      options: [
-                        "icon",
-                        "picture",
-                        "icon & picture",
-                        "camera",
-                        "camera & icon",
-                      ].map((value) => {
-                        const keyForPart = (part: string) => {
-                          const p = part.trim().toLowerCase();
-                          if (p === "icon")
-                            return "ui.panel.lovelace.editor.card.generic.icon";
-                          if (p === "picture" || p === "image")
-                            return "ui.components.selectors.image.image";
-                          if (p === "camera")
-                            return `ui.panel.lovelace.editor.card.area.display_type_options.camera`;
-                          return `ui.panel.lovelace.editor.card.area.display_type_options.${part}`;
-                        };
-
-                        const parts = value.split(" & ").map((p) => p.trim());
-                        const label = parts
-                          .map((p) => localize(keyForPart(p)) || p)
-                          .join(" & ");
-
-                        return { value, label };
-                      }),
-                      mode: "dropdown",
-                    },
-                  },
-                },
-                ...(displayType === "camera" || displayType === "camera & icon"
-                  ? ([
-                      {
-                        name: "camera_view",
-                        selector: {
-                          select: {
-                            options: ["auto", "live"].map((value) => ({
-                              value,
-                              label: localize(
-                                `ui.panel.lovelace.editor.card.generic.camera_view_options.${value}`
-                              ),
-                            })),
-                            mode: "dropdown",
-                          },
-                        },
-                      },
-                    ] as const satisfies readonly Schema[])
-                  : []),
-              ],
-            },
-            { name: "mirrored", selector: { boolean: {} } },
-            {
-              name: "layout",
-              required: true,
-              selector: {
-                select: {
-                  mode: "box",
-                  options: ["vertical", "horizontal"].map((value) => ({
-                    label: this.hass!.localize(
-                      `ui.panel.lovelace.editor.card.tile.content_layout_options.${value}`
-                    ),
-                    value,
-                    image: {
-                      src: `/static/images/form/tile_content_layout_${value}.svg`,
-                      src_dark: `/static/images/form/tile_content_layout_${value}_dark.svg`,
-                      flip_rtl: true,
-                    },
-                  })),
-                },
-              },
-            },
-            {
-              name: "design",
-              selector: {
-                select: { mode: "box", options: ["V1", "V2"] },
-              },
-            },
-            ...(designVersion === "V2"
-              ? ([
-                  {
-                    name: "v2_color",
-                    selector: {
-                      color_rgb: {
-                        default_color: "state",
-                        include_state: true,
-                      },
-                    },
-                  },
-                ] as const)
-              : []),
-            { name: "theme", required: false, selector: { theme: {} } },
-            {
-              name: "css",
-              flatten: true,
-              type: "expandable",
-              icon: "mdi:palette",
-              schema: [
-                { name: "icon_css", selector: { template: {} } },
-                { name: "name_css", selector: { template: {} } },
-              ],
-            },
-            { name: "tap_action", selector: { ui_action: { actions } } },
-            { name: "double_tap_action", selector: { ui_action: { actions } } },
-            { name: "hold_action", selector: { ui_action: { actions } } },
-          ],
-        },
-      ];
+  private _computeLabelCallback = memoizeOne(
+    (schema: Schema, hass: HomeAssistant): string => {
+      return computeLabelCallback(hass, schema);
     }
   );
 
-  private _binaryschema = memoizeOne((binaryClasses: SelectOption[]) => [
-    {
-      name: "alert_classes",
-      selector: {
-        select: {
-          reorder: true,
-          multiple: true,
-          custom_value: true,
-          options: binaryClasses,
-        },
-      },
-    },
-    {
-      name: "alert_color",
-      selector: { ui_color: { default_color: "state", include_state: true } },
-    },
-    { name: "alert_css", selector: { template: {} } },
-  ]);
+  private computeLabel = (schema: Schema): string =>
+    this._computeLabelCallback(schema, this.hass);
 
-  private _coverschema = memoizeOne((CoverClasses: SelectOption[]) => [
-    {
-      name: "cover_classes",
-      selector: {
-        select: {
-          reorder: true,
-          multiple: true,
-          custom_value: true,
-          options: CoverClasses,
-        },
-      },
-    },
-    {
-      name: "cover_color",
-      selector: { ui_color: { default_color: "state", include_state: true } },
-    },
-    { name: "cover_css", selector: { template: {} } },
-  ]);
+  private _schema = memoizeOne(
+    (
+      tab: string,
+      designVersion: string,
+      displayType: AreaCardDisplayType,
+      language: string
+    ) => {
+      switch (tab) {
+        case "appearance":
+          return getAppearanceSchema(designVersion, displayType, this.hass!);
+        case "actions":
+          return getActionsSchema();
+        case "style":
+          return getStyleSchema();
+        case "config":
+        default:
+          return getConfigSchema();
+      }
+    }
+  );
 
-  private _sensorschema = memoizeOne((sensorClasses: SelectOption[]) => [
-    {
-      name: "",
-      type: "grid",
-      schema: [
-        { name: "show_sensor_icons", selector: { boolean: {} } },
-        { name: "wrap_sensor_icons", selector: { boolean: {} } },
-      ],
-    },
-    {
-      name: "sensor_classes",
-      selector: {
-        select: {
-          reorder: true,
-          multiple: true,
-          custom_value: true,
-          options: sensorClasses,
-        },
-      },
-    },
-    {
-      name: "sensor_color",
-      selector: { ui_color: { default_color: "state", include_state: true } },
-    },
-  ]);
+  private _binaryschema = memoizeOne((binaryClasses: SelectOption[]) =>
+    getBinarySchema(binaryClasses)
+  );
 
-  private _toggleschema = memoizeOne((toggleDomains: SelectOption[]) => [
-    {
-      name: "toggle_domains",
-      selector: {
-        select: {
-          reorder: true,
-          multiple: true,
-          custom_value: true,
-          options: toggleDomains,
-        },
-      },
-    },
-    {
-      name: "domain_color",
-      selector: { ui_color: { default_color: "state", include_state: true } },
-    },
-    { name: "domain_css", selector: { template: {} } },
-    { name: "show_active", selector: { boolean: {} } },
-  ]);
+  private _coverschema = memoizeOne((CoverClasses: SelectOption[]) =>
+    getCoverSchema(CoverClasses)
+  );
+
+  private _sensorschema = memoizeOne((sensorClasses: SelectOption[]) =>
+    getSensorSchema(sensorClasses)
+  );
+
+  private _toggleschema = memoizeOne((toggleDomains: SelectOption[]) =>
+    getToggleSchema(toggleDomains)
+  );
 
   private _popupschema = memoizeOne(
     (allDomains: SelectOption[], allEntities: SelectOption[]) => {
@@ -310,7 +138,7 @@ export class AreaCardPlusEditor
       return [
         {
           name: "columns",
-          selector: { number: { min: 1, max: 4, mode: "box" } },
+          selector: { number: { min: 1, max: 4 } },
         },
         {
           name: "",
@@ -368,88 +196,120 @@ export class AreaCardPlusEditor
     }
   );
 
-  private _binaryClassesForArea = memoizeOne((area: string): string[] =>
-    this._classesForArea(area, "binary_sensor")
+  private _binaryClassesForArea = memoizeOne(
+    (
+      area: string,
+      entities: HomeAssistant["entities"],
+      devices: HomeAssistant["devices"]
+    ): string[] =>
+      this._classesForArea(area, "binary_sensor", undefined, entities, devices)
   );
 
-  private _coverClassesForArea = memoizeOne((area: string): string[] =>
-    this._classesForArea(area, "cover")
+  private _coverClassesForArea = memoizeOne(
+    (
+      area: string,
+      entities: HomeAssistant["entities"],
+      devices: HomeAssistant["devices"]
+    ): string[] =>
+      this._classesForArea(area, "cover", undefined, entities, devices)
   );
 
   private _sensorClassesForArea = memoizeOne(
-    (area: string, numericDeviceClasses?: string[]): string[] =>
-      this._classesForArea(area, "sensor", numericDeviceClasses)
+    (
+      area: string,
+      numericDeviceClasses: string[] | undefined,
+      entities: HomeAssistant["entities"],
+      devices: HomeAssistant["devices"]
+    ): string[] =>
+      this._classesForArea(
+        area,
+        "sensor",
+        numericDeviceClasses,
+        entities,
+        devices
+      )
   );
 
-  private _toggleDomainsForArea = memoizeOne((area: string): string[] =>
-    this._classesForArea(area, "toggle")
+  private _toggleDomainsForArea = memoizeOne(
+    (
+      area: string,
+      entities: HomeAssistant["entities"],
+      devices: HomeAssistant["devices"]
+    ): string[] =>
+      this._classesForArea(area, "toggle", undefined, entities, devices)
   );
 
-  private _allDomainsForArea = memoizeOne((area: string): string[] =>
-    this._classesForArea(area, "all")
+  private _allDomainsForArea = memoizeOne(
+    (
+      area: string,
+      entities: HomeAssistant["entities"],
+      devices: HomeAssistant["devices"]
+    ): string[] =>
+      this._classesForArea(area, "all", undefined, entities, devices)
   );
 
   private _classesForArea(
     area: string,
     domain: "sensor" | "binary_sensor" | "cover" | "toggle" | "all",
-    numericDeviceClasses?: string[] | undefined
+    numericDeviceClasses: string[] | undefined,
+    entitiesRegistry: HomeAssistant["entities"],
+    devicesRegistry: HomeAssistant["devices"]
   ): string[] {
-    let entities;
+    const entitiesIndex = getEntitiesIndex(entitiesRegistry, devicesRegistry);
+    const devicesInArea = entitiesIndex
+      ? EMPTY_SET
+      : getDevicesInArea(area, devicesRegistry);
+
+    const candidateIds = getAreaEntityIds(
+      area,
+      devicesInArea,
+      entitiesRegistry,
+      new Set(),
+      undefined,
+      entitiesIndex
+    );
+
+    const extraEntities = this._config?.extra_entities || [];
+
+    const entities = candidateIds
+      .map((id) => this.hass.states[id])
+      .filter((e) => e !== undefined);
 
     if (domain === "toggle") {
-      entities = Object.values(this.hass!.entities).filter(
+      const filtered = entities.filter(
         (e) =>
-          (TOGGLE_DOMAINS.includes(computeDomain(e.entity_id)) ||
-            CLIMATE_DOMAINS.includes(computeDomain(e.entity_id))) &&
-          !e.hidden &&
-          (e.area_id === area ||
-            (e.device_id && this.hass!.devices[e.device_id]?.area_id === area))
+          TOGGLE_DOMAINS.includes(computeDomain(e.entity_id)) ||
+          CLIMATE_DOMAINS.includes(computeDomain(e.entity_id))
       );
+      return [...new Set(filtered.map((e) => computeDomain(e.entity_id)))];
+    }
 
-      return [
-        ...new Set(entities.map((e) => computeDomain(e.entity_id))),
-      ] as string[];
-    } else if (domain === "all") {
-      const extraEntities = this._config?.extra_entities || [];
-
-      let entities = Object.values(this.hass!.entities).filter(
-        (e) =>
-          !e.hidden &&
-          (e.area_id === area ||
-            (e.device_id && this.hass!.devices[e.device_id]?.area_id === area))
-      );
-
+    if (domain === "all") {
       const extraEntityObjects = extraEntities
         .map((entityId: string) => this.hass!.states[entityId])
         .filter((stateObj: string) => stateObj !== undefined);
 
-      entities = [...entities, ...extraEntityObjects];
+      const all = [...entities, ...extraEntityObjects];
+      return [...new Set(all.map((e) => computeDomain(e.entity_id)))];
+    }
 
-      return [...new Set(entities.map((e) => computeDomain(e.entity_id)))];
-    } else {
-      entities = Object.values(this.hass!.entities).filter(
-        (e) =>
-          computeDomain(e.entity_id) === domain &&
-          !e.entity_category &&
-          !e.hidden &&
-          (e.area_id === area ||
-            (e.device_id && this.hass!.devices[e.device_id]?.area_id === area))
+    const filtered = entities.filter(
+      (e) =>
+        computeDomain(e.entity_id) === domain &&
+        !(entitiesRegistry[e.entity_id] as any)?.entity_category
+    );
+
+    const classes = filtered
+      .map((e) => e.attributes.device_class || "")
+      .filter(
+        (c) =>
+          c &&
+          (domain !== "sensor" ||
+            !numericDeviceClasses ||
+            numericDeviceClasses.includes(c))
       );
 
-      const classes = entities
-        .map(
-          (e) => this.hass!.states[e.entity_id]?.attributes.device_class || ""
-        )
-        .filter(
-          (c) =>
-            c &&
-            (domain !== "sensor" ||
-              !numericDeviceClasses ||
-              numericDeviceClasses.includes(c))
-        );
-
-      return [...new Set(classes)] as string[];
-    }
+    return [...new Set(classes)];
   }
 
   private _buildBinaryOptions = memoizeOne(
@@ -498,9 +358,11 @@ export class AreaCardPlusEditor
             ) || domain,
     }));
 
-    options.sort((a, b) =>
-      caseInsensitiveStringCompare(a.label, b.label, this.hass!.locale.language)
+    const cmp = compareByFriendlyName(
+      this.hass!.states,
+      this.hass!.locale.language
     );
+    options.sort((a, b) => cmp(a.value, b.value));
 
     return options;
   }
@@ -553,10 +415,26 @@ export class AreaCardPlusEditor
         );
 
       if (previousArea !== undefined && previousArea !== currentArea) {
-        const possibleToggleDomains = this._toggleDomainsForArea(currentArea);
-        const possibleAlertClasses = this._binaryClassesForArea(currentArea);
-        const possibleCoverClasses = this._coverClassesForArea(currentArea);
-        const possibleDomains = this._allDomainsForArea(currentArea);
+        const possibleToggleDomains = this._toggleDomainsForArea(
+          currentArea,
+          this.hass.entities,
+          this.hass.devices
+        );
+        const possibleAlertClasses = this._binaryClassesForArea(
+          currentArea,
+          this.hass.entities,
+          this.hass.devices
+        );
+        const possibleCoverClasses = this._coverClassesForArea(
+          currentArea,
+          this.hass.entities,
+          this.hass.devices
+        );
+        const possibleDomains = this._allDomainsForArea(
+          currentArea,
+          this.hass.entities,
+          this.hass.devices
+        );
 
         const sortedToggleDomains = possibleToggleDomains.sort(
           (a, b) => TOGGLE_DOMAINS.indexOf(a) - TOGGLE_DOMAINS.indexOf(b)
@@ -595,7 +473,7 @@ export class AreaCardPlusEditor
           const newHidden = currentHidden.filter((id) => allowed.includes(id));
           if (newHidden.length !== currentHidden.length) {
             this._config = {
-              ...(this._config || ({} as any)),
+              ...(this._config || {}),
               hidden_entities: newHidden,
             } as LovelaceCardConfig;
 
@@ -638,20 +516,36 @@ export class AreaCardPlusEditor
     const currentArea = this._config.area;
     const currentPopupDomains = this._config.popup_domains || [];
 
-    this._entityOptions = Object.values(this.hass.entities)
-      .filter(
-        (e) =>
-          !e.hidden &&
-          currentPopupDomains.includes(computeDomain(e.entity_id)) &&
-          (e.area_id === currentArea ||
-            (e.device_id &&
-              this.hass!.devices[e.device_id]?.area_id === currentArea))
-      )
-      .map((e) => ({
-        value: e.entity_id,
-        label: e.entity_id,
-      }))
-      .sort((a, b) => a.value.localeCompare(b.value));
+    const devicesInArea = getDevicesInArea(currentArea, this.hass.devices);
+    const candidateIds = getAreaEntityIds(
+      currentArea,
+      devicesInArea,
+      this.hass.entities,
+      new Set(),
+      undefined,
+      getEntitiesIndex(this.hass.entities, this.hass.devices)
+    );
+
+    this._entityOptions = candidateIds
+      .filter((id) => {
+        const e = this.hass!.states[id];
+        if (!e) return false;
+
+        return (
+          !this.hass!.entities[id]?.hidden &&
+          currentPopupDomains.includes(computeDomain(id))
+        );
+      })
+      .map((id) => ({
+        value: id,
+        label: id,
+      }));
+
+    const cmp = compareByFriendlyName(
+      this.hass!.states,
+      this.hass!.locale.language
+    );
+    this._entityOptions.sort((a, b) => cmp(a.value, b.value));
 
     this._valueChanged({ detail: { value: this._config } } as CustomEvent);
   }
@@ -676,7 +570,7 @@ export class AreaCardPlusEditor
     else current.add(entity_id);
     const hidden_entities = Array.from(current);
     this._config = {
-      ...(this._config || ({} as any)),
+      ...(this._config || {}),
       hidden_entities,
     } as LovelaceCardConfig;
     fireEvent(this, "config-changed", { config: this._config });
@@ -693,7 +587,7 @@ export class AreaCardPlusEditor
     else current.add(entity_id);
     const excluded_entities = Array.from(current);
     this._config = {
-      ...(this._config || ({} as any)),
+      ...(this._config || {}),
       excluded_entities,
     } as LovelaceCardConfig;
     fireEvent(this, "config-changed", { config: this._config });
@@ -702,7 +596,7 @@ export class AreaCardPlusEditor
   private _hiddenCategoryChanged(ev: CustomEvent) {
     const val = ev.detail?.value?.category_filter;
     this._config = {
-      ...(this._config || ({} as any)),
+      ...(this._config || {}),
       category_filter: val,
     } as LovelaceCardConfig;
     fireEvent(this, "config-changed", { config: { ...this._config } });
@@ -785,7 +679,7 @@ export class AreaCardPlusEditor
       <div class="header">
         <div class="back-title">
           <mwc-icon-button @click=${this._goBackCustomButton}>
-            <ha-icon icon="mdi:chevron-left"></ha-icon>
+            <ha-svg-icon .path=${mdiChevronLeft}></ha-svg-icon>
           </mwc-icon-button>
           <span slot="title"
             >${this.hass.localize(
@@ -796,6 +690,7 @@ export class AreaCardPlusEditor
       </div>
       <item-editor
         .hass=${this.hass}
+        .lovelace=${this.lovelace}
         .config=${buttonConfig}
         .getSchema=${"custom_button"}
         @config-changed=${this._itemChangedCustomButton}
@@ -815,7 +710,7 @@ export class AreaCardPlusEditor
     this._subElementEditorCustomButton = undefined;
   }
 
-  private _itemChangedCustomButton(ev: CustomEvent<any>): void {
+  private _itemChangedCustomButton(ev: CustomEvent<LovelaceCardConfig>): void {
     ev.stopPropagation();
     if (!this._config || !this.hass) {
       return;
@@ -891,13 +786,14 @@ export class AreaCardPlusEditor
       <div class="header">
         <div class="back-title">
           <mwc-icon-button @click=${goBackHandler}>
-            <ha-icon icon="mdi:chevron-left"></ha-icon>
+            <ha-svg-icon .path=${mdiChevronLeft}></ha-svg-icon>
           </mwc-icon-button>
           <span slot="title">${localizedType}</span>
         </div>
       </div>
       <item-editor
         .hass=${this.hass}
+        .lovelace=${this.lovelace}
         .config=${subConfigs?.[idx] || {}}
         .getSchema=${editorKey}
         @config-changed=${itemChangedHandler}
@@ -917,20 +813,41 @@ export class AreaCardPlusEditor
   }
 
   private _goBackByKey(editorKey: "domain" | "alert" | "cover" | "sensor") {
-    const prop = `_subElementEditor${
-      editorKey.charAt(0).toUpperCase() + editorKey.slice(1)
-    }` as keyof this;
-    (this as any)[prop] = undefined;
+    switch (editorKey) {
+      case "domain":
+        this._subElementEditorDomain = undefined;
+        break;
+      case "alert":
+        this._subElementEditorAlert = undefined;
+        break;
+      case "cover":
+        this._subElementEditorCover = undefined;
+        break;
+      case "sensor":
+        this._subElementEditorSensor = undefined;
+        break;
+    }
   }
 
   private _itemChangedByKey(
     ev: CustomEvent<LovelaceCardConfig>,
     editorKey: "domain" | "alert" | "cover" | "sensor"
   ) {
-    const prop = `_subElementEditor${
-      editorKey.charAt(0).toUpperCase() + editorKey.slice(1)
-    }` as keyof this;
-    const editorTarget = (this as any)[prop] as { index?: number } | undefined;
+    let editorTarget: SubElementEditorConfig | undefined;
+    switch (editorKey) {
+      case "domain":
+        editorTarget = this._subElementEditorDomain;
+        break;
+      case "alert":
+        editorTarget = this._subElementEditorAlert;
+        break;
+      case "cover":
+        editorTarget = this._subElementEditorCover;
+        break;
+      case "sensor":
+        editorTarget = this._subElementEditorSensor;
+        break;
+    }
     const customizationKey = `customization_${editorKey}` as
       | "customization_domain"
       | "customization_alert"
@@ -990,28 +907,67 @@ export class AreaCardPlusEditor
     switch (kind) {
       case "toggle":
         return this._buildToggleOptions(
-          this._toggleDomainsForArea(area),
-          this._config?.toggle_domains || this._toggleDomainsForArea(area)
+          this._toggleDomainsForArea(
+            area,
+            this.hass.entities,
+            this.hass.devices
+          ),
+          this._config?.toggle_domains ||
+            this._toggleDomainsForArea(
+              area,
+              this.hass.entities,
+              this.hass.devices
+            )
         );
       case "all":
         return this._buildAllOptions(
-          this._allDomainsForArea(area),
-          this._config?.popup_domains || this._allDomainsForArea(area)
+          this._allDomainsForArea(area, this.hass.entities, this.hass.devices),
+          this._config?.popup_domains ||
+            this._allDomainsForArea(area, this.hass.entities, this.hass.devices)
         );
       case "binary":
         return this._buildBinaryOptions(
-          this._binaryClassesForArea(area),
-          this._config?.alert_classes || this._binaryClassesForArea(area)
+          this._binaryClassesForArea(
+            area,
+            this.hass.entities,
+            this.hass.devices
+          ),
+          this._config?.alert_classes ||
+            this._binaryClassesForArea(
+              area,
+              this.hass.entities,
+              this.hass.devices
+            )
         );
       case "cover":
         return this._buildCoverOptions(
-          this._coverClassesForArea(area),
-          this._config?.cover_classes || this._coverClassesForArea(area)
+          this._coverClassesForArea(
+            area,
+            this.hass.entities,
+            this.hass.devices
+          ),
+          this._config?.cover_classes ||
+            this._coverClassesForArea(
+              area,
+              this.hass.entities,
+              this.hass.devices
+            )
         );
       case "sensor":
         return this._buildSensorOptions(
-          this._sensorClassesForArea(area),
-          this._config?.sensor_classes || this._sensorClassesForArea(area)
+          this._sensorClassesForArea(
+            area,
+            this._numericDeviceClasses,
+            this.hass.entities,
+            this.hass.devices
+          ),
+          this._config?.sensor_classes ||
+            this._sensorClassesForArea(
+              area,
+              this._numericDeviceClasses,
+              this.hass.entities,
+              this.hass.devices
+            )
         );
     }
   }
@@ -1035,7 +991,7 @@ export class AreaCardPlusEditor
         );
       return def[state === "off" ? "off" : "on"] || Object.values(def)[0];
     }
-    return "mdi:help-circle";
+    return mdiHelpCircle;
   }
 
   private _groupAllEntitiesByDomain(): Array<{
@@ -1196,21 +1152,33 @@ export class AreaCardPlusEditor
     }
 
     const possibleToggleDomains = this._toggleDomainsForArea(
-      this._config.area || ""
+      this._config.area || "",
+      this.hass.entities,
+      this.hass.devices
     );
 
     const possibleAlertClasses = this._binaryClassesForArea(
-      this._config.area || ""
+      this._config.area || "",
+      this.hass.entities,
+      this.hass.devices
     );
     const possibleCoverClasses = this._coverClassesForArea(
-      this._config.area || ""
+      this._config.area || "",
+      this.hass.entities,
+      this.hass.devices
     );
 
-    const possibleDomains = this._allDomainsForArea(this._config.area || "");
+    const possibleDomains = this._allDomainsForArea(
+      this._config.area || "",
+      this.hass.entities,
+      this.hass.devices
+    );
 
     const schema = this._schema(
+      this._activeTab,
       this._config.design || "V1",
-      this._config.display_type
+      this._config.display_type,
+      this.hass.locale.language
     );
 
     const binaryschema = this._binaryschema(this.binarySelectOptions);
@@ -1247,6 +1215,79 @@ export class AreaCardPlusEditor
       return this._renderSubElementEditorCustomButton();
 
     return html`
+      <ha-tab-group>
+        <ha-tab-group-tab
+          .active=${this._activeTab === "config"}
+          @click=${() => (this._activeTab = "config")}
+        >
+          ${this.hass.localize(
+            "ui.panel.lovelace.editor.edit_card.tab_config"
+          ) ?? "Configuration"}
+        </ha-tab-group-tab>
+        <ha-tab-group-tab
+          .active=${this._activeTab === "appearance"}
+          @click=${() => (this._activeTab = "appearance")}
+        >
+          ${this.hass.localize(
+            "ui.panel.lovelace.editor.card.map.appearance"
+          ) || "Appearance"}
+        </ha-tab-group-tab>
+        <ha-tab-group-tab
+          .active=${this._activeTab === "actions"}
+          @click=${() => (this._activeTab = "actions")}
+        >
+          ${this.hass.localize("ui.panel.lovelace.editor.card.generic.actions")}
+        </ha-tab-group-tab>
+        <ha-tab-group-tab
+          .active=${this._activeTab === "style"}
+          @click=${() => (this._activeTab = "style")}
+        >
+          Style
+        </ha-tab-group-tab>
+      </ha-tab-group>
+
+      ${this._activeTab === "style"
+        ? html`
+            <ha-alert alert-type="info" title="Style Guide">
+              <p>
+                You can use standard CSS per identifier. <br />
+                <strong>Identifiers:</strong>
+              </p>
+              <ul>
+                <li><b>card</b>: Card Background/Border</li>
+                <li><b>icon</b>: Main Area Icon</li>
+                <li><b>name</b>: Area Name</li>
+                <li><b>domain</b>: Standard Buttons (Light, Switch...)</li>
+                <li><b>cover</b>: Cover Buttons</li>
+                <li><b>alert</b>: Alert Chips</li>
+                <li><b>image</b>: Area Picture</li>
+                <li><b>camera</b>: Camera View</li>
+              </ul>
+              <p>
+                <strong>Animations:</strong> <br />
+                spin, pulse, shake, blink, bounce
+              </p>
+              <p><strong>Example:</strong></p>
+              <pre>
+card:
+  background-color: rgba(255, 0, 0, 0.1);
+  border: none;              
+icon:
+  animation: spin 2s linear infinite;
+  --mdc-icon-size: 40px;
+  color: var(--primary-color);
+name:
+  font-size: 15px;  
+domain:
+  --mdc-icon-size: 24px;
+image:
+  opacity: 0.5;  
+              </pre
+              >
+            </ha-alert>
+          `
+        : nothing}
+
       <ha-form
         .hass=${this.hass}
         .data=${data}
@@ -1255,262 +1296,290 @@ export class AreaCardPlusEditor
         @value-changed=${this._valueChanged}
       ></ha-form>
 
-      <ha-expansion-panel outlined class="main">
-        <div slot="header" role="heading" aria-level="3">
-          <ha-svg-icon .path=${mdiAlert}></ha-svg-icon>
-          ${this.computeLabel({ name: "alert_classes" })}
-        </div>
-        <div class="content">
-          <ha-form
-            .hass=${this.hass}
-            .data=${data}
-            .schema=${binaryschema}
-            .computeLabel=${this.computeLabel}
-            @value-changed=${this._valueChanged}
-          ></ha-form>
-          <alert-items-editor
-            .hass=${this.hass}
-            .customization_alert=${this._config.customization_alert}
-            .SelectOptions=${this.binarySelectOptions}
-            @edit-item=${this._edit_itemAlert}
-            @config-changed=${this._customizationChangedAlert}
-          >
-          </alert-items-editor>
-        </div>
-      </ha-expansion-panel>
+      ${this._activeTab === "config"
+        ? html`
+            <ha-expansion-panel outlined class="main">
+              <div slot="header" role="heading" aria-level="3">
+                <ha-svg-icon .path=${mdiAlert}></ha-svg-icon>
+                ${this.computeLabel({ name: "alert_classes" })}
+              </div>
+              <div class="content">
+                <ha-form
+                  .hass=${this.hass}
+                  .data=${data}
+                  .schema=${binaryschema}
+                  .computeLabel=${this.computeLabel}
+                  @value-changed=${this._valueChanged}
+                ></ha-form>
+                <alert-items-editor
+                  .hass=${this.hass}
+                  .customization_alert=${this._config.customization_alert}
+                  .SelectOptions=${this.binarySelectOptions}
+                  @edit-item=${this._edit_itemAlert}
+                  @config-changed=${this._customizationChangedAlert}
+                >
+                </alert-items-editor>
+              </div>
+            </ha-expansion-panel>
 
-      <ha-expansion-panel outlined class="main">
-        <div slot="header" role="heading" aria-level="3">
-          <ha-svg-icon .path=${mdiGarage}></ha-svg-icon>
-          ${this.computeLabel({ name: "cover_classes" })}
-        </div>
-        <div class="content">
-          <ha-form
-            .hass=${this.hass}
-            .data=${data}
-            .schema=${coverschema}
-            .computeLabel=${this.computeLabel}
-            @value-changed=${this._valueChanged}
-          ></ha-form>
-          <cover-items-editor
-            .hass=${this.hass}
-            .customization_cover=${this._config.customization_cover}
-            .SelectOptions=${this.coverSelectOptions}
-            @edit-item=${this._edit_itemCover}
-            @config-changed=${this._customizationChangedCover}
-          >
-          </cover-items-editor>
-        </div>
-      </ha-expansion-panel>
+            <ha-expansion-panel outlined class="main">
+              <div slot="header" role="heading" aria-level="3">
+                <ha-svg-icon .path=${mdiGarage}></ha-svg-icon>
+                ${this.computeLabel({ name: "cover_classes" })}
+              </div>
+              <div class="content">
+                <ha-form
+                  .hass=${this.hass}
+                  .data=${data}
+                  .schema=${coverschema}
+                  .computeLabel=${this.computeLabel}
+                  @value-changed=${this._valueChanged}
+                ></ha-form>
+                <cover-items-editor
+                  .hass=${this.hass}
+                  .customization_cover=${this._config.customization_cover}
+                  .SelectOptions=${this.coverSelectOptions}
+                  @edit-item=${this._edit_itemCover}
+                  @config-changed=${this._customizationChangedCover}
+                >
+                </cover-items-editor>
+              </div>
+            </ha-expansion-panel>
 
-      <ha-expansion-panel outlined class="main">
-        <div slot="header" role="heading" aria-level="3">
-          <ha-svg-icon .path=${mdiChartBoxMultiple}></ha-svg-icon>
-          ${this.computeLabel({ name: "sensor_classes" })}
-        </div>
-        <div class="content">
-          <ha-form
-            .hass=${this.hass}
-            .data=${data}
-            .schema=${sensorschema}
-            .computeLabel=${this.computeLabel}
-            @value-changed=${this._valueChanged}
-          ></ha-form>
-          <sensor-items-editor
-            .hass=${this.hass}
-            .customization_sensor=${this._config.customization_sensor}
-            .SelectOptions=${this.sensorSelectOptions}
-            @edit-item=${this._edit_itemSensor}
-            @config-changed=${this._customizationChangedSensor}
-          >
-          </sensor-items-editor>
-        </div>
-      </ha-expansion-panel>
+            <ha-expansion-panel outlined class="main">
+              <div slot="header" role="heading" aria-level="3">
+                <ha-svg-icon .path=${mdiChartBoxMultiple}></ha-svg-icon>
+                ${this.computeLabel({ name: "sensor_classes" })}
+              </div>
+              <div class="content">
+                <ha-form
+                  .hass=${this.hass}
+                  .data=${data}
+                  .schema=${sensorschema}
+                  .computeLabel=${this.computeLabel}
+                  @value-changed=${this._valueChanged}
+                ></ha-form>
+                <sensor-items-editor
+                  .hass=${this.hass}
+                  .customization_sensor=${this._config.customization_sensor}
+                  .SelectOptions=${this.sensorSelectOptions}
+                  @edit-item=${this._edit_itemSensor}
+                  @config-changed=${this._customizationChangedSensor}
+                >
+                </sensor-items-editor>
+              </div>
+            </ha-expansion-panel>
 
-      <ha-expansion-panel outlined class="main" .name="toggle_domains">
-        <div slot="header" role="heading" aria-level="3">
-          <ha-svg-icon .path=${mdiCube}></ha-svg-icon>
-          ${this.computeLabel({ name: "toggle_domains" })}
-        </div>
-        <div class="content">
-          <ha-form
-            .hass=${this.hass}
-            .data=${data}
-            .schema=${toggleschema}
-            .computeLabel=${this.computeLabel}
-            @value-changed=${this._valueChanged}
-          ></ha-form>
-          <domain-items-editor
-            .hass=${this.hass}
-            .customization_domain=${this._config.customization_domain}
-            .SelectOptions=${this.toggleSelectOptions}
-            @edit-item=${this._edit_itemDomain}
-            @config-changed=${this._customizationChangedDomain}
-          >
-          </domain-items-editor>
-        </div>
-      </ha-expansion-panel>
+            <ha-expansion-panel outlined class="main" .name="toggle_domains">
+              <div slot="header" role="heading" aria-level="3">
+                <ha-svg-icon .path=${mdiCube}></ha-svg-icon>
+                ${this.computeLabel({ name: "toggle_domains" })}
+              </div>
+              <div class="content">
+                <ha-form
+                  .hass=${this.hass}
+                  .data=${data}
+                  .schema=${toggleschema}
+                  .computeLabel=${this.computeLabel}
+                  @value-changed=${this._valueChanged}
+                ></ha-form>
+                <domain-items-editor
+                  .hass=${this.hass}
+                  .customization_domain=${this._config.customization_domain}
+                  .SelectOptions=${this.toggleSelectOptions}
+                  @edit-item=${this._edit_itemDomain}
+                  @config-changed=${this._customizationChangedDomain}
+                >
+                </domain-items-editor>
+              </div>
+            </ha-expansion-panel>
 
-      <ha-expansion-panel outlined class="main">
-        <div slot="header" role="heading" aria-level="3">
-          <ha-svg-icon .path=${mdiGestureTapButton}></ha-svg-icon>
-          Custom Buttons
-        </div>
-        <div class="content">
-          <custom-buttons-editor
-            .hass=${this.hass}
-            .custom_buttons=${this._config!.custom_buttons}
-            @config-changed=${this._customizationChangedCustomButtons}
-            @edit-item=${this._edit_itemCustomButton}
-          >
-          </custom-buttons-editor>
-        </div>
-      </ha-expansion-panel>
+            <ha-expansion-panel outlined class="main">
+              <div slot="header" role="heading" aria-level="3">
+                <ha-svg-icon .path=${mdiGestureTapButton}></ha-svg-icon>
+                Custom Buttons
+              </div>
+              <div class="content">
+                <custom-buttons-editor
+                  .hass=${this.hass}
+                  .custom_buttons=${this._config!.custom_buttons}
+                  @config-changed=${this._customizationChangedCustomButtons}
+                  @edit-item=${this._edit_itemCustomButton}
+                >
+                </custom-buttons-editor>
+              </div>
+            </ha-expansion-panel>
 
-      <ha-expansion-panel outlined class="main" .name="popup">
-        <div slot="header" role="heading" aria-level="3">
-          <ha-svg-icon .path=${mdiViewDashboardVariant}></ha-svg-icon>
-          ${this.computeLabel({ name: "popup" })}
-        </div>
-        <div class="content">
-          <ha-form
-            .hass=${this.hass}
-            .data=${data}
-            .schema=${popupschema}
-            .computeLabel=${this.computeLabel}
-            @value-changed=${this._valueChanged}
-          ></ha-form>
+            <ha-expansion-panel outlined class="main" .name="popup">
+              <div slot="header" role="heading" aria-level="3">
+                <ha-svg-icon .path=${mdiViewDashboardVariant}></ha-svg-icon>
+                ${this.computeLabel({ name: "popup" })}
+              </div>
+              <div class="content">
+                <ha-form
+                  .hass=${this.hass}
+                  .data=${data}
+                  .schema=${popupschema}
+                  .computeLabel=${this.computeLabel}
+                  @value-changed=${this._valueChanged}
+                ></ha-form>
 
-          <ha-expansion-panel outlined class="main">
-            <div slot="header" role="heading" aria-level="3">
-              <ha-svg-icon .path=${mdiEyeOff}></ha-svg-icon>
-              ${this.computeLabel({ name: "hidden_entities" })}
-            </div>
-            <div class="content">
-              <ha-form
-                .hass=${this.hass}
-                .data=${{ category_filter: this._config?.category_filter }}
-                .schema=${[
-                  {
-                    name: "category_filter",
-                    selector: {
-                      select: {
-                        options: ["config", "diagnostic", "config+diagnostic"],
-                        mode: "dropdown",
-                      },
-                    },
-                  },
-                ]}
-                .computeLabel=${this.computeLabel}
-                @value-changed=${(ev: CustomEvent) =>
-                  this._hiddenCategoryChanged(ev)}
-              ></ha-form>
-              ${this._groupAllEntitiesByDomain().map(
-                (group) => html`
-                  <ha-expansion-panel outlined class="domain-panel">
-                    <div slot="header" class="domain-header">
-                      <ha-icon
-                        .icon=${this._domainIcon(group.domain, "on")}
-                      ></ha-icon>
-                      <span class="domain-title"
-                        >${this._domainLabel(group.domain)}</span
-                      >
-                    </div>
-                    <div class="content">
-                      ${["binary_sensor", "cover"].includes(group.domain)
-                        ? this._groupByDeviceClass(
-                            group.domain,
-                            group.entities
-                          ).map(
-                            (sub) => html`
-                              <ha-expansion-panel outlined class="domain-panel">
-                                <div slot="header" class="dc-header">
-                                  <ha-icon
-                                    .icon=${this._domainIcon(
-                                      group.domain,
-                                      "on",
-                                      sub.deviceClass
-                                    )}
-                                  ></ha-icon>
-                                  <span class="dc-title">${sub.label}</span>
-                                </div>
-                                <div class="content">
-                                  ${sub.entities.map(
-                                    (id) => html`
-                                      <div class="entity-row">
-                                        <span class="entity-name">
-                                          ${this.hass.states[id]?.attributes
-                                            ?.friendly_name || id}
-                                        </span>
-                                        <ha-icon-button
-                                          .path=${this._isHiddenEntity(id)
-                                            ? mdiEyeOff
-                                            : mdiEye}
-                                          .label=${this._isHiddenEntity(id)
-                                            ? this.hass.localize(
-                                                "ui.common.show"
-                                              ) ?? "Show"
-                                            : this.hass.localize(
-                                                "ui.common.hide"
-                                              ) ?? "Hide"}
-                                          @click=${() =>
-                                            this._toggleEntityHidden(id)}
-                                        ></ha-icon-button>
-                                        <ha-icon-button
-                                          .path=${this._isExcludedEntity(id)
-                                            ? mdiEyeOffOutline
-                                            : mdiEyeOutline}
-                                          .label=${this._isExcludedEntity(id)
-                                            ? "Include"
-                                            : "Exclude"}
-                                          @click=${() =>
-                                            this._toggleEntityExcluded(id)}
-                                        ></ha-icon-button>
+                <ha-expansion-panel outlined class="main">
+                  <div slot="header" role="heading" aria-level="3">
+                    <ha-svg-icon .path=${mdiEyeOff}></ha-svg-icon>
+                    ${this.computeLabel({ name: "hidden_entities" })}
+                  </div>
+                  <div class="content">
+                    <ha-form
+                      .hass=${this.hass}
+                      .data=${{
+                        category_filter: this._config?.category_filter,
+                      }}
+                      .schema=${[
+                        {
+                          name: "category_filter",
+                          selector: {
+                            select: {
+                              options: [
+                                "config",
+                                "diagnostic",
+                                "config+diagnostic",
+                              ],
+                              mode: "dropdown",
+                            },
+                          },
+                        },
+                      ]}
+                      .computeLabel=${this.computeLabel}
+                      @value-changed=${(ev: CustomEvent) =>
+                        this._hiddenCategoryChanged(ev)}
+                    ></ha-form>
+                    ${this._groupAllEntitiesByDomain().map(
+                      (group) => html`
+                        <ha-expansion-panel outlined class="domain-panel">
+                          <div slot="header" class="domain-header">
+                            <ha-svg-icon
+                              .path=${this._domainIcon(group.domain, "on")}
+                            ></ha-svg-icon>
+                            <span class="domain-title"
+                              >${this._domainLabel(group.domain)}</span
+                            >
+                          </div>
+                          <div class="content">
+                            ${["binary_sensor", "cover"].includes(group.domain)
+                              ? this._groupByDeviceClass(
+                                  group.domain,
+                                  group.entities
+                                ).map(
+                                  (sub) => html`
+                                    <ha-expansion-panel
+                                      outlined
+                                      class="domain-panel"
+                                    >
+                                      <div slot="header" class="dc-header">
+                                        <ha-svg-icon
+                                          .path=${this._domainIcon(
+                                            group.domain,
+                                            "on",
+                                            sub.deviceClass
+                                          )}
+                                        ></ha-svg-icon>
+                                        <span class="dc-title"
+                                          >${sub.label}</span
+                                        >
                                       </div>
-                                    `
-                                  )}
-                                </div>
-                              </ha-expansion-panel>
-                            `
-                          )
-                        : group.entities.map(
-                            (id) => html`
-                              <div class="entity-row">
-                                <span class="entity-name">
-                                  ${this.hass.states[id]?.attributes
-                                    ?.friendly_name || id}
-                                </span>
-                                <ha-icon-button
-                                  .path=${this._isHiddenEntity(id)
-                                    ? mdiEyeOff
-                                    : mdiEye}
-                                  .label=${this._isHiddenEntity(id)
-                                    ? this.hass.localize("ui.common.show") ??
-                                      "Show"
-                                    : this.hass.localize("ui.common.hide") ??
-                                      "Hide"}
-                                  @click=${() => this._toggleEntityHidden(id)}
-                                ></ha-icon-button>
-                                <ha-icon-button
-                                  .path=${this._isExcludedEntity(id)
-                                    ? mdiEyeOffOutline
-                                    : mdiEyeOutline}
-                                  .label=${this._isExcludedEntity(id)
-                                    ? "Include"
-                                    : "Exclude"}
-                                  @click=${() => this._toggleEntityExcluded(id)}
-                                ></ha-icon-button>
-                              </div>
-                            `
-                          )}
-                    </div>
-                  </ha-expansion-panel>
-                `
-              )}
-            </div>
-          </ha-expansion-panel>
-        </div>
-      </ha-expansion-panel>
+                                      <div class="content">
+                                        ${sub.entities.map(
+                                          (id) => html`
+                                            <div class="entity-row">
+                                              <span class="entity-name">
+                                                ${this.hass.states[id]
+                                                  ?.attributes?.friendly_name ||
+                                                id}
+                                              </span>
+                                              <ha-icon-button
+                                                .path=${this._isHiddenEntity(id)
+                                                  ? mdiEyeOff
+                                                  : mdiEye}
+                                                .label=${this._isHiddenEntity(
+                                                  id
+                                                )
+                                                  ? this.hass.localize(
+                                                      "ui.common.show"
+                                                    ) ?? "Show"
+                                                  : this.hass.localize(
+                                                      "ui.common.hide"
+                                                    ) ?? "Hide"}
+                                                @click=${() =>
+                                                  this._toggleEntityHidden(id)}
+                                              ></ha-icon-button>
+                                              <ha-icon-button
+                                                .path=${this._isExcludedEntity(
+                                                  id
+                                                )
+                                                  ? mdiEyeOffOutline
+                                                  : mdiEyeOutline}
+                                                .label=${this._isExcludedEntity(
+                                                  id
+                                                )
+                                                  ? "Include"
+                                                  : "Exclude"}
+                                                @click=${() =>
+                                                  this._toggleEntityExcluded(
+                                                    id
+                                                  )}
+                                              ></ha-icon-button>
+                                            </div>
+                                          `
+                                        )}
+                                      </div>
+                                    </ha-expansion-panel>
+                                  `
+                                )
+                              : group.entities.map(
+                                  (id) => html`
+                                    <div class="entity-row">
+                                      <span class="entity-name">
+                                        ${this.hass.states[id]?.attributes
+                                          ?.friendly_name || id}
+                                      </span>
+                                      <ha-icon-button
+                                        .path=${this._isHiddenEntity(id)
+                                          ? mdiEyeOff
+                                          : mdiEye}
+                                        .label=${this._isHiddenEntity(id)
+                                          ? this.hass.localize(
+                                              "ui.common.show"
+                                            ) ?? "Show"
+                                          : this.hass.localize(
+                                              "ui.common.hide"
+                                            ) ?? "Hide"}
+                                        @click=${() =>
+                                          this._toggleEntityHidden(id)}
+                                      ></ha-icon-button>
+                                      <ha-icon-button
+                                        .path=${this._isExcludedEntity(id)
+                                          ? mdiEyeOffOutline
+                                          : mdiEyeOutline}
+                                        .label=${this._isExcludedEntity(id)
+                                          ? "Include"
+                                          : "Exclude"}
+                                        @click=${() =>
+                                          this._toggleEntityExcluded(id)}
+                                      ></ha-icon-button>
+                                    </div>
+                                  `
+                                )}
+                          </div>
+                        </ha-expansion-panel>
+                      `
+                    )}
+                  </div>
+                </ha-expansion-panel>
+              </div>
+            </ha-expansion-panel>
+          `
+        : nothing}
     `;
   }
 
@@ -1544,6 +1613,18 @@ export class AreaCardPlusEditor
     }
     ha-icon {
       display: flex;
+    }
+    ha-tab-group {
+      display: block;
+      margin-bottom: 16px;
+      padding: 0 1em;
+    }
+    ha-tab-group-tab {
+      flex: 1;
+    }
+    ha-tab-group-tab::part(base) {
+      width: 100%;
+      justify-content: center;
     }
     .header {
       margin-bottom: 0.5em;

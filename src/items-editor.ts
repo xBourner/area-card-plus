@@ -9,7 +9,7 @@ import {
 import { customElement, property } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import { css, CSSResult, nothing } from "lit";
-import { mdiClose, mdiPencil } from "@mdi/js";
+import { mdiClose, mdiPencil, mdiGestureTapButton } from "@mdi/js";
 
 interface HTMLElementValue extends HTMLElement {
   value: string;
@@ -35,7 +35,6 @@ abstract class BaseItemsEditor extends LitElement {
       return nothing;
     }
 
-    // Filter SelectOptions to exclude already selected types
     const selectedTypes = new Set(
       (this.customization || []).map((conf) => conf.type)
     );
@@ -269,9 +268,18 @@ export class CustomButtonsEditor extends LitElement {
           (button, index) => html`
             <div class="row">
               <div class="item">
-                <ha-icon
-                  .icon=${button.icon || "mdi:gesture-tap-button"}
-                ></ha-icon>
+                ${(() => {
+                  const icon = button.icon;
+                  if (icon?.startsWith("M")) {
+                    return html`<ha-svg-icon .path=${icon}></ha-svg-icon>`;
+                  }
+                  if (icon) {
+                    return html`<ha-icon .icon=${icon}></ha-icon>`;
+                  }
+                  return html`<ha-svg-icon
+                    .path=${mdiGestureTapButton}
+                  ></ha-svg-icon>`;
+                })()}
                 <span class="name"
                   >${button.name || `Button ${index + 1}`}</span
                 >
