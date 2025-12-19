@@ -1259,6 +1259,7 @@ export class AreaCardPlusEditor
                 <li><b>name</b>: Area Name</li>
                 <li><b>domain</b>: Standard Buttons (Light, Switch...)</li>
                 <li><b>cover</b>: Cover Buttons</li>
+                <li><b>sensor</b>: Sensor Elements</li>
                 <li><b>alert</b>: Alert Chips</li>
                 <li><b>image</b>: Area Picture</li>
                 <li><b>camera</b>: Camera View</li>

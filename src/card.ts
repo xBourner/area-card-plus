@@ -1031,7 +1031,12 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                       ? { color: `var(--${sensorColor}-color)` }
                       : {}),
                     ...this._getParsedCss(
-                      customization?.styles?.button ||
+                      this._config?.styles?.sensor,
+                      this._config
+                    ),
+                    ...this._getParsedCss(
+                      customization?.styles?.sensor ||
+                        customization?.styles?.button ||
                         customization?.styles?.card ||
                         customization?.css,
                       customization
@@ -1123,7 +1128,12 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                         ? { color: `var(--${sensorColor}-color)` }
                         : {}),
                       ...this._getParsedCss(
-                        customization?.styles?.button ||
+                        this._config?.styles?.sensor,
+                        this._config
+                      ),
+                      ...this._getParsedCss(
+                        customization?.styles?.sensor ||
+                          customization?.styles?.button ||
                           customization?.styles?.card ||
                           customization?.css,
                         customization
