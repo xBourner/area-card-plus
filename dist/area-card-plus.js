@@ -1192,6 +1192,7 @@ const Be = ["sensor"], Ne = ["binary_sensor"], Re = ["cover"], rt = ["climate"],
     padding: 1px;
     border-radius: 5px;
     --mdc-icon-size: 20px;
+    pointer-events: auto;
   }
   .icon-with-count > * {
     pointer-events: none;
@@ -3013,8 +3014,8 @@ let ue = class extends ee {
       (a) => {
         var b, g, v, $, A, H, x, P, N;
         if (a === "climate") {
-          const w = s.get("climate");
-          if (w && w.hide === !0)
+          const w = s.get("climate"), O = w == null ? void 0 : w.display_mode;
+          if (w && w.hide === !0 || O !== "icon" && O !== "text_icon")
             return V;
         }
         const c = s.get(a), l = (c == null ? void 0 : c.color) || ((b = this._config) == null ? void 0 : b.domain_color), p = c == null ? void 0 : c.icon, d = a === "climate" ? (v = (g = this._config) == null ? void 0 : g.customization_domain) == null ? void 0 : v.find(

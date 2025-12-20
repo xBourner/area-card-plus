@@ -229,6 +229,7 @@ export const cardStyles = css`
     padding: 1px;
     border-radius: 5px;
     --mdc-icon-size: 20px;
+    pointer-events: auto;
   }
   .icon-with-count > * {
     pointer-events: none;

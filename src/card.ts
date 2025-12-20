@@ -791,8 +791,12 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             if (domain === "climate") {
               const climateCustomization =
                 customizationDomainMap.get("climate");
+              const displayMode = climateCustomization?.display_mode;
 
-              if (climateCustomization && climateCustomization.hide === true) {
+              if (
+                (climateCustomization && climateCustomization.hide === true) ||
+                (displayMode !== "icon" && displayMode !== "text_icon")
+              ) {
                 return nothing;
               }
             }
