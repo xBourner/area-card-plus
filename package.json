@@ -1,6 +1,6 @@
 {
   "name": "area-card-plus",
-  "version": "v1.2",
+  "version": "v1.2.1",
   "type": "module",
   "devDependencies": {
     "typescript": "^4.0.0",

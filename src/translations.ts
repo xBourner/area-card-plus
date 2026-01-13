@@ -167,8 +167,6 @@ export function computeLabelCallback(
       return hass!.localize(
         `ui.panel.lovelace.editor.card.generic.${schema.name}`
       );
-
-
     default:
       return hass!.localize(
         `ui.panel.lovelace.editor.card.area.${schema.name}`

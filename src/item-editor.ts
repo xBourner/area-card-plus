@@ -12,7 +12,7 @@ import { HomeAssistant, LovelaceCardConfig, UiAction, Schema } from "./ha";
 
 import memoizeOne from "memoize-one";
 
-interface ItemConfig extends LovelaceCardConfig {}
+interface ItemConfig extends LovelaceCardConfig { }
 
 const ACTIONS: UiAction[] = [
   "more-info",
@@ -168,8 +168,10 @@ export class ItemEditor extends LitElement {
 
   private _schemacustombuttonConfig = memoizeOne(() => {
     return [
+      { name: "entity", selector: { entity: {} } },
       { name: "name", selector: { text: {} } },
       { name: "icon", selector: { icon: {} } },
+      { name: "activate_state_color", selector: { boolean: {} } },
       {
         name: "color",
         selector: { ui_color: { default_color: "state", include_state: true } },
@@ -263,7 +265,7 @@ export class ItemEditor extends LitElement {
           @click=${() => (this._activeTab = "config")}
         >
           ${hass.localize("ui.panel.lovelace.editor.edit_card.tab_config") ??
-          "Configuration"}
+      "Configuration"}
         </ha-tab-group-tab>
         <ha-tab-group-tab
           .active=${this._activeTab === "actions"}
@@ -278,7 +280,7 @@ export class ItemEditor extends LitElement {
           Style
         </ha-tab-group-tab>
         ${this.getSchema !== "custom_button"
-          ? html`
+        ? html`
               <ha-tab-group-tab
                 .active=${this._activeTab === "popup"}
                 @click=${() => (this._activeTab = "popup")}
@@ -286,7 +288,7 @@ export class ItemEditor extends LitElement {
                 Popup Card
               </ha-tab-group-tab>
             `
-          : ""}
+        : ""}
       </ha-tab-group>
 
       ${this._activeTab === "style"
@@ -300,8 +302,8 @@ export class ItemEditor extends LitElement {
                 <li><b>button</b>: Item Container (Background, Border)</li>
                 <li><b>icon</b>: Item Icon</li>
                 ${this.getSchema === "custom_button"
-                  ? html`<li><b>name</b>: Item Name (Label)</li>`
-                  : nothing}
+            ? html`<li><b>name</b>: Item Name (Label)</li>`
+            : nothing}
               </ul>
               <p>
                 <strong>Animations:</strong> <br />
@@ -356,8 +358,8 @@ icon:
           <h3>
             Popup
             ${this.hass!.localize(
-              "ui.panel.lovelace.editor.edit_card.tab_config"
-            )}
+      "ui.panel.lovelace.editor.edit_card.tab_config"
+    )}
           </h3>
           <ha-button
             class="warning"
@@ -454,6 +456,12 @@ icon:
         );
       case "name":
         return this.hass!.localize(`ui.common.name`);
+      case "entity":
+        return this.hass!.localize(`ui.common.entity`);
+      case "activate_state_color":
+        return this.hass!.localize(
+          `ui.panel.lovelace.editor.card.generic.state_color`
+        );
       case "show_set_temperature":
         return "Show Set Temperature";
       default:

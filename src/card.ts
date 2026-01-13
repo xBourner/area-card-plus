@@ -50,6 +50,7 @@ import {
   STATES_OFF,
   UNAVAILABLE_STATES,
   LovelaceGridOptions,
+  computeEntityColor
 } from "./ha";
 import {
   getAreaEntityIds,
@@ -366,8 +367,8 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return (
       deviceClass
         ? entities.filter(
-            (entity) => entity.attributes.device_class === deviceClass
-          )
+          (entity) => entity.attributes.device_class === deviceClass
+        )
         : entities
     ).find(
       (entity) =>
@@ -426,10 +427,10 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       ev.detail.action === "tap"
         ? this._config?.tap_action
         : ev.detail.action === "hold"
-        ? this._config?.hold_action
-        : ev.detail.action === "double_tap"
-        ? this._config?.double_tap_action
-        : null;
+          ? this._config?.hold_action
+          : ev.detail.action === "double_tap"
+            ? this._config?.double_tap_action
+            : null;
 
     const isMoreInfo =
       actionConfig === "more-info" || actionConfig?.action === "more-info";
@@ -473,91 +474,91 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return html`
       <div
         class="${classMap({
-          covers: true,
-          ...designClasses,
-        })}"
+      covers: true,
+      ...designClasses,
+    })}"
       >
         ${repeat(
-          covers,
-          (item) => item.domain + "-" + item.deviceClass,
-          ({ domain, deviceClass }) => {
-            const customization = customizationCoverMap.get(deviceClass);
-            const invert = customization?.invert === true;
-            const candidates =
-              groupedEntities.get(domain)?.get(deviceClass) || [];
-            const activeEntities = candidates.filter((entity) => {
-              const isOn = entity.state === "open";
-              return (
-                (invert ? STATES_OFF.includes(entity.state) : isOn) &&
-                !this._excludedEntitiesSet.has(entity.entity_id) &&
-                filterByCategory(
-                  entity.entity_id,
-                  this.hass.entities,
-                  this._config?.category_filter
-                )
-              );
-            });
-            const coverColor =
-              customization?.color || this._config?.cover_color;
-            const coverIcon = customization?.icon;
-            const activeCount = activeEntities.length;
-            return activeCount > 0
-              ? html`
+      covers,
+      (item) => item.domain + "-" + item.deviceClass,
+      ({ domain, deviceClass }) => {
+        const customization = customizationCoverMap.get(deviceClass);
+        const invert = customization?.invert === true;
+        const candidates =
+          groupedEntities.get(domain)?.get(deviceClass) || [];
+        const activeEntities = candidates.filter((entity) => {
+          const isOn = entity.state === "open";
+          return (
+            (invert ? STATES_OFF.includes(entity.state) : isOn) &&
+            !this._excludedEntitiesSet.has(entity.entity_id) &&
+            filterByCategory(
+              entity.entity_id,
+              this.hass.entities,
+              this._config?.category_filter
+            )
+          );
+        });
+        const coverColor =
+          customization?.color || this._config?.cover_color;
+        const coverIcon = customization?.icon;
+        const activeCount = activeEntities.length;
+        return activeCount > 0
+          ? html`
                   <div
                     class="icon-with-count hover"
                     style=${styleMap(
-                      this._getParsedCss(
-                        customization?.styles?.button ||
-                          customization?.styles?.card ||
-                          this._config?.cover_css ||
-                          (this._config?.styles as any)?.cover,
-                        customization
-                      )
-                    )}
+            this._getParsedCss(
+              customization?.styles?.button ||
+              customization?.styles?.card ||
+              this._config?.cover_css ||
+              (this._config?.styles as any)?.cover,
+              customization
+            )
+          )}
                     @action=${handleCoverAction(this, domain, deviceClass)}
                     .actionHandler=${renderActionHandler(customization)}
                   >
                     ${(() => {
-                      const icon = coverIcon
-                        ? coverIcon
-                        : this._cachedIcon(
-                            domain as DomainType,
-                            invert ? false : true,
-                            deviceClass
-                          );
-                      const styles = styleMap({
-                        ...(coverColor
-                          ? { color: `var(--${coverColor}-color)` }
-                          : {}),
-                        ...this._getParsedCss(
-                          customization?.styles?.icon,
-                          customization
-                        ),
-                      });
-                      if (icon && !icon.startsWith("mdi:")) {
-                        return html`<ha-icon
+              const icon = coverIcon
+                ? coverIcon
+                : this._cachedIcon(
+                  domain as DomainType,
+                  invert ? false : true,
+                  deviceClass
+                );
+              const styles = styleMap({
+                ...(coverColor
+                  ? { color: `var(--${coverColor}-color)` }
+                  : {}),
+                ...this._getParsedCss(
+                  customization?.styles?.icon,
+                  customization
+                ),
+              });
+              if (icon && !icon.startsWith("mdi:")) {
+                return html`<ha-icon
                           class="cover"
                           style=${styles}
                           .path=${icon}
                         ></ha-icon>`;
-                      }
-                      return html`<ha-state-icon
+              }
+              return html`<ha-state-icon
                         class="cover"
                         style=${styles}
                         .icon=${icon}
                       ></ha-state-icon>`;
-                    })()}
+            })()}
                     <span
                       class="active-count text-small ${activeCount > 0
-                        ? "on"
-                        : "off"}"
+              ? "on"
+              : "off"}"
                       >${activeCount}</span
                     >
                   </div>
                 `
-              : nothing;
-          }
-        )}
+          : nothing;
+      }
+    )}
       </div>
     `;
   }
@@ -575,98 +576,98 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return html`
       <div
         class="${classMap({
-          alerts: true,
-          ...designClasses,
-        })}"
+      alerts: true,
+      ...designClasses,
+    })}"
       >
         ${repeat(
-          alerts,
-          (item) => item.domain + "-" + item.deviceClass,
-          ({ domain, deviceClass }) => {
-            const customization = customizationAlertMap.get(deviceClass);
-            const invert = customization?.invert === true;
-            const candidates =
-              groupedEntities.get(domain)?.get(deviceClass) || [];
-            const activeEntities = candidates.filter((entity) => {
-              const isOn = entity.state === "on";
-              return (
-                (invert ? STATES_OFF.includes(entity.state) : isOn) &&
-                !this._excludedEntitiesSet.has(entity.entity_id) &&
-                filterByCategory(
-                  entity.entity_id,
-                  this.hass.entities,
-                  this._config?.category_filter
-                )
-              );
-            });
-            const alertColor =
-              customization?.color || this._config?.alert_color;
-            const alertIcon = customization?.icon;
-            const activeCount = activeEntities.length;
-            return activeCount > 0
-              ? html`
+      alerts,
+      (item) => item.domain + "-" + item.deviceClass,
+      ({ domain, deviceClass }) => {
+        const customization = customizationAlertMap.get(deviceClass);
+        const invert = customization?.invert === true;
+        const candidates =
+          groupedEntities.get(domain)?.get(deviceClass) || [];
+        const activeEntities = candidates.filter((entity) => {
+          const isOn = entity.state === "on";
+          return (
+            (invert ? STATES_OFF.includes(entity.state) : isOn) &&
+            !this._excludedEntitiesSet.has(entity.entity_id) &&
+            filterByCategory(
+              entity.entity_id,
+              this.hass.entities,
+              this._config?.category_filter
+            )
+          );
+        });
+        const alertColor =
+          customization?.color || this._config?.alert_color;
+        const alertIcon = customization?.icon;
+        const activeCount = activeEntities.length;
+        return activeCount > 0
+          ? html`
                   <div
                     class="icon-with-count hover"
                     style=${styleMap(
-                      this._getParsedCss(
-                        customization?.styles?.button ||
-                          customization?.styles?.card ||
-                          this._config?.alert_css ||
-                          (this._config?.styles as any)?.alert,
-                        customization
-                      )
-                    )}
+            this._getParsedCss(
+              customization?.styles?.button ||
+              customization?.styles?.card ||
+              this._config?.alert_css ||
+              (this._config?.styles as any)?.alert,
+              customization
+            )
+          )}
                     @action=${handleAlertAction(this, domain, deviceClass)}
                     .actionHandler=${renderActionHandler(customization)}
                   >
                     ${(() => {
-                      const icon = alertIcon
-                        ? alertIcon
-                        : this._cachedIcon(
-                            domain as DomainType,
-                            invert ? false : true,
-                            deviceClass
-                          );
-                      const styles = styleMap({
-                        ...(alertColor
-                          ? { color: `var(--${alertColor}-color)` }
-                          : {}),
-                        ...this._getParsedCss(
-                          customization?.styles?.icon,
-                          customization
-                        ),
-                      });
-                      if (icon && !icon.startsWith("mdi:")) {
-                        if (icon.startsWith("M")) {
-                          return html`<ha-svg-icon
+              const icon = alertIcon
+                ? alertIcon
+                : this._cachedIcon(
+                  domain as DomainType,
+                  invert ? false : true,
+                  deviceClass
+                );
+              const styles = styleMap({
+                ...(alertColor
+                  ? { color: `var(--${alertColor}-color)` }
+                  : {}),
+                ...this._getParsedCss(
+                  customization?.styles?.icon,
+                  customization
+                ),
+              });
+              if (icon && !icon.startsWith("mdi:")) {
+                if (icon.startsWith("M")) {
+                  return html`<ha-svg-icon
                             class="alert"
                             style=${styles}
                             .path=${icon}
                           ></ha-svg-icon>`;
-                        }
-                        return html`<ha-icon
+                }
+                return html`<ha-icon
                           class="alert"
                           style=${styles}
                           .icon=${icon}
                         ></ha-icon>`;
-                      }
-                      return html`<ha-state-icon
+              }
+              return html`<ha-state-icon
                         class="alert"
                         style=${styles}
                         .icon=${icon}
                       ></ha-state-icon>`;
-                    })()}
+            })()}
                     <span
                       class="active-count text-small ${activeCount > 0
-                        ? "on"
-                        : "off"}"
+              ? "on"
+              : "off"}"
                       >${activeCount}</span
                     >
                   </div>
                 `
-              : nothing;
-          }
-        )}
+          : nothing;
+      }
+    )}
       </div>
     `;
   }
@@ -689,79 +690,107 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return html`
       <div
         class="${classMap({
-          custom_buttons: true,
-          ...designClasses,
-        })}"
+      custom_buttons: true,
+      ...designClasses,
+    })}"
       >
         ${this._config.custom_buttons.map((btn: any) => {
-          if (btn.conditional) {
-            const domain = btn.entity ? computeDomain(btn.entity) : null;
-            if (domain && domain in entitiesByDomain) {
-              const entity = entitiesByDomain[domain].find(
-                (e) => e.entity_id === btn.entity
-              );
-              if (
-                !entity ||
-                UNAVAILABLE_STATES.includes(entity.state) ||
-                STATES_OFF.includes(entity.state)
-              ) {
-                return nothing;
-              }
-            }
+      if (btn.conditional) {
+        const domain = btn.entity ? computeDomain(btn.entity) : null;
+        if (domain && domain in entitiesByDomain) {
+          const entity = entitiesByDomain[domain].find(
+            (e) => e.entity_id === btn.entity
+          );
+          if (
+            !entity ||
+            UNAVAILABLE_STATES.includes(entity.state) ||
+            STATES_OFF.includes(entity.state)
+          ) {
+            return nothing;
           }
-          const colorStyle = btn.color
-            ? { color: `var(--${btn.color}-color, ${btn.color})` }
-            : {};
-          return html`
+        }
+      }
+
+      let entity: HassEntity | undefined;
+      if (btn.entity) {
+        entity = this.hass.states[btn.entity];
+      }
+
+      let stateColor: string | undefined;
+      if (btn.activate_state_color && entity && (!btn.color || btn.color === "state")) {
+        stateColor = computeEntityColor(entity);
+      }
+
+      const colorStyle = stateColor
+        ? { color: stateColor }
+        : btn.color
+          ? { color: `var(--${btn.color}-color, ${btn.color})` }
+          : {};
+
+      let icon = btn.icon;
+      if (!icon && entity) {
+        icon = entity.attributes.icon;
+        if (!icon) {
+          const domain = computeDomain(entity.entity_id);
+          const on = !UNAVAILABLE_STATES.includes(entity.state) && !STATES_OFF.includes(entity.state);
+          icon = getIcon(domain as any, on, entity.attributes.device_class);
+        }
+      }
+
+      const showName = !!btn.name;
+
+      return html`
             <div
               class="icon-with-count hover"
               style=${styleMap(
-                this._getParsedCss(
-                  btn.styles?.button || btn.styles?.card || btn.css,
-                  btn
-                )
-              )}
+        this._getParsedCss(
+          btn.styles?.button || btn.styles?.card || btn.css,
+          btn
+        )
+      )}
               @action=${makeActionHandler(
-                this,
-                "custom_button",
-                "",
-                undefined,
-                btn
-              )}
+        this,
+        "custom_button",
+        "",
+        undefined,
+        btn
+      )}
               .actionHandler=${renderActionHandler(btn)}
             >
-              ${btn.icon.startsWith("M")
-                ? html`<ha-svg-icon
-                    .path=${btn.icon}
-                    style=${styleMap({
-                      ...colorStyle,
-                      ...this._getParsedCss(
-                        btn.styles?.icon || btn.icon_css,
-                        btn
-                      ),
-                    })}
-                  ></ha-svg-icon>`
-                : html`<ha-icon
-                    .icon=${btn.icon}
-                    style=${styleMap({
-                      ...colorStyle,
-                      ...this._getParsedCss(
-                        btn.styles?.icon || btn.icon_css,
-                        btn
-                      ),
-                    })}
-                  ></ha-icon>`}
-              ${btn.name
-                ? html`<span class="custom-button-label" style=${styleMap({
-                    ...colorStyle,
-                    ...this._getParsedCss(btn.styles?.name, btn),
-                  })}"
+              ${icon
+          ? icon.startsWith("M")
+            ? html`<ha-svg-icon
+                      .path=${icon}
+                      style=${styleMap({
+              ...colorStyle,
+              ...this._getParsedCss(
+                btn.styles?.icon || btn.icon_css,
+                btn
+              ),
+            })}
+                    ></ha-svg-icon>`
+            : html`<ha-icon
+                      .icon=${icon}
+                      style=${styleMap({
+              ...colorStyle,
+              ...this._getParsedCss(
+                btn.styles?.icon || btn.icon_css,
+                btn
+              ),
+            })}
+                    ></ha-icon>`
+          : nothing}
+              ${showName
+          ? html`<span class="custom-button-label" style=${styleMap({
+            ...colorStyle,
+            ...this._getParsedCss(btn.styles?.name, btn),
+          })}"
                     >${btn.name}</span
                   >`
-                : nothing}
+          : nothing}
             </div>
           `;
-        })}
+    })}
       </div>
     `;
   }
@@ -780,178 +809,178 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return html`
       <div
         class="${classMap({
-          buttons: true,
-          ...designClasses,
-        })}"
+      buttons: true,
+      ...designClasses,
+    })}"
       >
         ${repeat(
-          buttons,
-          (domain: string) => domain,
-          (domain: string) => {
-            if (domain === "climate") {
-              const climateCustomization =
-                customizationDomainMap.get("climate");
-              const displayMode = climateCustomization?.display_mode;
+      buttons,
+      (domain: string) => domain,
+      (domain: string) => {
+        if (domain === "climate") {
+          const climateCustomization =
+            customizationDomainMap.get("climate");
+          const displayMode = climateCustomization?.display_mode;
 
-              if (
-                (climateCustomization && climateCustomization.hide === true) ||
-                (displayMode !== "icon" && displayMode !== "text_icon")
-              ) {
-                return nothing;
-              }
-            }
-            const customization = customizationDomainMap.get(domain);
-            const domainColor =
-              customization?.color || this._config?.domain_color;
-            const domainIcon = customization?.icon;
+          if (
+            (climateCustomization && climateCustomization.hide === true) ||
+            (displayMode !== "icon" && displayMode !== "text_icon")
+          ) {
+            return nothing;
+          }
+        }
+        const customization = customizationDomainMap.get(domain);
+        const domainColor =
+          customization?.color || this._config?.domain_color;
+        const domainIcon = customization?.icon;
 
-            const climateCustomization =
-              domain === "climate"
-                ? this._config?.customization_domain?.find(
-                    (item: { type: string }) => item.type === "climate"
-                  )
-                : undefined;
-            const displayMode = (climateCustomization as any)?.display_mode;
-            const climateShowSetTemp = (climateCustomization as any)
-              ?.show_set_temperature;
-            const climateSpecial =
-              domain === "climate" &&
-              (displayMode === "icon" || displayMode === "text_icon") &&
-              climateShowSetTemp === true;
-            const baselineEntities = (
-              entitiesByDomain[domain as string] as HassEntity[]
-            ).filter((entity: HassEntity) => {
-              if (UNAVAILABLE_STATES.includes(entity.state)) return false;
-              if (this._excludedEntitiesSet.has(entity.entity_id)) return false;
-              return true;
-            });
+        const climateCustomization =
+          domain === "climate"
+            ? this._config?.customization_domain?.find(
+              (item: { type: string }) => item.type === "climate"
+            )
+            : undefined;
+        const displayMode = (climateCustomization as any)?.display_mode;
+        const climateShowSetTemp = (climateCustomization as any)
+          ?.show_set_temperature;
+        const climateSpecial =
+          domain === "climate" &&
+          (displayMode === "icon" || displayMode === "text_icon") &&
+          climateShowSetTemp === true;
+        const baselineEntities = (
+          entitiesByDomain[domain as string] as HassEntity[]
+        ).filter((entity: HassEntity) => {
+          if (UNAVAILABLE_STATES.includes(entity.state)) return false;
+          if (this._excludedEntitiesSet.has(entity.entity_id)) return false;
+          return true;
+        });
 
-            let activeEntities: HassEntity[] = [];
-            let climateIconColor: string | undefined = undefined;
+        let activeEntities: HassEntity[] = [];
+        let climateIconColor: string | undefined = undefined;
 
-            if (climateSpecial) {
-              activeEntities = baselineEntities;
-              let heating = false;
-              let cooling = false;
-              for (const entity of baselineEntities) {
-                const hvacAction = entity.attributes?.hvac_action ?? null;
-                const state = (entity.state ?? "").toString().toLowerCase();
-                if (hvacAction !== null && hvacAction !== undefined) {
-                  const hvacLower = hvacAction.toString().toLowerCase();
-                  heating =
-                    heating ||
-                    hvacLower.includes("heat") ||
-                    hvacLower.includes("heating");
-                  cooling =
-                    cooling ||
-                    hvacLower.includes("cool") ||
-                    hvacLower.includes("cooling");
-                } else {
-                  heating =
-                    heating ||
-                    state.includes("heat") ||
-                    state.includes("heating");
-                  cooling =
-                    cooling ||
-                    state.includes("cool") ||
-                    state.includes("cooling");
-                }
-                if (heating && cooling) break;
-              }
-              if (heating) climateIconColor = "red";
-              else if (cooling) climateIconColor = "cornflowerblue";
+        if (climateSpecial) {
+          activeEntities = baselineEntities;
+          let heating = false;
+          let cooling = false;
+          for (const entity of baselineEntities) {
+            const hvacAction = entity.attributes?.hvac_action ?? null;
+            const state = (entity.state ?? "").toString().toLowerCase();
+            if (hvacAction !== null && hvacAction !== undefined) {
+              const hvacLower = hvacAction.toString().toLowerCase();
+              heating =
+                heating ||
+                hvacLower.includes("heat") ||
+                hvacLower.includes("heating");
+              cooling =
+                cooling ||
+                hvacLower.includes("cool") ||
+                hvacLower.includes("cooling");
             } else {
-              activeEntities = baselineEntities.filter((entity: HassEntity) => {
-                if (domain === "climate") {
-                  const hvacAction = entity.attributes?.hvac_action;
-                  if (hvacAction !== undefined && hvacAction !== null) {
-                    const hvacLower = hvacAction.toString().toLowerCase();
-                    if (hvacLower === "off" || hvacLower === "idle")
-                      return false;
-                    return true;
-                  }
-                  const stateLower = (entity.state ?? "")
-                    .toString()
-                    .toLowerCase();
-                  if (stateLower === "off" || stateLower === "idle")
-                    return false;
-                  return true;
-                }
-                if (STATES_OFF.includes(entity.state)) return false;
+              heating =
+                heating ||
+                state.includes("heat") ||
+                state.includes("heating");
+              cooling =
+                cooling ||
+                state.includes("cool") ||
+                state.includes("cooling");
+            }
+            if (heating && cooling) break;
+          }
+          if (heating) climateIconColor = "red";
+          else if (cooling) climateIconColor = "cornflowerblue";
+        } else {
+          activeEntities = baselineEntities.filter((entity: HassEntity) => {
+            if (domain === "climate") {
+              const hvacAction = entity.attributes?.hvac_action;
+              if (hvacAction !== undefined && hvacAction !== null) {
+                const hvacLower = hvacAction.toString().toLowerCase();
+                if (hvacLower === "off" || hvacLower === "idle")
+                  return false;
                 return true;
-              });
+              }
+              const stateLower = (entity.state ?? "")
+                .toString()
+                .toLowerCase();
+              if (stateLower === "off" || stateLower === "idle")
+                return false;
+              return true;
             }
-            const activeCount = activeEntities.length;
-            if (this._config.show_active && activeCount === 0) {
-              return nothing;
-            }
-            return html`
+            if (STATES_OFF.includes(entity.state)) return false;
+            return true;
+          });
+        }
+        const activeCount = activeEntities.length;
+        if (this._config.show_active && activeCount === 0) {
+          return nothing;
+        }
+        return html`
               <div
                 class="icon-with-count hover"
                 style=${styleMap(
-                  this._getParsedCss(
-                    customization?.styles?.button ||
-                      customization?.styles?.card ||
-                      customization?.css ||
-                      this._config?.domain_css ||
-                      (this._config?.styles as any)?.domain,
-                    customization
-                  )
-                )}
+          this._getParsedCss(
+            customization?.styles?.button ||
+            customization?.styles?.card ||
+            customization?.css ||
+            this._config?.domain_css ||
+            (this._config?.styles as any)?.domain,
+            customization
+          )
+        )}
                 @action=${handleDomainAction(this, domain as string)}
                 .actionHandler=${renderActionHandler(customization)}
               >
                 ${(() => {
-                  const icon = domainIcon
-                    ? domainIcon
-                    : this._cachedIcon(domain as DomainType, activeCount > 0);
-                  const styles = styleMap({
-                    ...(climateIconColor ? { color: climateIconColor } : {}),
-                    ...(!climateIconColor && domainColor
-                      ? { color: `var(--${domainColor}-color)` }
-                      : {}),
-                    ...(!climateIconColor &&
-                    !domainColor &&
-                    this._config?.domain_color
-                      ? { color: this._config.domain_color }
-                      : {}),
-                    ...this._getParsedCss(
-                      customization?.styles?.icon || customization?.icon_css,
-                      customization
-                    ),
-                  });
-                  if (icon && !icon.startsWith("mdi:")) {
-                    if (icon.startsWith("M")) {
-                      return html`<ha-svg-icon
+            const icon = domainIcon
+              ? domainIcon
+              : this._cachedIcon(domain as DomainType, activeCount > 0);
+            const styles = styleMap({
+              ...(climateIconColor ? { color: climateIconColor } : {}),
+              ...(!climateIconColor && domainColor
+                ? { color: `var(--${domainColor}-color)` }
+                : {}),
+              ...(!climateIconColor &&
+                !domainColor &&
+                this._config?.domain_color
+                ? { color: this._config.domain_color }
+                : {}),
+              ...this._getParsedCss(
+                customization?.styles?.icon || customization?.icon_css,
+                customization
+              ),
+            });
+            if (icon && !icon.startsWith("mdi:")) {
+              if (icon.startsWith("M")) {
+                return html`<ha-svg-icon
                         class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
                         style=${styles}
                         .path=${icon}
                       ></ha-svg-icon>`;
-                    }
-                    return html`<ha-icon
+              }
+              return html`<ha-icon
                       class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
                       style=${styles}
                       .icon=${icon}
                     ></ha-icon>`;
-                  }
-                  return html`<ha-state-icon
+            }
+            return html`<ha-state-icon
                     style=${styles}
                     class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
                     .domain=${domain}
                     .icon=${icon}
                   ></ha-state-icon>`;
-                })()}
+          })()}
                 <span
                   class="active-count text-small ${activeCount > 0
-                    ? "on"
-                    : "off"}"
+            ? "on"
+            : "off"}"
                 >
                   ${activeCount}
                 </span>
               </div>
             `;
-          }
-        )}
+      }
+    )}
       </div>
     `;
   }
@@ -968,199 +997,199 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return html`
       <div class="sensors">
         ${this._config?.wrap_sensor_icons
-          ? repeat(
-              sensors,
-              (item) => item.domain + "-" + item.deviceClass,
-              ({ domain, deviceClass, index }) => {
-                const candidates =
-                  groupedEntities.get(domain)?.get(deviceClass) || [];
-                const matchingEntities = candidates.filter(
-                  (entity) =>
-                    !this._excludedEntitiesSet.has(entity.entity_id) &&
-                    filterByCategory(
-                      entity.entity_id,
-                      this.hass.entities,
-                      this._config?.category_filter
-                    )
-                );
-                if (matchingEntities.length === 0) {
-                  return nothing;
-                }
-                let areaSensorEntityId: string | null = null;
-                switch (deviceClass) {
-                  case "temperature":
-                    areaSensorEntityId = area.temperature_entity_id;
-                    break;
-                  case "humidity":
-                    areaSensorEntityId = area.humidity_entity_id;
-                    break;
-                }
-                const areaEntity = areaSensorEntityId
-                  ? this.hass.states[areaSensorEntityId]
-                  : undefined;
-                const customization = customizationSensorMap.get(deviceClass);
-                const sensorColor =
-                  customization?.color || this._config?.sensor_color;
-                const invert = customization?.invert === true;
-                const hasOnEntity = matchingEntities.some(
-                  (e) =>
-                    !UNAVAILABLE_STATES.includes(e.state) &&
-                    !STATES_OFF.includes(e.state)
-                );
-                if (invert && hasOnEntity) {
-                  return nothing;
-                }
-                const icon = this._config?.show_sensor_icons
-                  ? html`<ha-domain-icon
+        ? repeat(
+          sensors,
+          (item) => item.domain + "-" + item.deviceClass,
+          ({ domain, deviceClass, index }) => {
+            const candidates =
+              groupedEntities.get(domain)?.get(deviceClass) || [];
+            const matchingEntities = candidates.filter(
+              (entity) =>
+                !this._excludedEntitiesSet.has(entity.entity_id) &&
+                filterByCategory(
+                  entity.entity_id,
+                  this.hass.entities,
+                  this._config?.category_filter
+                )
+            );
+            if (matchingEntities.length === 0) {
+              return nothing;
+            }
+            let areaSensorEntityId: string | null = null;
+            switch (deviceClass) {
+              case "temperature":
+                areaSensorEntityId = area.temperature_entity_id;
+                break;
+              case "humidity":
+                areaSensorEntityId = area.humidity_entity_id;
+                break;
+            }
+            const areaEntity = areaSensorEntityId
+              ? this.hass.states[areaSensorEntityId]
+              : undefined;
+            const customization = customizationSensorMap.get(deviceClass);
+            const sensorColor =
+              customization?.color || this._config?.sensor_color;
+            const invert = customization?.invert === true;
+            const hasOnEntity = matchingEntities.some(
+              (e) =>
+                !UNAVAILABLE_STATES.includes(e.state) &&
+                !STATES_OFF.includes(e.state)
+            );
+            if (invert && hasOnEntity) {
+              return nothing;
+            }
+            const icon = this._config?.show_sensor_icons
+              ? html`<ha-domain-icon
                       style=${styleMap({
-                        ...(sensorColor
-                          ? { color: `var(--${sensorColor}-color)` }
-                          : {}),
-                        ...this._getParsedCss(
-                          customization?.styles?.icon || customization?.css,
-                          customization
-                        ),
-                      })}
+                ...(sensorColor
+                  ? { color: `var(--${sensorColor}-color)` }
+                  : {}),
+                ...this._getParsedCss(
+                  customization?.styles?.icon || customization?.css,
+                  customization
+                ),
+              })}
                       .hass=${this.hass}
                       .domain=${domain}
                       .deviceClass=${deviceClass}
                     ></ha-domain-icon>`
-                  : null;
-                const value = html`<span
+              : null;
+            const value = html`<span
                   class="sensor-value"
                   @action=${handleSensorAction(this, domain, deviceClass)}
                   .actionHandler=${renderActionHandler(customization)}
                   style=${styleMap({
-                    ...(sensorColor
-                      ? { color: `var(--${sensorColor}-color)` }
-                      : {}),
-                    ...this._getParsedCss(
-                      this._config?.styles?.sensor,
-                      this._config
-                    ),
-                    ...this._getParsedCss(
-                      customization?.styles?.sensor ||
-                        customization?.styles?.button ||
-                        customization?.styles?.card ||
-                        customization?.css,
-                      customization
-                    ),
-                  })}
+              ...(sensorColor
+                ? { color: `var(--${sensorColor}-color)` }
+                : {}),
+              ...this._getParsedCss(
+                this._config?.styles?.sensor,
+                this._config
+              ),
+              ...this._getParsedCss(
+                customization?.styles?.sensor ||
+                customization?.styles?.button ||
+                customization?.styles?.card ||
+                customization?.css,
+                customization
+              ),
+            })}
                 >
                   ${!this._config?.show_sensor_icons &&
-                  !this._config?.wrap_sensor_icons &&
-                  index > 0
-                    ? " - "
-                    : ""}
+                !this._config?.wrap_sensor_icons &&
+                index > 0
+                ? " - "
+                : ""}
                   ${areaEntity
-                    ? this.hass.formatEntityState(areaEntity)
-                    : calculateAverage(
-                        domain,
-                        deviceClass,
-                        matchingEntities,
-                        this.hass.locale
-                      )}
+                ? this.hass.formatEntityState(areaEntity)
+                : calculateAverage(
+                  domain,
+                  deviceClass,
+                  matchingEntities,
+                  this.hass.locale
+                )}
                 </span>`;
-                return html`<div class="sensor-row off">${icon}${value}</div>`;
-              }
-            )
-          : html`<div class="sensor text-medium off">
+            return html`<div class="sensor-row off">${icon}${value}</div>`;
+          }
+        )
+        : html`<div class="sensor text-medium off">
               ${repeat(
-                sensors,
-                (item) => item.domain + "-" + item.deviceClass,
-                ({ domain, deviceClass, index }) => {
-                  const candidates =
-                    groupedEntities.get(domain)?.get(deviceClass) || [];
-                  const matchingEntities = candidates.filter(
-                    (entity) =>
-                      !this._excludedEntitiesSet.has(entity.entity_id) &&
-                      filterByCategory(
-                        entity.entity_id,
-                        this.hass.entities,
-                        this._config?.category_filter
-                      )
-                  );
-                  if (matchingEntities.length === 0) {
-                    return nothing;
-                  }
-                  let areaSensorEntityId: string | null = null;
-                  switch (deviceClass) {
-                    case "temperature":
-                      areaSensorEntityId = area.temperature_entity_id;
-                      break;
-                    case "humidity":
-                      areaSensorEntityId = area.humidity_entity_id;
-                      break;
-                  }
-                  const areaEntity = areaSensorEntityId
-                    ? this.hass.states[areaSensorEntityId]
-                    : undefined;
-                  const customization = customizationSensorMap.get(deviceClass);
-                  const sensorColor =
-                    customization?.color || this._config?.sensor_color;
-                  const invert = customization?.invert === true;
-                  const hasOnEntity = matchingEntities.some(
-                    (e) =>
-                      !UNAVAILABLE_STATES.includes(e.state) &&
-                      !STATES_OFF.includes(e.state)
-                  );
-                  if (invert && hasOnEntity) {
-                    return nothing;
-                  }
-                  const icon = this._config?.show_sensor_icons
-                    ? html`<ha-domain-icon
+          sensors,
+          (item) => item.domain + "-" + item.deviceClass,
+          ({ domain, deviceClass, index }) => {
+            const candidates =
+              groupedEntities.get(domain)?.get(deviceClass) || [];
+            const matchingEntities = candidates.filter(
+              (entity) =>
+                !this._excludedEntitiesSet.has(entity.entity_id) &&
+                filterByCategory(
+                  entity.entity_id,
+                  this.hass.entities,
+                  this._config?.category_filter
+                )
+            );
+            if (matchingEntities.length === 0) {
+              return nothing;
+            }
+            let areaSensorEntityId: string | null = null;
+            switch (deviceClass) {
+              case "temperature":
+                areaSensorEntityId = area.temperature_entity_id;
+                break;
+              case "humidity":
+                areaSensorEntityId = area.humidity_entity_id;
+                break;
+            }
+            const areaEntity = areaSensorEntityId
+              ? this.hass.states[areaSensorEntityId]
+              : undefined;
+            const customization = customizationSensorMap.get(deviceClass);
+            const sensorColor =
+              customization?.color || this._config?.sensor_color;
+            const invert = customization?.invert === true;
+            const hasOnEntity = matchingEntities.some(
+              (e) =>
+                !UNAVAILABLE_STATES.includes(e.state) &&
+                !STATES_OFF.includes(e.state)
+            );
+            if (invert && hasOnEntity) {
+              return nothing;
+            }
+            const icon = this._config?.show_sensor_icons
+              ? html`<ha-domain-icon
                         style=${styleMap({
-                          ...(sensorColor
-                            ? { color: `var(--${sensorColor}-color)` }
-                            : {}),
-                          ...this._getParsedCss(
-                            customization?.styles?.icon || customization?.css,
-                            customization
-                          ),
-                        })}
+                ...(sensorColor
+                  ? { color: `var(--${sensorColor}-color)` }
+                  : {}),
+                ...this._getParsedCss(
+                  customization?.styles?.icon || customization?.css,
+                  customization
+                ),
+              })}
                         .hass=${this.hass}
                         .domain=${domain}
                         .deviceClass=${deviceClass}
                       ></ha-domain-icon>`
-                    : null;
-                  const value = html`<span
+              : null;
+            const value = html`<span
                     class="sensor-value"
                     @action=${handleSensorAction(this, domain, deviceClass)}
                     .actionHandler=${renderActionHandler(customization)}
                     style=${styleMap({
-                      ...(sensorColor
-                        ? { color: `var(--${sensorColor}-color)` }
-                        : {}),
-                      ...this._getParsedCss(
-                        this._config?.styles?.sensor,
-                        this._config
-                      ),
-                      ...this._getParsedCss(
-                        customization?.styles?.sensor ||
-                          customization?.styles?.button ||
-                          customization?.styles?.card ||
-                          customization?.css,
-                        customization
-                      ),
-                    })}
+              ...(sensorColor
+                ? { color: `var(--${sensorColor}-color)` }
+                : {}),
+              ...this._getParsedCss(
+                this._config?.styles?.sensor,
+                this._config
+              ),
+              ...this._getParsedCss(
+                customization?.styles?.sensor ||
+                customization?.styles?.button ||
+                customization?.styles?.card ||
+                customization?.css,
+                customization
+              ),
+            })}
                   >
                     ${!this._config?.show_sensor_icons &&
-                    !this._config?.wrap_sensor_icons &&
-                    index > 0
-                      ? " - "
-                      : ""}
+                !this._config?.wrap_sensor_icons &&
+                index > 0
+                ? " - "
+                : ""}
                     ${areaEntity
-                      ? this.hass.formatEntityState(areaEntity)
-                      : calculateAverage(
-                          domain,
-                          deviceClass,
-                          matchingEntities,
-                          this.hass.locale
-                        )}
+                ? this.hass.formatEntityState(areaEntity)
+                : calculateAverage(
+                  domain,
+                  deviceClass,
+                  matchingEntities,
+                  this.hass.locale
+                )}
                   </span>`;
-                  return html`${icon}${value}`;
-                }
-              )}
+            return html`${icon}${value}`;
+          }
+        )}
             </div>`}
       </div>
     `;
@@ -1175,89 +1204,89 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return html`
       <div class="climate text-small off">
         ${repeat(
-          climates,
-          (item) => item.domain,
-          ({ domain }) => {
-            const entities = entitiesByDomain[domain] || [];
-            const customization = customizationDomainMap.get(domain) || {};
-            const displayMode = (customization as any)?.display_mode;
-            if (displayMode === "icon") {
-              return nothing;
-            }
+      climates,
+      (item) => item.domain,
+      ({ domain }) => {
+        const entities = entitiesByDomain[domain] || [];
+        const customization = customizationDomainMap.get(domain) || {};
+        const displayMode = (customization as any)?.display_mode;
+        if (displayMode === "icon") {
+          return nothing;
+        }
 
-            if ((customization as any)?.show_set_temperature === true) {
-              const tempsTemplates = entities
-                .filter((entity) => {
-                  if (this._excludedEntitiesSet.has(entity.entity_id))
-                    return false;
-                  return true;
-                })
-                .map((entity) => {
-                  const rawTemp =
-                    entity.attributes?.temperature ??
-                    entity.attributes?.target_temperature ??
-                    null;
-                  if (rawTemp === null || rawTemp === undefined) return null;
-                  const num = Number(rawTemp);
-                  if (Number.isNaN(num)) return null;
+        if ((customization as any)?.show_set_temperature === true) {
+          const tempsTemplates = entities
+            .filter((entity) => {
+              if (this._excludedEntitiesSet.has(entity.entity_id))
+                return false;
+              return true;
+            })
+            .map((entity) => {
+              const rawTemp =
+                entity.attributes?.temperature ??
+                entity.attributes?.target_temperature ??
+                null;
+              if (rawTemp === null || rawTemp === undefined) return null;
+              const num = Number(rawTemp);
+              if (Number.isNaN(num)) return null;
 
-                  const unit =
-                    this.hass?.config?.unit_system?.temperature || "";
-                  const hvacAction = entity.attributes?.hvac_action ?? null;
-                  const state = (entity.state ?? "").toString().toLowerCase();
+              const unit =
+                this.hass?.config?.unit_system?.temperature || "";
+              const hvacAction = entity.attributes?.hvac_action ?? null;
+              const state = (entity.state ?? "").toString().toLowerCase();
 
-                  const hvacLower = (hvacAction ?? state)
-                    .toString()
-                    .toLowerCase();
-                  const heating =
-                    hvacLower.includes("heat") || hvacLower.includes("heating");
-                  const cooling =
-                    hvacLower.includes("cool") || hvacLower.includes("cooling");
+              const hvacLower = (hvacAction ?? state)
+                .toString()
+                .toLowerCase();
+              const heating =
+                hvacLower.includes("heat") || hvacLower.includes("heating");
+              const cooling =
+                hvacLower.includes("cool") || hvacLower.includes("cooling");
 
-                  const color = heating
-                    ? "red"
-                    : cooling
-                    ? "cornflowerblue"
-                    : "var(--secondary-text-color)";
+              const color = heating
+                ? "red"
+                : cooling
+                  ? "cornflowerblue"
+                  : "var(--secondary-text-color)";
 
-                  return html`<span style="color:${color};"
+              return html`<span style="color:${color};"
                     >${num}${unit ? ` ${unit}` : ""}</span
                   >`;
-                })
-                .filter((t) => t !== null) as Array<unknown>;
+            })
+            .filter((t) => t !== null) as Array<unknown>;
 
-              if (tempsTemplates.length === 0) return nothing;
+          if (tempsTemplates.length === 0) return nothing;
 
-              const joinedTemplates = tempsTemplates.reduce(
-                (acc: any[], cur, i) => {
-                  if (i === 0) {
-                    acc.push(cur);
-                  } else {
-                    acc.push(
-                      html`<span style="color: var(--secondary-text-color)"
+          const joinedTemplates = tempsTemplates.reduce(
+            (acc: any[], cur, i) => {
+              if (i === 0) {
+                acc.push(cur);
+              } else {
+                acc.push(
+                  html`<span style="color: var(--secondary-text-color)"
                         >,
                       </span>`
-                    );
-                    acc.push(cur);
-                  }
-                  return acc;
-                },
-                []
-              );
+                );
+                acc.push(cur);
+              }
+              return acc;
+            },
+            []
+          );
 
-              const parentStyleObj = {
-                ...(customization?.color
-                  ? { color: `var(--${customization.color}-color)` }
-                  : {}),
-                ...this._getParsedCss(
-                  customization?.styles?.button ||
-                    customization?.styles?.card ||
-                    customization?.css,
-                  customization
-                ),
-              };
+          const parentStyleObj = {
+            ...(customization?.color
+              ? { color: `var(--${customization.color}-color)` }
+              : {}),
+            ...this._getParsedCss(
+              customization?.styles?.button ||
+              customization?.styles?.card ||
+              customization?.css,
+              customization
+            ),
+          };
 
-              return html`<div
+          return html`<div
                 class="climate"
                 style=${styleMap(parentStyleObj)}
                 @action=${handleDomainAction(this, domain)}
@@ -1269,57 +1298,56 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                   >)</span
                 >
               </div>`;
+        }
+
+        const activeTemperatures = (entities || [])
+          .filter((entity) => {
+            const hvacAction = entity.attributes?.hvac_action;
+            const state = entity.state;
+            const isActive =
+              !UNAVAILABLE_STATES.includes(state) &&
+              !STATES_OFF.includes(state) &&
+              !excludedEntities.includes(entity.entity_id);
+
+            if (hvacAction !== undefined && hvacAction !== null) {
+              const hvacLower = hvacAction.toString().toLowerCase();
+              const isHeatingCooling =
+                hvacLower !== "idle" && hvacLower !== "off";
+              return isActive && isHeatingCooling;
             }
 
-            const activeTemperatures = (entities || [])
-              .filter((entity) => {
-                const hvacAction = entity.attributes?.hvac_action;
-                const state = entity.state;
-                const isActive =
-                  !UNAVAILABLE_STATES.includes(state) &&
-                  !STATES_OFF.includes(state) &&
-                  !excludedEntities.includes(entity.entity_id);
+            const stateLower = (state ?? "").toString().toLowerCase();
+            const isHeatingCoolingByState =
+              stateLower.includes("heat") ||
+              stateLower.includes("cool") ||
+              (stateLower !== "idle" && stateLower !== "off");
+            return isActive && isHeatingCoolingByState;
+          })
+          .map((entity) => {
+            const temperature = entity.attributes?.temperature ?? "N/A";
+            return `${temperature} ${this.hass?.config?.unit_system?.temperature || ""
+              }`;
+          });
 
-                if (hvacAction !== undefined && hvacAction !== null) {
-                  const hvacLower = hvacAction.toString().toLowerCase();
-                  const isHeatingCooling =
-                    hvacLower !== "idle" && hvacLower !== "off";
-                  return isActive && isHeatingCooling;
-                }
+        if (activeTemperatures.length === 0) {
+          return nothing;
+        }
 
-                const stateLower = (state ?? "").toString().toLowerCase();
-                const isHeatingCoolingByState =
-                  stateLower.includes("heat") ||
-                  stateLower.includes("cool") ||
-                  (stateLower !== "idle" && stateLower !== "off");
-                return isActive && isHeatingCoolingByState;
-              })
-              .map((entity) => {
-                const temperature = entity.attributes?.temperature ?? "N/A";
-                return `${temperature} ${
-                  this.hass?.config?.unit_system?.temperature || ""
-                }`;
-              });
+        const domainColor = customization?.color;
+        const textStyleObj = {
+          ...(domainColor ? { color: `var(--${domainColor}-color)` } : {}),
+          ...(!domainColor && this._config?.domain_color
+            ? { color: this._config.domain_color }
+            : {}),
+          ...this._getParsedCss(
+            customization?.styles?.button ||
+            customization?.styles?.card ||
+            customization?.css,
+            customization
+          ),
+        };
 
-            if (activeTemperatures.length === 0) {
-              return nothing;
-            }
-
-            const domainColor = customization?.color;
-            const textStyleObj = {
-              ...(domainColor ? { color: `var(--${domainColor}-color)` } : {}),
-              ...(!domainColor && this._config?.domain_color
-                ? { color: this._config.domain_color }
-                : {}),
-              ...this._getParsedCss(
-                customization?.styles?.button ||
-                  customization?.styles?.card ||
-                  customization?.css,
-                customization
-              ),
-            };
-
-            return html`<div
+        return html`<div
               class="climate"
               style=${styleMap(textStyleObj)}
               @action=${handleDomainAction(this, domain)}
@@ -1327,8 +1355,8 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             >
               (${activeTemperatures.join(", ")})
             </div>`;
-          }
-        )}
+      }
+    )}
       </div>
     `;
   }
@@ -1346,43 +1374,43 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return html`
       <div
         class="${classMap({
-          bottom: true,
-          ...designClasses,
-        })}"
+      bottom: true,
+      ...designClasses,
+    })}"
       >
         <div
           class="${classMap({
-            name: true,
-            ...designClasses,
-            "text-large": true,
-            on: true,
-          })}"
+      name: true,
+      ...designClasses,
+      "text-large": true,
+      on: true,
+    })}"
           style=${styleMap({
-            ...(this._config?.area_name_color
-              ? { color: `var(--${this._config.area_name_color}-color)` }
-              : {}),
-            ...this._getParsedCss(
-              this._config?.styles?.name || this._config?.name_css,
-              this._config
-            ),
-          })}
+      ...(this._config?.area_name_color
+        ? { color: `var(--${this._config.area_name_color}-color)` }
+        : {}),
+      ...this._getParsedCss(
+        this._config?.styles?.name || this._config?.name_css,
+        this._config
+      ),
+    })}
           @action=${this._handleAction}
           .actionHandler=${renderActionHandler(this._config)}
         >
           ${this._config.area_name || area.name}
         </div>
         ${this._renderSensors(
-          sensors,
-          entitiesByDomain,
-          groupedEntities,
-          area,
-          customizationSensorMap
-        )}
+      sensors,
+      entitiesByDomain,
+      groupedEntities,
+      area,
+      customizationSensorMap
+    )}
         ${this._renderClimates(
-          climates,
-          entitiesByDomain,
-          customizationDomainMap
-        )}
+      climates,
+      entitiesByDomain,
+      customizationDomainMap
+    )}
       </div>
     `;
   }
@@ -1417,15 +1445,15 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       const root = (this.shadowRoot as any)?.host || document.documentElement;
       const val = getComputedStyle(root).getPropertyValue("--row-size");
       if (val) rowSize = Number(val.trim()) || 3;
-    } catch (e) {}
+    } catch (e) { }
 
     const designStyles = isV2Design ? { background: v2Color } : {};
     const iconContainerStyles =
       isV2Design && rowSize === 1
         ? {}
         : isV2Design
-        ? { background: v2Color }
-        : {};
+          ? { background: v2Color }
+          : {};
 
     const entitiesIndex =
       this.hass.entities && this.hass.devices
@@ -1515,18 +1543,18 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       <ha-card
         class="${classMap(classes)}"
         style=${styleMap(
-          this._getParsedCss(
-            this._config?.styles?.card || this._config?.css,
-            this._config
-          )
-        )}
+      this._getParsedCss(
+        this._config?.styles?.card || this._config?.css,
+        this._config
+      )
+    )}
       >
         <div
           class="header"
           style=${(showPicture || showCamera) &&
-          (cameraEntityId || area.picture)
-            ? "padding-bottom:0em"
-            : "padding-bottom:12em"}
+        (cameraEntityId || area.picture)
+        ? "padding-bottom:0em"
+        : "padding-bottom:12em"}
           @action=${this._handleAction}
           .actionHandler=${renderActionHandler(this._config)}
         >
@@ -1535,101 +1563,101 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             style=${ignoreAspectRatio ? nothing : "max-height:12em;"}
           >
             ${(() => {
-              if (
-                (showPicture || showCamera) &&
-                (cameraEntityId || area.picture)
-              ) {
-                return html`
+        if (
+          (showPicture || showCamera) &&
+          (cameraEntityId || area.picture)
+        ) {
+          return html`
                   <hui-image
                     .config=${this._config}
                     .hass=${this.hass}
                     style=${styleMap(
-                      this._getParsedCss(
-                        showCamera
-                          ? this._config?.styles?.camera
-                          : this._config?.styles?.image,
-                        this._config
-                      )
-                    )}
+            this._getParsedCss(
+              showCamera
+                ? this._config?.styles?.camera
+                : this._config?.styles?.image,
+              this._config
+            )
+          )}
                     .image=${showCamera ? undefined : area.picture}
                     .cameraImage=${showCamera ? cameraEntityId : undefined}
                     .cameraView=${this._config.camera_view}
                     fit-mode="cover"
                   ></hui-image>
                 `;
-              }
-            })()}
+        }
+      })()}
           </div>
         </div>
 
         <div
           class="${classMap({
-            "icon-container": true,
-            ...designClasses,
-          })}"
+        "icon-container": true,
+        ...designClasses,
+      })}"
           style=${styleMap(iconContainerStyles)}
         >
           ${showIcon
-            ? (this._config.area_icon || area.icon || "").startsWith("M")
-              ? html`
+        ? (this._config.area_icon || area.icon || "").startsWith("M")
+          ? html`
                   <ha-svg-icon
                     style=${styleMap(iconStyles)}
                     .path=${this._config.area_icon || area.icon}
                   ></ha-svg-icon>
                 `
-              : html`
+          : html`
                   <ha-icon
                     style=${styleMap(iconStyles)}
                     icon=${this._config.area_icon || area.icon}
                   ></ha-icon>
                 `
-            : nothing}
+        : nothing}
         </div>
 
         <div
           class="${classMap({
-            content: true,
-            ...designClasses,
-          })}"
+          content: true,
+          ...designClasses,
+        })}"
           @action=${this._handleAction}
           .actionHandler=${renderActionHandler(this._config)}
         >
           ${cache(html`<div
             class="${classMap({
-              right: true,
-              ...designClasses,
-            })}"
+          right: true,
+          ...designClasses,
+        })}"
             style=${styleMap(designStyles)}
           >
             ${this._renderCovers(
-              covers,
-              groupedEntitiesRaw,
-              customizationCoverMap
-            )}
+          covers,
+          groupedEntitiesRaw,
+          customizationCoverMap
+        )}
             ${this._renderAlerts(
-              alerts,
-              groupedEntitiesRaw,
-              customizationAlertMap
-            )}
+          alerts,
+          groupedEntitiesRaw,
+          customizationAlertMap
+        )}
             ${this.renderCustomButtons(entitiesByDomain)}
             ${this._renderButtons(
-              buttons,
-              entitiesByDomain,
-              customizationDomainMap
-            )}
+          buttons,
+          entitiesByDomain,
+          customizationDomainMap
+        )}
           </div>`)}
           ${cache(
-            this._renderBottom(
-              area,
-              designClasses,
-              sensors,
-              entitiesByDomain,
-              groupedEntitiesRaw,
-              customizationSensorMap,
-              climates,
-              customizationDomainMap
-            )
-          )}
+          this._renderBottom(
+            area,
+            designClasses,
+            sensors,
+            entitiesByDomain,
+            groupedEntitiesRaw,
+            customizationSensorMap,
+            climates,
+            customizationDomainMap
+          )
+        )}
         </div>
       </ha-card>
     `;

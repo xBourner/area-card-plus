@@ -87,10 +87,10 @@ export const makeActionHandler = (
       ev.detail.action === "tap"
         ? customization?.tap_action
         : ev.detail.action === "hold"
-        ? customization?.hold_action
-        : ev.detail.action === "double_tap"
-        ? customization?.double_tap_action
-        : null;
+          ? customization?.hold_action
+          : ev.detail.action === "double_tap"
+            ? customization?.double_tap_action
+            : null;
 
     if (kind === "domain") {
       const isToggle =
@@ -186,10 +186,24 @@ export const makeActionHandler = (
     }
 
     const config = {
+      entity: customization?.entity,
       tap_action: customization?.tap_action,
       hold_action: customization?.hold_action,
       double_tap_action: customization?.double_tap_action,
     };
+
+    if (kind === "custom_button" && customButton?.entity) {
+      if (isMoreInfo) {
+        const entityId = customButton.entity;
+        const event = new CustomEvent("hass-more-info", {
+          bubbles: true,
+          composed: true,
+          detail: { entityId },
+        });
+        card.dispatchEvent(event);
+        return;
+      }
+    }
 
     handleAction(card, card.hass!, config, ev.detail.action!);
   };
