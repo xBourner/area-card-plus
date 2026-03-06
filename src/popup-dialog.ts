@@ -44,8 +44,8 @@ export class AreaCardPlusPopup extends LitElement {
   }
 
   private _onPopState = (ev: PopStateEvent) => {
-    if (this.open) {
-      this._onClosed(ev);
+    if (this.open && !window.history.state?.areaCardPlusPopup) {
+      this.open = false;
     }
   };
 
@@ -95,6 +95,7 @@ export class AreaCardPlusPopup extends LitElement {
     this.card = params.card as LovelaceCard & { areas?: any[] };
     this._cardEls.clear();
     this.open = true;
+    window.history.pushState({ areaCardPlusPopup: true }, "");
     this.requestUpdate();
     try {
       await this.updateComplete;
@@ -115,12 +116,18 @@ export class AreaCardPlusPopup extends LitElement {
   };
 
 
-  private _onClosed = (ev?: Event) => {
-    if (ev && ev.type !== "click" && ev.type !== "popup-closed") {
-      const target = ev.target as HTMLElement | null;
-      if (target && target.tagName !== "HA-ADAPTIVE-DIALOG") {
-        return;
-      }
+  private _close = () => {
+    if (!this.open) return;
+    this.open = false;
+    if (window.history.state?.areaCardPlusPopup) {
+      window.history.back();
+    }
+  };
+
+  private _onDialogClosed = (ev: Event) => {
+    const target = ev.target as HTMLElement | null;
+    if (target && target.tagName !== "HA-ADAPTIVE-DIALOG") {
+      return;
     }
     this.open = false;
     this._cardEls.clear();
@@ -602,7 +609,7 @@ export class AreaCardPlusPopup extends LitElement {
   }
 
   protected render() {
-    if (!this.open || !this.hass || !this.card) return html``;
+    if (!this.hass || !this.card) return html``;
 
     const card: any = this.card;
     const areaId: string = card._config?.area;
@@ -744,17 +751,24 @@ export class AreaCardPlusPopup extends LitElement {
 
     if (!hasEntities) {
       return html`
-        <area-card-plus-popup-dialog
+        <ha-adaptive-dialog
+          .hass=${this.hass}
           .open=${this.open}
-          .title=${this.title}
-          @closed=${this._onClosed}
+          @closed=${this._onDialogClosed}
         >
-          <div class="content">
+          <ha-icon-button
+            slot="headerNavigationIcon"
+            .path=${mdiClose}
+            @click=${this._close}
+            .label=${this.hass!.localize("ui.common.close")}
+          ></ha-icon-button>
+          <span slot="headerTitle">${this.title}</span>
+          <div class="content dialog-content" style="padding: 16px;">
             ${this.content ||
             this.hass.localize("ui.panel.lovelace.cards.entity.no_entities") ||
             "No entities"}
           </div>
-        </area-card-plus-popup-dialog>
+        </ha-adaptive-dialog>
       `;
     }
 
@@ -764,14 +778,14 @@ export class AreaCardPlusPopup extends LitElement {
       <ha-adaptive-dialog
         .hass=${this.hass}
         .open=${this.open}
-        @closed=${this._onClosed}
+        @closed=${this._onDialogClosed}
         style="--columns: ${displayColumns};"
         flexcontent
       >
         <ha-icon-button
           slot="headerNavigationIcon"
           .path=${mdiClose}
-          @click=${this._onClosed}
+          @click=${this._close}
           .label=${this.hass!.localize("ui.common.close")}
         ></ha-icon-button>
         <span slot="headerTitle">
