@@ -50,23 +50,16 @@ abstract class BaseItemsEditor extends LitElement {
           (conf) => this._getKey(conf),
           (conf, index) => html`
             <div class="customize-item">
-              <ha-select
-                label=${this.hass!.localize(
+              <ha-selector
+                .hass=${this.hass}
+                .label=${this.hass!.localize(
                   "ui.panel.lovelace.editor.features.edit"
                 )}
-                name="Customize"
-                class="select-customization"
-                naturalMenuWidth
-                fixedMenuPosition
+                .selector=${{ select: { options: this.SelectOptions, mode: 'dropdown' } }}
                 .value=${conf.type}
-                @closed=${(ev: any) => ev.stopPropagation()}
+                .index=${index}
                 @value-changed=${this._valueChanged}
-              >
-                <mwc-list-item .value=${conf.type} selected disabled>
-                  ${this.SelectOptions.find((o) => o.value === conf.type)
-                    ?.label || conf.type}
-                </mwc-list-item>
-              </ha-select>
+              ></ha-selector>
 
               <ha-icon-button
                 .label="Remove"
@@ -88,28 +81,20 @@ abstract class BaseItemsEditor extends LitElement {
         )}
 
         <div class="add-item row">
-          <ha-select
-            label=${this.hass!.localize(
+          <ha-selector
+            .hass=${this.hass}
+            .label=${this.hass!.localize(
               "ui.panel.lovelace.editor.common.edit"
             ) +
             " " +
             this.hass!.localize(
               "ui.panel.lovelace.editor.card.markdown.content"
             )}
-            name="Customize"
+            .selector=${{ select: { options: availableOptions, mode: 'dropdown' } }}
+            .value=${""}
             class="add-customization"
-            naturalMenuWidth
-            fixedMenuPosition
-            @closed=${(ev: any) => ev.stopPropagation()}
-            @click=${this._addRow}
-          >
-            ${availableOptions.map(
-              (option) =>
-                html`<mwc-list-item .value=${option.value}
-                  >${option.label}</mwc-list-item
-                >`
-            )}
-          </ha-select>
+            @value-changed=${this._addRow}
+          ></ha-selector>
         </div>
       </div>
     `;
@@ -144,21 +129,22 @@ abstract class BaseItemsEditor extends LitElement {
     }
   }
 
-  private _addRow(ev: Event): void {
+  private _addRow(ev: CustomEvent): void {
     ev.stopPropagation();
     if (!this.customization || !this.hass) {
       return;
     }
-    const selectElement = this.shadowRoot!.querySelector(
-      ".add-customization"
-    ) as HTMLElementValue;
-    if (!selectElement || !selectElement.value) {
+    const preset = ev.detail.value;
+    if (!preset) {
       return;
     }
-    const preset = selectElement.value;
     const newItem: LovelaceCardConfig = { type: preset };
     fireEvent(this, "config-changed", [...this.customization, newItem] as any);
-    selectElement.value = "";
+    
+    const selectElement = ev.target as any;
+    if (selectElement) {
+      selectElement.value = "";
+    }
   }
 
   static get styles(): CSSResult {

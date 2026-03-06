@@ -1698,6 +1698,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       selectedDomain: domain,
       selectedDeviceClass: this.selectedDeviceClass || undefined,
       selectedGroup: this.selectedGroup || undefined,
+      opener: this,
       card: this,
       entities: this._getAreaEntityIds(
         this._config.area,
@@ -1723,6 +1724,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     this.showPopup(this, dialogTag, {
       title,
       hass: this.hass,
+      opener: this,
       card: this,
       entities: this._getAreaEntityIds(
         this._config.area,

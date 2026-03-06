@@ -70,11 +70,13 @@ export class AreaCardPlusPopup extends LitElement {
   };
 
   @state() public selectedGroup?: number;
+  private _opener: HTMLElement | null = null;
   private _cardEls: Map<string, HTMLElement> = new Map();
 
   public async showDialog(params: {
     title?: string;
     hass: HomeAssistant;
+    opener: HTMLElement;
     entities?: HassEntity[];
     content?: string;
     selectedDomain?: string;
@@ -84,6 +86,7 @@ export class AreaCardPlusPopup extends LitElement {
   }): Promise<void> {
     this.title = params.title ?? this.title;
     this.hass = params.hass;
+    this._opener = params.opener;
     this.entities = params.entities ?? [];
     if (params.content !== undefined) this.content = params.content;
     this.selectedDomain = params.selectedDomain;
@@ -96,55 +99,33 @@ export class AreaCardPlusPopup extends LitElement {
     try {
       await this.updateComplete;
     } catch (_) {}
-    this._applyDialogStyleAfterRender();
+
   }
 
-  private _applyDialogStyleAfterRender() {
-    try {
-      requestAnimationFrame(() => {
-        try {
-          this._applyDialogStyle();
-        } catch (_) {}
+  private _handleMoreInfo = (ev: CustomEvent) => {
+    if (this._opener) {
+      ev.stopPropagation();
+      const event = new CustomEvent("hass-more-info", {
+        bubbles: true,
+        composed: true,
+        detail: ev.detail,
       });
-    } catch (_) {
-      try {
-        this._applyDialogStyle();
-      } catch (_) {}
+      this._opener.dispatchEvent(event);
     }
-  }
+  };
 
-  private _applyDialogStyle() {
-    const surface = document
-      .querySelector("body > home-assistant")
-      ?.shadowRoot?.querySelector("area-card-plus-popup")
-      ?.shadowRoot?.querySelector("wa-dialog")
-      ?.shadowRoot?.querySelector(
-        "[part='panel']"
-      ) as HTMLElement | null;
 
-    if (surface) {
-      surface.style.minHeight = "unset";
-      return true;
+  private _onClosed = (ev?: Event) => {
+    if (ev && ev.type !== "click" && ev.type !== "popup-closed") {
+      const target = ev.target as HTMLElement | null;
+      if (target && target.tagName !== "HA-ADAPTIVE-DIALOG") {
+        return;
+      }
     }
-    return false;
-  }
-
-  protected firstUpdated(_changedProperties: PropertyValues): void {
-    super.firstUpdated(_changedProperties);
-  }
-
-  private _onClosed = (_ev: Event) => {
     this.open = false;
     this._cardEls.clear();
     this.dispatchEvent(
       new CustomEvent("dialog-closed", {
-        bubbles: true,
-        composed: true,
-        detail: { dialog: this },
-      })
-    );
-    this.dispatchEvent(
-      new CustomEvent("popup-closed", {
         bubbles: true,
         composed: true,
         detail: { dialog: this },
@@ -780,23 +761,23 @@ export class AreaCardPlusPopup extends LitElement {
     const area = card._area?.(card._config?.area, card.hass?.areas) ?? null;
 
     return html`
-      <wa-dialog
-        id="more-info-dialog"
-        style="--columns: ${displayColumns};"
+      <ha-adaptive-dialog
+        .hass=${this.hass}
         .open=${this.open}
-        @wa-after-hide=${this._onClosed}
+        @closed=${this._onClosed}
+        style="--columns: ${displayColumns};"
+        flexcontent
       >
-        <div slot="label" class="dialog-header">
-          <ha-icon-button
-            .path=${mdiClose}
-            @click=${this._onClosed}
-            .label=${this.hass!.localize("ui.common.close")}
-          ></ha-icon-button>
-          <div>
-            <h3>${card._config?.area_name || (area && (area as any).name)}</h3>
-          </div>
-        </div>
-        <div class="dialog-content scrollable">
+        <ha-icon-button
+          slot="headerNavigationIcon"
+          .path=${mdiClose}
+          @click=${this._onClosed}
+          .label=${this.hass!.localize("ui.common.close")}
+        ></ha-icon-button>
+        <span slot="headerTitle">
+          ${card._config?.area_name || (area && (area as any).name)}
+        </span>
+        <div class="dialog-content scrollable ha-scrollbar" @hass-more-info=${this._handleMoreInfo}>
           ${
             !ungroupAreas
               ? html`${repeat(
@@ -842,9 +823,8 @@ export class AreaCardPlusPopup extends LitElement {
                   </div>
                 `
           }
-              </div>
         </div>
-      </wa-dialog>
+      </ha-adaptive-dialog>
     `;
   }
 
@@ -872,41 +852,18 @@ export class AreaCardPlusPopup extends LitElement {
     :host([hidden]) {
       display: none;
     }
-    wa-dialog::part(dialog), wa-dialog::part(panel) {
+    ha-adaptive-dialog {
       --dialog-content-padding: 12px;
-      --ha-dialog-width: calc((var(--columns, 4) * 22.5vw) + 3vw);
-      --width: calc((var(--columns, 4) * 22.5vw) + 3vw);
-      width: calc((var(--columns, 4) * 22.5vw) + 3vw);
-      max-width: 96vw;
-      box-sizing: border-box;
-      overflow-x: auto;
+      --ha-dialog-max-width: 96vw !important;
+      --ha-dialog-width-md: calc((var(--columns, 4) * 22.5vw) + 3vw) !important;
+      --ha-bottom-sheet-height: calc(100dvh - max(var(--safe-area-inset-top), 48px));
+      --ha-bottom-sheet-max-height: var(--ha-bottom-sheet-height);
     }
 
-    wa-dialog::part(close-button) {
-      display: none;
-    }
-
-    .dialog-header {
-      display: flex;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 8px;
-      min-width: 15vw;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.07);
-      background: transparent;
-    }
-    .dialog-header .menu-button {
-      margin-left: auto;
-    }
     .dialog-content.scrollable {
       margin-bottom: 16px;
       max-height: 80vh;
       overflow-y: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
     }
     .dialog-content.scrollable::-webkit-scrollbar {
       display: none;
@@ -930,24 +887,20 @@ export class AreaCardPlusPopup extends LitElement {
     .entity-cards {
       display: grid;
       grid-template-columns: repeat(var(--columns, 4), 22.5vw);
-      gap: 4px;
+      gap: 8px;
       width: 100%;
       box-sizing: border-box;
       overflow-x: hidden;
       justify-content: center;
+      padding: 8px;;
     }
     .entity-card {
       width: 22.5vw;
       min-width: 0;
-      overflow: hidden;
       box-sizing: border-box;
     }
 
     @media (max-width: 1200px) {
-      wa-dialog::part(dialog), wa-dialog::part(panel) {
-        width: 96vw;
-        max-width: 96vw;
-      }
       .entity-card {
         width: 30vw;
       }
@@ -964,10 +917,6 @@ export class AreaCardPlusPopup extends LitElement {
     }
 
     @media (max-width: 900px) {
-      wa-dialog::part(dialog), wa-dialog::part(panel) {
-        width: 96vw;
-        max-width: 96vw;
-      }
       .entity-card {
         width: 45vw;
       }
@@ -984,9 +933,7 @@ export class AreaCardPlusPopup extends LitElement {
     }
 
     @media (max-width: 700px) {
-      wa-dialog::part(dialog), wa-dialog::part(panel) {
-        width: 96vw;
-        max-width: 96vw;
+      ha-adaptive-dialog {
         --dialog-content-padding: 8px;
       }
       .cards-wrapper {
