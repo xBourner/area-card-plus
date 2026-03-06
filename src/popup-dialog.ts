@@ -117,9 +117,9 @@ export class AreaCardPlusPopup extends LitElement {
     const surface = document
       .querySelector("body > home-assistant")
       ?.shadowRoot?.querySelector("area-card-plus-popup")
-      ?.shadowRoot?.querySelector("ha-dialog")
+      ?.shadowRoot?.querySelector("wa-dialog")
       ?.shadowRoot?.querySelector(
-        "div > div.mdc-dialog__container > div.mdc-dialog__surface"
+        "[part='panel']"
       ) as HTMLElement | null;
 
     if (surface) {
@@ -780,21 +780,19 @@ export class AreaCardPlusPopup extends LitElement {
     const area = card._area?.(card._config?.area, card.hass?.areas) ?? null;
 
     return html`
-      <ha-dialog
-        hideActions
+      <wa-dialog
         id="more-info-dialog"
         style="--columns: ${displayColumns};"
         .open=${this.open}
-        @closed=${this._onClosed}
+        @wa-after-hide=${this._onClosed}
       >
-        <div class="dialog-header">
+        <div slot="label" class="dialog-header">
           <ha-icon-button
-            slot="navigationIcon"
             .path=${mdiClose}
             @click=${this._onClosed}
             .label=${this.hass!.localize("ui.common.close")}
           ></ha-icon-button>
-          <div slot="title">
+          <div>
             <h3>${card._config?.area_name || (area && (area as any).name)}</h3>
           </div>
         </div>
@@ -846,7 +844,7 @@ export class AreaCardPlusPopup extends LitElement {
           }
               </div>
         </div>
-      </ha-dialog>
+      </wa-dialog>
     `;
   }
 
@@ -874,13 +872,20 @@ export class AreaCardPlusPopup extends LitElement {
     :host([hidden]) {
       display: none;
     }
-    ha-dialog {
+    wa-dialog::part(dialog), wa-dialog::part(panel) {
       --dialog-content-padding: 12px;
-      --mdc-dialog-min-width: calc((var(--columns, 4) * 22.5vw) + 3vw);
-      --mdc-dialog-max-width: calc((var(--columns, 4) * 22.5vw) + 5vw);
+      --ha-dialog-width: calc((var(--columns, 4) * 22.5vw) + 3vw);
+      --width: calc((var(--columns, 4) * 22.5vw) + 3vw);
+      width: calc((var(--columns, 4) * 22.5vw) + 3vw);
+      max-width: 96vw;
       box-sizing: border-box;
       overflow-x: auto;
     }
+
+    wa-dialog::part(close-button) {
+      display: none;
+    }
+
     .dialog-header {
       display: flex;
       justify-content: flex-start;
@@ -933,13 +938,15 @@ export class AreaCardPlusPopup extends LitElement {
     }
     .entity-card {
       width: 22.5vw;
+      min-width: 0;
+      overflow: hidden;
       box-sizing: border-box;
     }
 
     @media (max-width: 1200px) {
-      ha-dialog {
-        --mdc-dialog-min-width: 96vw;
-        --mdc-dialog-max-width: 96vw;
+      wa-dialog::part(dialog), wa-dialog::part(panel) {
+        width: 96vw;
+        max-width: 96vw;
       }
       .entity-card {
         width: 30vw;
@@ -957,9 +964,9 @@ export class AreaCardPlusPopup extends LitElement {
     }
 
     @media (max-width: 900px) {
-      ha-dialog {
-        --mdc-dialog-min-width: 96vw;
-        --mdc-dialog-max-width: 96vw;
+      wa-dialog::part(dialog), wa-dialog::part(panel) {
+        width: 96vw;
+        max-width: 96vw;
       }
       .entity-card {
         width: 45vw;
@@ -977,10 +984,10 @@ export class AreaCardPlusPopup extends LitElement {
     }
 
     @media (max-width: 700px) {
-      ha-dialog {
+      wa-dialog::part(dialog), wa-dialog::part(panel) {
+        width: 96vw;
+        max-width: 96vw;
         --dialog-content-padding: 8px;
-        --mdc-dialog-min-width: 96vw;
-        --mdc-dialog-max-width: 96vw;
       }
       .cards-wrapper {
         align-items: stretch;
@@ -988,10 +995,12 @@ export class AreaCardPlusPopup extends LitElement {
         overflow-x: hidden;
       }
       .entity-card {
-        width: 92vw;
+        width: 100%;
+        box-sizing: border-box;
       }
       .entity-cards {
         grid-template-columns: 1fr;
+        width: 100%;
       }
       h4 {
         width: 100%;

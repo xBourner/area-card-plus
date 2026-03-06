@@ -2311,8 +2311,8 @@ const ts = /* @__PURE__ */ new Set(), Cn = [oe, ee], It = class It extends te {
   }
   _applyDialogStyle() {
     var s, i, o, n, r, a;
-    const e = (a = (r = (n = (o = (i = (s = document.querySelector("body > home-assistant")) == null ? void 0 : s.shadowRoot) == null ? void 0 : i.querySelector("area-card-plus-popup")) == null ? void 0 : o.shadowRoot) == null ? void 0 : n.querySelector("ha-dialog")) == null ? void 0 : r.shadowRoot) == null ? void 0 : a.querySelector(
-      "div > div.mdc-dialog__container > div.mdc-dialog__surface"
+    const e = (a = (r = (n = (o = (i = (s = document.querySelector("body > home-assistant")) == null ? void 0 : s.shadowRoot) == null ? void 0 : i.querySelector("area-card-plus-popup")) == null ? void 0 : o.shadowRoot) == null ? void 0 : n.querySelector("wa-dialog")) == null ? void 0 : r.shadowRoot) == null ? void 0 : a.querySelector(
+      "[part='panel']"
     );
     return e ? (e.style.minHeight = "unset", !0) : !1;
   }
@@ -2529,21 +2529,19 @@ const ts = /* @__PURE__ */ new Set(), Cn = [oe, ee], It = class It extends te {
       `;
     const y = ((j = e._area) == null ? void 0 : j.call(e, (E = e._config) == null ? void 0 : E.area, (I = e.hass) == null ? void 0 : I.areas)) ?? null;
     return m`
-      <ha-dialog
-        hideActions
+      <wa-dialog
         id="more-info-dialog"
         style="--columns: ${v};"
         .open=${this.open}
-        @closed=${this._onClosed}
+        @wa-after-hide=${this._onClosed}
       >
-        <div class="dialog-header">
+        <div slot="label" class="dialog-header">
           <ha-icon-button
-            slot="navigationIcon"
             .path=${Pt}
             @click=${this._onClosed}
             .label=${this.hass.localize("ui.common.close")}
           ></ha-icon-button>
-          <div slot="title">
+          <div>
             <h3>${((ce = e._config) == null ? void 0 : ce.area_name) || y && y.name}</h3>
           </div>
         </div>
@@ -2587,7 +2585,7 @@ const ts = /* @__PURE__ */ new Set(), Cn = [oe, ee], It = class It extends te {
     )}`}
               </div>
         </div>
-      </ha-dialog>
+      </wa-dialog>
     `;
   }
   _getDomainName(e, s) {
@@ -2603,13 +2601,20 @@ It.styles = we`
     :host([hidden]) {
       display: none;
     }
-    ha-dialog {
+    wa-dialog::part(dialog), wa-dialog::part(panel) {
       --dialog-content-padding: 12px;
-      --mdc-dialog-min-width: calc((var(--columns, 4) * 22.5vw) + 3vw);
-      --mdc-dialog-max-width: calc((var(--columns, 4) * 22.5vw) + 5vw);
+      --ha-dialog-width: calc((var(--columns, 4) * 22.5vw) + 3vw);
+      --width: calc((var(--columns, 4) * 22.5vw) + 3vw);
+      width: calc((var(--columns, 4) * 22.5vw) + 3vw);
+      max-width: 96vw;
       box-sizing: border-box;
       overflow-x: auto;
     }
+
+    wa-dialog::part(close-button) {
+      display: none;
+    }
+
     .dialog-header {
       display: flex;
       justify-content: flex-start;
@@ -2662,13 +2667,15 @@ It.styles = we`
     }
     .entity-card {
       width: 22.5vw;
+      min-width: 0;
+      overflow: hidden;
       box-sizing: border-box;
     }
 
     @media (max-width: 1200px) {
-      ha-dialog {
-        --mdc-dialog-min-width: 96vw;
-        --mdc-dialog-max-width: 96vw;
+      wa-dialog::part(dialog), wa-dialog::part(panel) {
+        width: 96vw;
+        max-width: 96vw;
       }
       .entity-card {
         width: 30vw;
@@ -2686,9 +2693,9 @@ It.styles = we`
     }
 
     @media (max-width: 900px) {
-      ha-dialog {
-        --mdc-dialog-min-width: 96vw;
-        --mdc-dialog-max-width: 96vw;
+      wa-dialog::part(dialog), wa-dialog::part(panel) {
+        width: 96vw;
+        max-width: 96vw;
       }
       .entity-card {
         width: 45vw;
@@ -2706,10 +2713,10 @@ It.styles = we`
     }
 
     @media (max-width: 700px) {
-      ha-dialog {
+      wa-dialog::part(dialog), wa-dialog::part(panel) {
+        width: 96vw;
+        max-width: 96vw;
         --dialog-content-padding: 8px;
-        --mdc-dialog-min-width: 96vw;
-        --mdc-dialog-max-width: 96vw;
       }
       .cards-wrapper {
         align-items: stretch;
@@ -2717,10 +2724,12 @@ It.styles = we`
         overflow-x: hidden;
       }
       .entity-card {
-        width: 92vw;
+        width: 100%;
+        box-sizing: border-box;
       }
       .entity-cards {
         grid-template-columns: 1fr;
+        width: 100%;
       }
       h4 {
         width: 100%;
