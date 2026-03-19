@@ -4077,6 +4077,10 @@ class be extends te {
         color: var(--secondary-text-color);
         padding-left: 4px;
       }
+      .customize-item ha-selector,
+      .add-item ha-selector {
+        flex: 1;
+      }
     `;
   }
 }
@@ -4659,6 +4663,12 @@ icon:
         margin-bottom: 12px;
         margin-top: 12px;
         display: block;
+      }
+      ha-form {
+        display: block;
+      }
+      ha-selector {
+        width: 100%;
       }
       .side-by-side {
         display: flex;
@@ -5743,6 +5753,12 @@ K.styles = we`
     }
     .content {
       padding: 12px 4px;
+    }
+    ha-form {
+      display: block;
+    }
+    ha-selector {
+      width: 100%;
     }
     .back-title {
       display: flex;

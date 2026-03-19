@@ -1606,6 +1606,12 @@ image:
     .content {
       padding: 12px 4px;
     }
+    ha-form {
+      display: block;
+    }
+    ha-selector {
+      width: 100%;
+    }
     .back-title {
       display: flex;
       align-items: center;

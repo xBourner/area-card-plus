@@ -511,6 +511,12 @@ icon:
         margin-top: 12px;
         display: block;
       }
+      ha-form {
+        display: block;
+      }
+      ha-selector {
+        width: 100%;
+      }
       .side-by-side {
         display: flex;
       }
