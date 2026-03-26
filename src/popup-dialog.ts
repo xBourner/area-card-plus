@@ -99,7 +99,7 @@ export class AreaCardPlusPopup extends LitElement {
     this.requestUpdate();
     try {
       await this.updateComplete;
-    } catch (_) {}
+    } catch (_) { }
 
     // Targeted reset to clear leaked transforms from ha-bottom-sheet (swipe actions)
     const ad = this.renderRoot.querySelector("ha-adaptive-dialog");
@@ -162,7 +162,7 @@ export class AreaCardPlusPopup extends LitElement {
 
   private async _createCardElement(
     hass: HomeAssistant,
-    cardConfig: { type: string; entity?: string; [key: string]: any },
+    cardConfig: { type: string; entity?: string;[key: string]: any },
     isFallback = false
   ): Promise<LovelaceCard | HTMLElement> {
     try {
@@ -173,7 +173,7 @@ export class AreaCardPlusPopup extends LitElement {
         (el as any).setAttribute?.("data-hui-card", "");
         return el;
       }
-    } catch {}
+    } catch { }
 
     try {
       const type = cardConfig.type || "tile";
@@ -181,7 +181,7 @@ export class AreaCardPlusPopup extends LitElement {
       const tag = isCustom ? type.slice(7) : `hui-${type}-card`;
 
       if (isCustom && !(customElements as any).get(tag)) {
-        await customElements.whenDefined(tag).catch(() => {});
+        await customElements.whenDefined(tag).catch(() => { });
       }
 
       const el = document.createElement(tag) as LovelaceCard;
@@ -215,7 +215,7 @@ export class AreaCardPlusPopup extends LitElement {
     const deviceClass = this.selectedDomain
       ? this.selectedDeviceClass
       : (this.hass?.states?.[entity.entity_id]?.attributes as any)
-          ?.device_class;
+        ?.device_class;
 
     const cfg = card?._config || {};
     let customization: any | undefined;
@@ -508,8 +508,8 @@ export class AreaCardPlusPopup extends LitElement {
       card._devices && Array.isArray(card._devices)
         ? card._devices
         : card.hass && card.hass.devices
-        ? card.hass.devices
-        : {};
+          ? card.hass.devices
+          : {};
 
     const entitiesIndex = getEntitiesIndex(
       this.hass!.entities,
@@ -553,7 +553,7 @@ export class AreaCardPlusPopup extends LitElement {
     if (existing) {
       try {
         (existing as any).hass = this.hass;
-      } catch (_) {}
+      } catch (_) { }
       return existing;
     }
     const placeholder = document.createElement("div");
@@ -570,7 +570,7 @@ export class AreaCardPlusPopup extends LitElement {
           this._cardEls.set(id, el as any);
         }
         (el as any).hass = this.hass;
-      } catch (_) {}
+      } catch (_) { }
     });
     return placeholder;
   }
@@ -626,8 +626,8 @@ export class AreaCardPlusPopup extends LitElement {
       card._devices && Array.isArray(card._devices)
         ? card._devices
         : card.hass && card.hass.devices
-        ? card.hass.devices
-        : {};
+          ? card.hass.devices
+          : {};
 
     const entitiesIndex =
       card.hass && card.hass.devices && card.hass.entities
@@ -755,6 +755,7 @@ export class AreaCardPlusPopup extends LitElement {
         : 0;
       displayColumns = Math.min(displayColumns, Math.max(1, maxEntityCount));
     }
+    this.style.setProperty("--columns", String(displayColumns));
 
     const hasEntities = finalDomainEntries.length > 0 || sorted.length > 0;
 
@@ -774,8 +775,8 @@ export class AreaCardPlusPopup extends LitElement {
           <span slot="headerTitle">${this.title}</span>
           <div class="content dialog-content" style="padding: 16px;">
             ${this.content ||
-            this.hass.localize("ui.panel.lovelace.cards.entity.no_entities") ||
-            "No entities"}
+        this.hass.localize("ui.panel.lovelace.cards.entity.no_entities") ||
+        "No entities"}
           </div>
         </ha-adaptive-dialog>
       `;
@@ -788,7 +789,6 @@ export class AreaCardPlusPopup extends LitElement {
         .hass=${this.hass}
         .open=${this.open}
         @closed=${this._onDialogClosed}
-        style="--columns: ${displayColumns};"
         flexcontent
       >
         <ha-icon-button
@@ -801,51 +801,50 @@ export class AreaCardPlusPopup extends LitElement {
           ${card._config?.area_name || (area && (area as any).name)}
         </span>
         <div class="dialog-content scrollable ha-scrollbar" @hass-more-info=${this._handleMoreInfo}>
-          ${
-            !ungroupAreas
-              ? html`${repeat(
-                  finalDomainEntries,
-                  ([dom]) => dom,
-                  ([dom, list]) => html`
+          ${!ungroupAreas
+        ? html`${repeat(
+          finalDomainEntries,
+          ([dom]) => dom,
+          ([dom, list]) => html`
                     <div class="cards-wrapper">
                       <h4>
                         ${dom === "binary_sensor" ||
-                        dom === "sensor" ||
-                        dom === "cover"
-                          ? this._getDomainName(
-                              dom,
-                              selectedDeviceClass || undefined
-                            )
-                          : this._getDomainName(dom)}
+              dom === "sensor" ||
+              dom === "cover"
+              ? this._getDomainName(
+                dom,
+                selectedDeviceClass || undefined
+              )
+              : this._getDomainName(dom)}
                       </h4>
                       <div class="entity-cards">
                         ${repeat(
-                          list,
-                          (entity: HassEntity) => entity.entity_id,
-                          (entity: HassEntity) => html`
+                list,
+                (entity: HassEntity) => entity.entity_id,
+                (entity: HassEntity) => html`
                             <div class="entity-card">
                               ${this._getOrCreateCard(entity)}
                             </div>
                           `
-                        )}
+              )}
                       </div>
                     </div>
                   `
-                )}`
-              : html`
+        )}`
+        : html`
                   <div class="cards-wrapper">
                     <div class="entity-cards">
                       ${sorted.map(
-                        (entity: HassEntity) => html`
+          (entity: HassEntity) => html`
                           <div class="entity-card">
                             ${this._getOrCreateCard(entity)}
                           </div>
                         `
-                      )}
+        )}
                     </div>
                   </div>
                 `
-          }
+      }
         </div>
       </ha-adaptive-dialog>
     `;
@@ -861,8 +860,8 @@ export class AreaCardPlusPopup extends LitElement {
     ) {
       return deviceClass
         ? this.hass.localize(
-            `component.${domain}.entity_component.${deviceClass}.name`
-          )
+          `component.${domain}.entity_component.${deviceClass}.name`
+        )
         : this.hass.localize(`component.${domain}.entity_component._.name`);
     }
     return this.hass.localize(`component.${domain}.entity_component._.name`);
@@ -871,14 +870,16 @@ export class AreaCardPlusPopup extends LitElement {
   static styles = css`
     :host {
       display: block;
+      --responsive-columns: var(--columns, 4);
     }
     :host([hidden]) {
       display: none;
     }
+
     ha-adaptive-dialog {
       --dialog-content-padding: 12px;
       --ha-dialog-max-width: 96vw !important;
-      --ha-dialog-width-md: calc((var(--columns, 4) * 22.5vw) + 3vw) !important;
+      --ha-dialog-width-md: calc((var(--responsive-columns) * 22.5vw) + 3vw) !important;
       --ha-bottom-sheet-height: calc(100dvh - max(var(--safe-area-inset-top), 48px)) !important;
       --ha-bottom-sheet-max-height: var(--ha-bottom-sheet-height) !important;
     }
@@ -909,26 +910,27 @@ export class AreaCardPlusPopup extends LitElement {
     }
     .entity-cards {
       display: grid;
-      grid-template-columns: repeat(var(--columns, 4), 22.5vw);
+      grid-template-columns: repeat(var(--responsive-columns), 1fr);
       gap: 8px;
       width: 100%;
       box-sizing: border-box;
       overflow-x: hidden;
       justify-content: center;
-      padding: 8px;;
+      padding: 8px;
     }
     .entity-card {
-      width: 22.5vw;
+      width: 100%;
       min-width: 0;
       box-sizing: border-box;
     }
 
+
     @media (max-width: 1200px) {
-      .entity-card {
-        width: 30vw;
+      :host {
+        --responsive-columns: min(var(--columns, 4), 3);
       }
-      .entity-cards {
-        grid-template-columns: repeat(3, 30vw);
+      ha-adaptive-dialog {
+        --ha-dialog-width-md: calc((var(--responsive-columns) * 44.5vw) + 3vw) !important;
       }
       h4 {
         width: 100%;
@@ -940,11 +942,11 @@ export class AreaCardPlusPopup extends LitElement {
     }
 
     @media (max-width: 900px) {
-      .entity-card {
-        width: 45vw;
+      :host {
+        --responsive-columns: min(var(--columns, 4), 2);
       }
-      .entity-cards {
-        grid-template-columns: repeat(2, 45vw);
+      ha-adaptive-dialog {
+        --ha-dialog-width-md: calc((var(--responsive-columns) * 29.5vw) + 3vw) !important;
       }
       h4 {
         width: 100%;
@@ -955,18 +957,18 @@ export class AreaCardPlusPopup extends LitElement {
       }
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 600px) {
+      :host {
+        --responsive-columns: 1;
+      }
       ha-adaptive-dialog {
         --dialog-content-padding: 8px;
+        --ha-dialog-width-md: 100vw !important;
       }
       .cards-wrapper {
         align-items: stretch;
         width: 100%;
         overflow-x: hidden;
-      }
-      .entity-card {
-        width: 100%;
-        box-sizing: border-box;
       }
       .entity-cards {
         grid-template-columns: 1fr;
