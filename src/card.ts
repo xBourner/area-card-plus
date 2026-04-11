@@ -22,7 +22,6 @@ import {
   computeAlerts,
   computeSensors,
   computeButtons,
-  computeCameraEntity,
 } from "./card-items";
 import {
   computeIconStyles,
@@ -83,6 +82,8 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   @state() public selectedDomain: string | null = null;
   @state() public selectedDeviceClass: string | null = null;
   @state() public selectedGroup: string | null = null;
+  @state() private _currentCameraIndex = 0;
+  private _cameraInterval?: number;
 
   private _iconCache: Map<string, string> = new Map();
   private _styleCache: Map<string, Record<string, string>> = new Map();
@@ -96,6 +97,34 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   private _hiddenEntitiesSet = new Set<string>();
   private _lastEntityIds: string[] | undefined;
   private _excludedEntitiesSet: Set<string> = new Set();
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._startCameraInterval();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this._stopCameraInterval();
+  }
+
+  private _startCameraInterval() {
+    this._stopCameraInterval();
+    if (this._config?.camera_mode === "auto") {
+      const intervalSec = this._config?.camera_auto_interval || 10;
+      this._cameraInterval = window.setInterval(() => {
+        this._currentCameraIndex++;
+        this.requestUpdate();
+      }, intervalSec * 1000);
+    }
+  }
+
+  private _stopCameraInterval() {
+    if (this._cameraInterval) {
+      clearInterval(this._cameraInterval);
+      this._cameraInterval = undefined;
+    }
+  }
 
   public getCardSize(): number {
     return 3;
@@ -206,6 +235,10 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   protected updated(changedProps: PropertyValues): void {
     super.updated(changedProps);
 
+    if (changedProps.has("_config")) {
+      this._startCameraInterval();
+    }
+
     if (!this._config || !this.hass) {
       return;
     }
@@ -256,7 +289,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   );
 
   protected shouldUpdate(changedProps: PropertyValues): boolean {
-    if (changedProps.has("_config") || !this._config) {
+    if (changedProps.has("_config") || !this._config || changedProps.has("_currentCameraIndex")) {
       return true;
     }
 
@@ -397,7 +430,6 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   private _computeAlerts = computeAlerts;
   private _computeSensors = computeSensors;
   private _computeButtons = computeButtons;
-  private _computeCameraEntity = computeCameraEntity;
 
   private _computeIconStyles = memoizeOne(
     (
@@ -420,6 +452,27 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     customization?: any
   ): Record<string, string> {
     return getParsedCss(source, customization, this._styleCache);
+  }
+
+  private _getClimateStyle(
+    state: "heat" | "cool" | "standby"
+  ): Record<string, string> {
+    const thermo = this._config?.styles?.thermostat;
+    const base =
+      typeof thermo === "string" ? this._getParsedCss(thermo) : {};
+    const specific =
+      typeof thermo === "object" && thermo && thermo[state]
+        ? this._getParsedCss(thermo[state])
+        : {};
+    return { ...base, ...specific };
+  }
+
+  private _getClimateColor(
+    state: "heat" | "cool" | "standby",
+    defaultColor: string
+  ): string {
+    const style = this._getClimateStyle(state);
+    return style.color || defaultColor;
   }
 
   private _handleAction(ev: ActionHandlerEvent) {
@@ -887,8 +940,14 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             }
             if (heating && cooling) break;
           }
-          if (heating) climateIconColor = "red";
-          else if (cooling) climateIconColor = "cornflowerblue";
+          if (heating)
+            climateIconColor = this._getClimateColor("heat", "red");
+          else if (cooling)
+            climateIconColor = this._getClimateColor("cool", "cornflowerblue");
+          else
+            climateIconColor =
+              this._getClimateColor("standby", "") ||
+              this._config?.climate_standby_color;
         } else {
           activeEntities = baselineEntities.filter((entity: HassEntity) => {
             if (domain === "climate") {
@@ -995,7 +1054,15 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     const excludedEntities = this._config?.excluded_entities || [];
 
     return html`
-      <div class="sensors">
+      <div 
+        class="sensors"
+        style=${styleMap(
+          this._getParsedCss(
+            this._config?.styles?.sensors,
+            this._config
+          )
+        )}
+      >
         ${this._config?.wrap_sensor_icons
         ? repeat(
           sensors,
@@ -1243,13 +1310,24 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
               const cooling =
                 hvacLower.includes("cool") || hvacLower.includes("cooling");
 
-              const color = heating
-                ? "red"
+              const style = heating
+                ? this._getClimateStyle("heat")
                 : cooling
-                  ? "cornflowerblue"
-                  : "var(--secondary-text-color)";
+                  ? this._getClimateStyle("cool")
+                  : this._getClimateStyle("standby");
 
-              return html`<span style="color:${color};"
+              const color =
+                style.color ||
+                (heating
+                  ? "red"
+                  : cooling
+                    ? "cornflowerblue"
+                    : "var(--secondary-text-color)");
+
+              return html`<span style=${styleMap({
+                color,
+                ...style,
+              })}
                     >${num}${unit ? ` ${unit}` : ""}</span
                   >`;
             })
@@ -1263,7 +1341,11 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                 acc.push(cur);
               } else {
                 acc.push(
-                  html`<span style="color: var(--secondary-text-color)"
+                  html`<span
+                        style=${styleMap({
+                    color: "var(--secondary-text-color)",
+                    ...this._getClimateStyle("standby"),
+                  })}
                         >,
                       </span>`
                 );
@@ -1292,9 +1374,17 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                 @action=${handleDomainAction(this, domain)}
                 .actionHandler=${renderActionHandler(customization)}
               >
-                <span style="color: var(--secondary-text-color)">(</span
+                <span
+                  style=${styleMap({
+                    color: "var(--secondary-text-color)",
+                    ...this._getClimateStyle("standby"),
+                  })}
+                  >(</span
                 >${joinedTemplates}<span
-                  style="color: var(--secondary-text-color)"
+                  style=${styleMap({
+                    color: "var(--secondary-text-color)",
+                    ...this._getClimateStyle("standby"),
+                  })}
                   >)</span
                 >
               </div>`;
@@ -1353,7 +1443,14 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
               @action=${handleDomainAction(this, domain)}
               .actionHandler=${renderActionHandler(customization)}
             >
-              (${activeTemperatures.join(", ")})
+              <span
+                style=${styleMap(
+                  this._getClimateStyle(
+                    activeTemperatures.length > 0 ? "heat" : "standby"
+                  )
+                )}
+                >(${activeTemperatures.join(", ")})</span
+              >
             </div>`;
       }
     )}
@@ -1517,10 +1614,9 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       display.includes("picture") || display.includes("image");
     const showIcon = display === "" ? true : display.includes("icon");
 
-    const cameraEntityId = this._computeCameraEntity(
-      showCamera,
-      entitiesByDomain
-    );
+    const cameraEntities = showCamera ? (entitiesByDomain["camera"] || []) : [];
+    const hasManualCamera = showCamera && (this._config.camera_entity || this._config.camera_entity_left || this._config.camera_entity_right);
+    const hasVisual = (showCamera && (cameraEntities.length > 0 || hasManualCamera)) || (showPicture && area.picture);
 
     if (area === null) {
       return html`
@@ -1551,8 +1647,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       >
         <div
           class="header"
-          style=${(showPicture || showCamera) &&
-        (cameraEntityId || area.picture)
+          style=${hasVisual
         ? "padding-bottom:0em"
         : "padding-bottom:12em"}
           @action=${this._handleAction}
@@ -1563,28 +1658,72 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             style=${ignoreAspectRatio ? nothing : "max-height:12em;"}
           >
             ${(() => {
-        if (
-          (showPicture || showCamera) &&
-          (cameraEntityId || area.picture)
-        ) {
-          return html`
+        if (!hasVisual) return nothing;
+
+        if (showCamera && cameraEntities.length > 0) {
+          const mode = this._config?.camera_mode || "single";
+          const imageStyles = this._getParsedCss(this._config?.styles?.camera, this._config);
+
+          if (mode === "split") {
+            const leftId = this._config?.camera_entity_left || cameraEntities[0]?.entity_id;
+            const rightId = this._config?.camera_entity_right || cameraEntities[1]?.entity_id;
+
+            if (leftId && rightId) {
+              return html`
+                <div style="display: flex; height: 100%; width: 100%;">
                   <hui-image
+                    style=${styleMap({ "flex": "1", "width": "50%", "object-fit": "cover", ...imageStyles })}
                     .config=${this._config}
                     .hass=${this.hass}
-                    style=${styleMap(
-            this._getParsedCss(
-              showCamera
-                ? this._config?.styles?.camera
-                : this._config?.styles?.image,
-              this._config
-            )
-          )}
-                    .image=${showCamera ? undefined : area.picture}
-                    .cameraImage=${showCamera ? cameraEntityId : undefined}
+                    .cameraImage=${leftId}
                     .cameraView=${this._config.camera_view}
                     fit-mode="cover"
                   ></hui-image>
-                `;
+                  <div style="width: 2px; height: 100%; background: var(--divider-color, rgba(0,0,0,0.5)); z-index: 1;"></div>
+                  <hui-image
+                    style=${styleMap({ "flex": "1", "width": "50%", "object-fit": "cover", ...imageStyles })}
+                    .config=${this._config}
+                    .hass=${this.hass}
+                    .cameraImage=${rightId}
+                    .cameraView=${this._config.camera_view}
+                    fit-mode="cover"
+                  ></hui-image>
+                </div>
+              `;
+            }
+          } else {
+            let singleCameraId = cameraEntities[0]?.entity_id;
+            if (mode === "single" && this._config?.camera_entity) {
+              singleCameraId = this._config.camera_entity;
+            } else if (mode === "auto" && cameraEntities.length > 0) {
+              singleCameraId = cameraEntities[this._currentCameraIndex % cameraEntities.length].entity_id;
+            }
+
+            return html`
+              ${repeat([singleCameraId], (id) => id, (id) => html`
+                <hui-image
+                  .config=${this._config}
+                  .hass=${this.hass}
+                  style=${styleMap({ "width": "100%", "height": "100%", ...imageStyles })}
+                  .cameraImage=${id}
+                  .cameraView=${this._config.camera_view}
+                  fit-mode="cover"
+                ></hui-image>
+              `)}
+            `;
+          }
+        }
+        
+        if (showPicture && area.picture) {
+          return html`
+            <hui-image
+              .config=${this._config}
+              .hass=${this.hass}
+              style=${styleMap({ "width": "100%", "height": "100%", ...this._getParsedCss(this._config?.styles?.image, this._config) })}
+              .image=${area.picture}
+              fit-mode="cover"
+            ></hui-image>
+          `;
         }
       })()}
           </div>

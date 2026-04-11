@@ -16,6 +16,7 @@ import {
   getEntitiesIndex,
   getAreaEntityIds,
   getDevicesInArea,
+  getFriendlyName,
 } from "./helpers";
 import memoizeOne from "memoize-one";
 import {
@@ -99,11 +100,19 @@ export class AreaCardPlusEditor
       tab: string,
       designVersion: string,
       displayType: AreaCardDisplayType,
+      cameraMode: string | undefined,
+      cameraOptions: SelectOption[],
       language: string
     ) => {
       switch (tab) {
         case "appearance":
-          return getAppearanceSchema(designVersion, displayType, this.hass!);
+          return getAppearanceSchema(
+            designVersion,
+            displayType,
+            cameraMode,
+            cameraOptions,
+            this.hass!
+          );
         case "actions":
           return getActionsSchema();
         case "style":
@@ -246,6 +255,35 @@ export class AreaCardPlusEditor
       devices: HomeAssistant["devices"]
     ): string[] =>
       this._classesForArea(area, "all", undefined, entities, devices)
+  );
+
+  private _cameraOptionsForArea = memoizeOne(
+    (
+      area: string,
+      entitiesRegistry: HomeAssistant["entities"],
+      devicesRegistry: HomeAssistant["devices"]
+    ): SelectOption[] => {
+      const entitiesIndex = getEntitiesIndex(entitiesRegistry, devicesRegistry);
+      const devicesInArea = entitiesIndex
+        ? EMPTY_SET
+        : getDevicesInArea(area, devicesRegistry);
+
+      const candidateIds = getAreaEntityIds(
+        area,
+        devicesInArea,
+        entitiesRegistry,
+        new Set(),
+        undefined,
+        entitiesIndex
+      );
+
+      return candidateIds
+        .filter((id) => computeDomain(id) === "camera")
+        .map((id) => ({
+          value: id,
+          label: getFriendlyName(this.hass.states, id),
+        }));
+    }
   );
 
   private _classesForArea(
@@ -1174,10 +1212,18 @@ export class AreaCardPlusEditor
       this.hass.devices
     );
 
+    const cameraOptions = this._cameraOptionsForArea(
+      this._config.area || "",
+      this.hass.entities,
+      this.hass.devices
+    );
+
     const schema = this._schema(
       this._activeTab,
       this._config.design || "V1",
       this._config.display_type,
+      this._config.camera_mode,
+      cameraOptions,
       this.hass.locale.language
     );
 

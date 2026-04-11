@@ -10,9 +10,79 @@ export const getAppearanceSchema = memoizeOne(
   (
     designVersion: string,
     displayType: AreaCardDisplayType,
+    cameraMode: string | undefined,
+    cameraOptions: SelectOption[],
     hass: HomeAssistant
   ) => {
     const localize = (key: string) => hass.localize(key) || key;
+
+    const cameraSchema: Schema[] = [
+      {
+        name: "camera_view",
+        selector: {
+          select: {
+            options: ["auto", "live"].map((value) => ({
+              value,
+              label: localize(
+                `ui.panel.lovelace.editor.card.generic.camera_view_options.${value}`
+              ),
+            })),
+            mode: "dropdown",
+          },
+        },
+      },
+      {
+        name: "camera_mode",
+        selector: {
+          select: {
+            options: [
+              { value: "single", label: "Single Camera" },
+              { value: "auto", label: "Auto Rotation" },
+              { value: "split", label: "Split View (50/50)" },
+            ],
+            mode: "dropdown",
+          },
+        },
+      },
+    ];
+
+    if (cameraMode === "single") {
+      cameraSchema.push({
+        name: "camera_entity",
+        selector: {
+          select: {
+            options: cameraOptions,
+            mode: "dropdown",
+          },
+        },
+      });
+    } else if (cameraMode === "auto") {
+      cameraSchema.push({
+        name: "camera_auto_interval",
+        selector: { number: { min: 1, max: 3600, mode: "box" } },
+      });
+    } else if (cameraMode === "split") {
+      cameraSchema.push(
+        {
+          name: "camera_entity_left",
+          selector: {
+            select: {
+              options: cameraOptions,
+              mode: "dropdown",
+            },
+          },
+        },
+        {
+          name: "camera_entity_right",
+          selector: {
+            select: {
+              options: cameraOptions,
+              mode: "dropdown",
+            },
+          },
+        }
+      );
+    }
 
     return [
       {
@@ -57,8 +127,8 @@ export const getAppearanceSchema = memoizeOne(
 
                   const parts = value.split(" & ").map((p) => p.trim());
                   const label = parts
-                    .map((p) => localize(keyForPart(p)) || p)
-                    .join(" & ");
+                        .map((p) => localize(keyForPart(p)) || p)
+                        .join(" & ");
 
                   return { value, label };
                 }),
@@ -67,22 +137,7 @@ export const getAppearanceSchema = memoizeOne(
             },
           },
           ...(displayType === "camera" || displayType === "camera & icon"
-            ? ([
-                {
-                  name: "camera_view",
-                  selector: {
-                    select: {
-                      options: ["auto", "live"].map((value) => ({
-                        value,
-                        label: localize(
-                          `ui.panel.lovelace.editor.card.generic.camera_view_options.${value}`
-                        ),
-                      })),
-                      mode: "dropdown",
-                    },
-                  },
-                },
-              ] as const satisfies readonly Schema[])
+            ? (cameraSchema as any)
             : []),
         ],
       },

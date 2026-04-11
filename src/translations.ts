@@ -167,6 +167,25 @@ export function computeLabelCallback(
       return hass!.localize(
         `ui.panel.lovelace.editor.card.generic.${schema.name}`
       );
+    case "camera_mode":
+      return "Camera Mode";
+    case "camera_entity":
+      return (
+        hass!.localize(`ui.panel.lovelace.editor.card.area.display_type_options.camera`) ||
+        "Camera"
+      );
+    case "camera_entity_left":
+      return (
+        (hass!.localize(`ui.panel.lovelace.editor.card.area.display_type_options.camera`) ||
+          "Camera") + " (Left)"
+      );
+    case "camera_entity_right":
+      return (
+        (hass!.localize(`ui.panel.lovelace.editor.card.area.display_type_options.camera`) ||
+          "Camera") + " (Right)"
+      );
+    case "camera_auto_interval":
+      return "Interval (Seconds)";
     default:
       return hass!.localize(
         `ui.panel.lovelace.editor.card.area.${schema.name}`
