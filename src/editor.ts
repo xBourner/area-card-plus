@@ -325,7 +325,7 @@ export class AreaCardPlusEditor
     if (domain === "all") {
       const extraEntityObjects = extraEntities
         .map((entityId: string) => this.hass!.states[entityId])
-        .filter((stateObj: string) => stateObj !== undefined);
+        .filter((stateObj) => stateObj !== undefined);
 
       const all = [...entities, ...extraEntityObjects];
       return [...new Set(all.map((e) => computeDomain(e.entity_id)))];
@@ -334,7 +334,7 @@ export class AreaCardPlusEditor
     const filtered = entities.filter(
       (e) =>
         computeDomain(e.entity_id) === domain &&
-        !(entitiesRegistry[e.entity_id] as any)?.entity_category
+        !entitiesRegistry[e.entity_id]?.entity_category
     );
 
     const classes = filtered
@@ -1019,7 +1019,7 @@ export class AreaCardPlusEditor
     state: string = "on",
     deviceClass?: string
   ): string {
-    const icons: any = DOMAIN_ICONS as any;
+    const icons: Record<string, any> = DOMAIN_ICONS as Record<string, any>;
     if (domain in icons) {
       const def = icons[domain];
       if (typeof def === "string") return def;
@@ -1050,9 +1050,7 @@ export class AreaCardPlusEditor
     );
 
     const states = this.hass?.states || {};
-    const cmpByFriendly = (this as any).compareByFriendlyName
-      ? (this as any).compareByFriendlyName(states, this.hass!.locale.language)
-      : (a: string, b: string) => a.localeCompare(b);
+    const cmpByFriendly = compareByFriendlyName(states, this.hass!.locale.language);
 
     return domains
       .sort((a, b) => a.localeCompare(b))
@@ -1091,9 +1089,7 @@ export class AreaCardPlusEditor
       if (!map[dc]) map[dc] = [];
       map[dc].push(id);
     }
-    const cmpByFriendly = (this as any).compareByFriendlyName
-      ? (this as any).compareByFriendlyName(states, this.hass!.locale.language)
-      : (a: string, b: string) => a.localeCompare(b);
+    const cmpByFriendly = compareByFriendlyName(states, this.hass!.locale.language);
     const deviceClasses = Object.keys(map).sort((a, b) => a.localeCompare(b));
     return deviceClasses.map((dc) => ({
       deviceClass: dc,
@@ -1109,8 +1105,8 @@ export class AreaCardPlusEditor
       : [];
     if (hidden.length === 0) return res;
 
-    const entitiesReg = (this.hass as any)?.entities || {};
-    const devices = (this.hass as any)?.devices || {};
+    const entitiesReg = this.hass?.entities || {};
+    const devices = this.hass?.devices || {};
     const areasArrAll = this.hass?.areas ? Object.values(this.hass.areas) : [];
 
     const areaFilter = this._config?.area;
@@ -1135,8 +1131,8 @@ export class AreaCardPlusEditor
 
     for (const id of hidden) {
       const domain = computeDomain(id);
-      const reg = (entitiesReg as any)[id];
-      const dev = reg?.device_id ? (devices as any)[reg.device_id] : undefined;
+      const reg = entitiesReg[id];
+      const dev = reg?.device_id ? devices[reg.device_id] : undefined;
 
       const hasAnyArea = reg?.area_id != null || dev?.area_id != null;
       if (!hasAnyArea) continue;
@@ -1164,7 +1160,7 @@ export class AreaCardPlusEditor
             (a) =>
               a.area_id === reg.area_id &&
               a.floor_id &&
-              floorsSel.includes(a.floor_id as any)
+              floorsSel.includes(a.floor_id)
           );
         const devAreaOk =
           dev?.area_id &&
@@ -1172,7 +1168,7 @@ export class AreaCardPlusEditor
             (a) =>
               a.area_id === dev.area_id &&
               a.floor_id &&
-              floorsSel.includes(a.floor_id as any)
+              floorsSel.includes(a.floor_id)
           );
         if (!regAreaOk && !devAreaOk) continue;
       }

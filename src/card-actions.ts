@@ -135,7 +135,7 @@ export const makeActionHandler = (
             const climateCustomization = card._config?.customization_domain?.find(
               (item: { type: string }) => item.type === "climate"
             );
-            const displayMode = (climateCustomization as any)?.display_mode;
+            const displayMode = climateCustomization?.display_mode;
             if (displayMode === "icon" || displayMode === "text_icon") {
               card._showPopupForDomain(domain);
             }

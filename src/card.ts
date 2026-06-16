@@ -17,6 +17,7 @@ import {
   COVER_DOMAINS,
   OTHER_DOMAINS,
 } from "./const";
+import type { CustomButtonConfig, CardStyles } from "./types";
 import {
   computeCovers,
   computeAlerts,
@@ -59,6 +60,7 @@ import {
   calculateAverage,
   getIcon,
   getEntitiesIndex,
+  parseCustomizationMap,
 } from "./helpers";
 
 const EMPTY_SET = new Set<string>();
@@ -81,7 +83,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   @state() public _config!: LovelaceCardConfig;
   @state() public selectedDomain: string | null = null;
   @state() public selectedDeviceClass: string | null = null;
-  @state() public selectedGroup: string | null = null;
+  @state() public selectedGroup: number | null = null;
   @state() private _currentCameraIndex = 0;
   private _cameraInterval?: number;
 
@@ -97,6 +99,13 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   private _hiddenEntitiesSet = new Set<string>();
   private _lastEntityIds: string[] | undefined;
   private _excludedEntitiesSet: Set<string> = new Set();
+
+  private get _designClasses() {
+    return {
+      v2: this._config?.design === "V2",
+      row: this._config?.layout === "horizontal",
+    };
+  }
 
   connectedCallback() {
     super.connectedCallback();
@@ -158,75 +167,23 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     }
     this._iconCache.clear();
     this._styleCache.clear();
-    this._customizationDomainMap.clear();
-    (this._config?.customization_domain || []).forEach((c: any) => {
-      const copy = { ...(c || {}) } as CustomizationConfig;
-      if (c.styles) {
-        if (!copy.styles) copy.styles = {};
-        if (typeof c.styles === "string") {
-        } else {
-          copy.styles = { ...c.styles };
-        }
-      } else {
-        copy.styles = {};
-      }
-
-      if (c.css) copy.styles!.card = c.css;
-      if (c.icon_css) copy.styles!.icon = c.icon_css;
-
-      if (copy.styles?.card) copy._parsedCss = this._parseCss(copy.styles.card);
-      if (copy.styles?.icon)
-        copy._parsedIconCss = this._parseCss(copy.styles.icon);
-      this._customizationDomainMap.set(copy.type, copy);
-    });
-    this._customizationCoverMap.clear();
-    (this._config?.customization_cover || []).forEach((c: any) => {
-      const copy = { ...(c || {}) } as CustomizationConfig;
-      if (c.styles) {
-        copy.styles = { ...c.styles };
-      } else {
-        copy.styles = {};
-      }
-      if (c.css) copy.styles!.card = c.css;
-      if (c.icon_css) copy.styles!.icon = c.icon_css;
-
-      if (copy.styles?.card) copy._parsedCss = this._parseCss(copy.styles.card);
-      if (copy.styles?.icon)
-        copy._parsedIconCss = this._parseCss(copy.styles.icon);
-      this._customizationCoverMap.set(copy.type, copy);
-    });
-    this._customizationAlertMap.clear();
-    (this._config?.customization_alert || []).forEach((c: any) => {
-      const copy = { ...(c || {}) } as CustomizationConfig;
-      if (c.styles) {
-        copy.styles = { ...c.styles };
-      } else {
-        copy.styles = {};
-      }
-      if (c.css) copy.styles!.card = c.css;
-      if (c.icon_css) copy.styles!.icon = c.icon_css;
-
-      if (copy.styles?.card) copy._parsedCss = this._parseCss(copy.styles.card);
-      if (copy.styles?.icon)
-        copy._parsedIconCss = this._parseCss(copy.styles.icon);
-      this._customizationAlertMap.set(copy.type, copy);
-    });
-    this._customizationSensorMap.clear();
-    (this._config?.customization_sensor || []).forEach((c: any) => {
-      const copy = { ...(c || {}) } as CustomizationConfig;
-      if (c.styles) {
-        copy.styles = { ...c.styles };
-      } else {
-        copy.styles = {};
-      }
-      if (c.css) copy.styles!.card = c.css;
-      if (c.icon_css) copy.styles!.icon = c.icon_css;
-
-      if (copy.styles?.card) copy._parsedCss = this._parseCss(copy.styles.card);
-      if (copy.styles?.icon)
-        copy._parsedIconCss = this._parseCss(copy.styles.icon);
-      this._customizationSensorMap.set(copy.type, copy);
-    });
+    const parseCss = this._parseCss.bind(this);
+    this._customizationDomainMap = parseCustomizationMap(
+      this._config?.customization_domain,
+      parseCss
+    );
+    this._customizationCoverMap = parseCustomizationMap(
+      this._config?.customization_cover,
+      parseCss
+    );
+    this._customizationAlertMap = parseCustomizationMap(
+      this._config?.customization_alert,
+      parseCss
+    );
+    this._customizationSensorMap = parseCustomizationMap(
+      this._config?.customization_sensor,
+      parseCss
+    );
     this._hiddenEntitiesSet = new Set(this._config?.hidden_entities || []);
     this._excludedEntitiesSet = new Set(this._config?.excluded_entities || []);
     this._actionHandlerCache.clear();
@@ -246,7 +203,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     if (changedProps.has("selectedDomain") && this.selectedDomain) {
       const domain = this.selectedDomain;
 
-      this._openDomainPopup(domain);
+      this._openPopup({ domain });
 
       setTimeout(() => {
         this.selectedDomain = null;
@@ -268,32 +225,8 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     }
   }
 
-  private _getAreaEntityIds = memoizeOne(
-    (
-      areaId: string,
-      devicesInArea: Set<string>,
-      entities: HomeAssistant["entities"],
-      hiddenEntitiesSet: Set<string>,
-      labelConfig: string[] | undefined,
-      index?: Map<string, Set<string>>
-    ): string[] => {
-      return getAreaEntityIds(
-        areaId,
-        devicesInArea,
-        entities,
-        hiddenEntitiesSet,
-        labelConfig,
-        index
-      );
-    }
-  );
-
   protected shouldUpdate(changedProps: PropertyValues): boolean {
     if (changedProps.has("_config") || !this._config || changedProps.has("_currentCameraIndex")) {
-      return true;
-    }
-
-    if (changedProps.has("_devicesInArea") || changedProps.has("_entities")) {
       return true;
     }
 
@@ -320,11 +253,11 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
         ? getEntitiesIndex(this.hass.entities, this.hass.devices)
         : undefined;
 
-    const entityIds = this._getAreaEntityIds(
+    const entityIds = getAreaEntityIds(
       this._config.area,
       entitiesIndex
         ? EMPTY_SET
-        : this._devicesInArea(this._config.area, this.hass.devices),
+        : getDevicesInArea(this._config.area, this.hass.devices),
       this.hass.entities,
       this._hiddenEntitiesSet,
       this._config.label,
@@ -390,13 +323,31 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
   private _isOn(
     domain: string,
-    deviceClass: string | undefined,
-    entitiesByDomain: { [domain: string]: HassEntity[] }
+    deviceClass?: string,
+    entitiesByDomain?: { [domain: string]: HassEntity[] }
   ): HassEntity | undefined {
-    const entities = entitiesByDomain[domain];
-    if (!entities) {
-      return undefined;
+    let entities: HassEntity[];
+    if (entitiesByDomain) {
+      entities = entitiesByDomain[domain] || [];
+    } else {
+      const areaId = this._config?.area;
+      const devicesInArea = getDevicesInArea(areaId, this.hass?.devices);
+      const entityIds = getAreaEntityIds(
+        areaId,
+        devicesInArea,
+        this.hass.entities,
+        this._excludedEntitiesSet,
+        this._config?.label,
+        this.hass.entities && this.hass.devices
+          ? getEntitiesIndex(this.hass.entities, this.hass.devices)
+          : undefined
+      );
+      entities = entityIds
+        .filter((id) => id.split(".")[0] === domain)
+        .map((id) => this.hass.states[id])
+        .filter((e): e is HassEntity => e !== undefined);
     }
+    if (!entities.length) return undefined;
     return (
       deviceClass
         ? entities.filter(
@@ -410,18 +361,6 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     );
   }
 
-  public _area = memoizeOne(
-    (
-      areaId: string | undefined,
-      areas: any[] | Record<string, any> | undefined
-    ) => findArea(areaId, areas)
-  );
-
-  public _devicesInArea = memoizeOne(
-    (areaId: string | undefined, devices: Record<string, any> | undefined) =>
-      getDevicesInArea(areaId, devices)
-  );
-
   private _parseCss(css?: string): Record<string, string> {
     return parseCss(css, this._styleCache);
   }
@@ -430,22 +369,6 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   private _computeAlerts = computeAlerts;
   private _computeSensors = computeSensors;
   private _computeButtons = computeButtons;
-
-  private _computeIconStyles = memoizeOne(
-    (
-      isV2Design: boolean,
-      rowSize: number,
-      icon_css: string | undefined,
-      area_icon_color: string | undefined
-    ) =>
-      computeIconStyles(
-        isV2Design,
-        rowSize,
-        icon_css,
-        area_icon_color,
-        this._styleCache
-      )
-  );
 
   private _getParsedCss(
     source?: string,
@@ -489,7 +412,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       actionConfig === "more-info" || actionConfig?.action === "more-info";
 
     if (isMoreInfo || actionConfig === undefined) {
-      this._openGeneralPopup();
+      this._openPopup();
       return;
     }
 
@@ -514,215 +437,112 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return icon;
   }
 
+  private _renderIcon(
+    icon: string | undefined,
+    styles: Record<string, string>,
+    className?: string,
+    domain?: string
+  ) {
+    if (icon && !icon.startsWith("mdi:")) {
+      if (icon.startsWith("M")) {
+        return html`<ha-svg-icon
+                  class=${className || nothing}
+                  style=${styles}
+                  .path=${icon}
+                ></ha-svg-icon>`;
+      }
+      return html`<ha-icon
+                class=${className || nothing}
+                style=${styles}
+                .icon=${icon}
+              ></ha-icon>`;
+    }
+    return html`<ha-state-icon
+              class=${className || nothing}
+              style=${styles}
+              .domain=${domain || nothing}
+              .icon=${icon}
+            ></ha-state-icon>`;
+  }
+
+  private _renderEntityGroup(
+    kind: "cover" | "alert",
+    items: Array<{ domain: string; deviceClass: string }>,
+    groupedEntities: Map<string, Map<string, HassEntity[]>>,
+    customizationMap: Map<string, CustomizationConfig>
+  ) {
+    const isCover = kind === "cover";
+    const activeState = isCover ? "open" : "on";
+    const defaultColor = isCover ? this._config?.cover_color : this._config?.alert_color;
+    const defaultCss = isCover ? this._config?.cover_css : this._config?.alert_css;
+    const styleKey = isCover ? "cover" : "alert";
+    const handler = isCover
+      ? (domain: string, dc: string) => handleCoverAction(this, domain, dc)
+      : (domain: string, dc: string) => handleAlertAction(this, domain, dc);
+
+    return html`
+      <div class="${classMap({ [kind + "s"]: true, ...this._designClasses })}">
+        ${repeat(
+          items,
+          (item) => item.domain + "-" + item.deviceClass,
+          ({ domain, deviceClass }) => {
+            const customization = customizationMap.get(deviceClass);
+            const invert = customization?.invert === true;
+            const candidates = groupedEntities.get(domain)?.get(deviceClass) || [];
+            const activeEntities = candidates.filter((entity) => {
+              const isOn = entity.state === activeState;
+              return (
+                (invert ? STATES_OFF.includes(entity.state) : isOn) &&
+                !this._excludedEntitiesSet.has(entity.entity_id) &&
+                filterByCategory(entity.entity_id, this.hass.entities, this._config?.category_filter)
+              );
+            });
+            const color = customization?.color || defaultColor;
+            const icon = customization?.icon;
+            const activeCount = activeEntities.length;
+            return activeCount > 0
+              ? html`
+                  <div
+                    class="icon-with-count hover"
+                    style=${styleMap(this._getParsedCss(
+                      customization?.styles?.button || customization?.styles?.card || defaultCss || (this._config?.styles as CardStyles)?.[styleKey],
+                      customization
+                    ))}
+                    @action=${handler(domain, deviceClass)}
+                    .actionHandler=${renderActionHandler(customization)}
+                  >
+                    ${this._renderIcon(
+                      icon || this._cachedIcon(domain as DomainType, invert ? false : true, deviceClass),
+                      styleMap({
+                        ...(color ? { color: `var(--${color}-color)` } : {}),
+                        ...this._getParsedCss(customization?.styles?.icon, customization),
+                      }),
+                      kind
+                    )}
+                    <span class="active-count text-small ${activeCount > 0 ? "on" : "off"}">${activeCount}</span>
+                  </div>
+                `
+              : nothing;
+          }
+        )}
+      </div>
+    `;
+  }
+
   private _renderCovers(
     covers: Array<{ domain: string; deviceClass: string }>,
     groupedEntities: Map<string, Map<string, HassEntity[]>>,
-    customizationCoverMap: Map<string, any>
+    customizationCoverMap: Map<string, CustomizationConfig>
   ) {
-    const excludedEntities = this._config?.excluded_entities || [];
-    const designClasses = {
-      v2: this._config?.design === "V2",
-      row: this._config?.layout === "horizontal",
-    };
-    return html`
-      <div
-        class="${classMap({
-      covers: true,
-      ...designClasses,
-    })}"
-      >
-        ${repeat(
-      covers,
-      (item) => item.domain + "-" + item.deviceClass,
-      ({ domain, deviceClass }) => {
-        const customization = customizationCoverMap.get(deviceClass);
-        const invert = customization?.invert === true;
-        const candidates =
-          groupedEntities.get(domain)?.get(deviceClass) || [];
-        const activeEntities = candidates.filter((entity) => {
-          const isOn = entity.state === "open";
-          return (
-            (invert ? STATES_OFF.includes(entity.state) : isOn) &&
-            !this._excludedEntitiesSet.has(entity.entity_id) &&
-            filterByCategory(
-              entity.entity_id,
-              this.hass.entities,
-              this._config?.category_filter
-            )
-          );
-        });
-        const coverColor =
-          customization?.color || this._config?.cover_color;
-        const coverIcon = customization?.icon;
-        const activeCount = activeEntities.length;
-        return activeCount > 0
-          ? html`
-                  <div
-                    class="icon-with-count hover"
-                    style=${styleMap(
-            this._getParsedCss(
-              customization?.styles?.button ||
-              customization?.styles?.card ||
-              this._config?.cover_css ||
-              (this._config?.styles as any)?.cover,
-              customization
-            )
-          )}
-                    @action=${handleCoverAction(this, domain, deviceClass)}
-                    .actionHandler=${renderActionHandler(customization)}
-                  >
-                    ${(() => {
-              const icon = coverIcon
-                ? coverIcon
-                : this._cachedIcon(
-                  domain as DomainType,
-                  invert ? false : true,
-                  deviceClass
-                );
-              const styles = styleMap({
-                ...(coverColor
-                  ? { color: `var(--${coverColor}-color)` }
-                  : {}),
-                ...this._getParsedCss(
-                  customization?.styles?.icon,
-                  customization
-                ),
-              });
-              if (icon && !icon.startsWith("mdi:")) {
-                return html`<ha-icon
-                          class="cover"
-                          style=${styles}
-                          .path=${icon}
-                        ></ha-icon>`;
-              }
-              return html`<ha-state-icon
-                        class="cover"
-                        style=${styles}
-                        .icon=${icon}
-                      ></ha-state-icon>`;
-            })()}
-                    <span
-                      class="active-count text-small ${activeCount > 0
-              ? "on"
-              : "off"}"
-                      >${activeCount}</span
-                    >
-                  </div>
-                `
-          : nothing;
-      }
-    )}
-      </div>
-    `;
+    return this._renderEntityGroup("cover", covers, groupedEntities, customizationCoverMap);
   }
 
   private _renderAlerts(
     alerts: Array<{ domain: string; deviceClass: string }>,
     groupedEntities: Map<string, Map<string, HassEntity[]>>,
-    customizationAlertMap: Map<string, any>
+    customizationAlertMap: Map<string, CustomizationConfig>
   ) {
-    const designClasses = {
-      v2: this._config?.design === "V2",
-      row: this._config?.layout === "horizontal",
-    };
-    const excludedEntities = this._config?.excluded_entities || [];
-    return html`
-      <div
-        class="${classMap({
-      alerts: true,
-      ...designClasses,
-    })}"
-      >
-        ${repeat(
-      alerts,
-      (item) => item.domain + "-" + item.deviceClass,
-      ({ domain, deviceClass }) => {
-        const customization = customizationAlertMap.get(deviceClass);
-        const invert = customization?.invert === true;
-        const candidates =
-          groupedEntities.get(domain)?.get(deviceClass) || [];
-        const activeEntities = candidates.filter((entity) => {
-          const isOn = entity.state === "on";
-          return (
-            (invert ? STATES_OFF.includes(entity.state) : isOn) &&
-            !this._excludedEntitiesSet.has(entity.entity_id) &&
-            filterByCategory(
-              entity.entity_id,
-              this.hass.entities,
-              this._config?.category_filter
-            )
-          );
-        });
-        const alertColor =
-          customization?.color || this._config?.alert_color;
-        const alertIcon = customization?.icon;
-        const activeCount = activeEntities.length;
-        return activeCount > 0
-          ? html`
-                  <div
-                    class="icon-with-count hover"
-                    style=${styleMap(
-            this._getParsedCss(
-              customization?.styles?.button ||
-              customization?.styles?.card ||
-              this._config?.alert_css ||
-              (this._config?.styles as any)?.alert,
-              customization
-            )
-          )}
-                    @action=${handleAlertAction(this, domain, deviceClass)}
-                    .actionHandler=${renderActionHandler(customization)}
-                  >
-                    ${(() => {
-              const icon = alertIcon
-                ? alertIcon
-                : this._cachedIcon(
-                  domain as DomainType,
-                  invert ? false : true,
-                  deviceClass
-                );
-              const styles = styleMap({
-                ...(alertColor
-                  ? { color: `var(--${alertColor}-color)` }
-                  : {}),
-                ...this._getParsedCss(
-                  customization?.styles?.icon,
-                  customization
-                ),
-              });
-              if (icon && !icon.startsWith("mdi:")) {
-                if (icon.startsWith("M")) {
-                  return html`<ha-svg-icon
-                            class="alert"
-                            style=${styles}
-                            .path=${icon}
-                          ></ha-svg-icon>`;
-                }
-                return html`<ha-icon
-                          class="alert"
-                          style=${styles}
-                          .icon=${icon}
-                        ></ha-icon>`;
-              }
-              return html`<ha-state-icon
-                        class="alert"
-                        style=${styles}
-                        .icon=${icon}
-                      ></ha-state-icon>`;
-            })()}
-                    <span
-                      class="active-count text-small ${activeCount > 0
-              ? "on"
-              : "off"}"
-                      >${activeCount}</span
-                    >
-                  </div>
-                `
-          : nothing;
-      }
-    )}
-      </div>
-    `;
+    return this._renderEntityGroup("alert", alerts, groupedEntities, customizationAlertMap);
   }
 
   private renderCustomButtons(entitiesByDomain: {
@@ -735,19 +555,14 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       return nothing;
     }
 
-    const designClasses = {
-      v2: this._config?.design === "V2",
-      row: this._config?.layout === "horizontal",
-    };
-
     return html`
       <div
         class="${classMap({
       custom_buttons: true,
-      ...designClasses,
+      ...this._designClasses,
     })}"
       >
-        ${this._config.custom_buttons.map((btn: any) => {
+        ${this._config.custom_buttons.map((btn: CustomButtonConfig) => {
       if (btn.conditional) {
         const domain = btn.entity ? computeDomain(btn.entity) : null;
         if (domain && domain in entitiesByDomain) {
@@ -786,7 +601,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
         if (!icon) {
           const domain = computeDomain(entity.entity_id);
           const on = !UNAVAILABLE_STATES.includes(entity.state) && !STATES_OFF.includes(entity.state);
-          icon = getIcon(domain as any, on, entity.attributes.device_class);
+          icon = getIcon(domain as DomainType, on, entity.attributes.device_class);
         }
       }
 
@@ -810,29 +625,13 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       )}
               .actionHandler=${renderActionHandler(btn)}
             >
-              ${icon
-          ? icon.startsWith("M")
-            ? html`<ha-svg-icon
-                      .path=${icon}
-                      style=${styleMap({
-              ...colorStyle,
-              ...this._getParsedCss(
-                btn.styles?.icon || btn.icon_css,
-                btn
-              ),
-            })}
-                    ></ha-svg-icon>`
-            : html`<ha-icon
-                      .icon=${icon}
-                      style=${styleMap({
-              ...colorStyle,
-              ...this._getParsedCss(
-                btn.styles?.icon || btn.icon_css,
-                btn
-              ),
-            })}
-                    ></ha-icon>`
-          : nothing}
+              ${icon ? this._renderIcon(
+                icon,
+                styleMap({
+                  ...colorStyle,
+                  ...this._getParsedCss(btn.styles?.icon || btn.icon_css, btn),
+                })
+              ) : nothing}
               ${showName
           ? html`<span class="custom-button-label" style=${styleMap({
             ...colorStyle,
@@ -851,19 +650,13 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   private _renderButtons(
     buttons: string[],
     entitiesByDomain: { [domain: string]: HassEntity[] },
-    customizationDomainMap: Map<string, any>
+    customizationDomainMap: Map<string, CustomizationConfig>
   ) {
-    const designClasses = {
-      v2: this._config?.design === "V2",
-      row: this._config?.layout === "horizontal",
-    };
-    const excludedEntities = this._config?.excluded_entities || [];
-
     return html`
       <div
         class="${classMap({
       buttons: true,
-      ...designClasses,
+      ...this._designClasses,
     })}"
       >
         ${repeat(
@@ -889,19 +682,17 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
         const climateCustomization =
           domain === "climate"
-            ? this._config?.customization_domain?.find(
-              (item: { type: string }) => item.type === "climate"
-            )
+            ? customizationDomainMap.get("climate")
             : undefined;
-        const displayMode = (climateCustomization as any)?.display_mode;
-        const climateShowSetTemp = (climateCustomization as any)
+        const displayMode = climateCustomization?.display_mode;
+        const climateShowSetTemp = climateCustomization
           ?.show_set_temperature;
         const climateSpecial =
           domain === "climate" &&
           (displayMode === "icon" || displayMode === "text_icon") &&
           climateShowSetTemp === true;
         const baselineEntities = (
-          entitiesByDomain[domain as string] as HassEntity[]
+          entitiesByDomain[domain] as HassEntity[]
         ).filter((entity: HassEntity) => {
           if (UNAVAILABLE_STATES.includes(entity.state)) return false;
           if (this._excludedEntitiesSet.has(entity.entity_id)) return false;
@@ -982,57 +773,26 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             customization?.styles?.card ||
             customization?.css ||
             this._config?.domain_css ||
-            (this._config?.styles as any)?.domain,
+            (this._config?.styles as CardStyles)?.domain,
             customization
           )
         )}
-                @action=${handleDomainAction(this, domain as string)}
+                @action=${handleDomainAction(this, domain)}
                 .actionHandler=${renderActionHandler(customization)}
               >
-                ${(() => {
-            const icon = domainIcon
-              ? domainIcon
-              : this._cachedIcon(domain as DomainType, activeCount > 0);
-            const styles = styleMap({
-              ...(climateIconColor ? { color: climateIconColor } : {}),
-              ...(!climateIconColor && domainColor
-                ? { color: `var(--${domainColor}-color)` }
-                : {}),
-              ...(!climateIconColor &&
-                !domainColor &&
-                this._config?.domain_color
-                ? { color: this._config.domain_color }
-                : {}),
-              ...this._getParsedCss(
-                customization?.styles?.icon || customization?.icon_css,
-                customization
-              ),
-            });
-            if (icon && !icon.startsWith("mdi:")) {
-              if (icon.startsWith("M")) {
-                return html`<ha-svg-icon
-                        class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
-                        style=${styles}
-                        .path=${icon}
-                      ></ha-svg-icon>`;
-              }
-              return html`<ha-icon
-                      class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
-                      style=${styles}
-                      .icon=${icon}
-                    ></ha-icon>`;
-            }
-            return html`<ha-state-icon
-                    style=${styles}
-                    class=${activeCount > 0 ? "toggle-on" : "toggle-off"}
-                    .domain=${domain}
-                    .icon=${icon}
-                  ></ha-state-icon>`;
-          })()}
+                ${this._renderIcon(
+                  domainIcon || this._cachedIcon(domain as DomainType, activeCount > 0),
+                  styleMap({
+                    ...(climateIconColor ? { color: climateIconColor } : {}),
+                    ...(!climateIconColor && domainColor ? { color: `var(--${domainColor}-color)` } : {}),
+                    ...(!climateIconColor && !domainColor && this._config?.domain_color ? { color: this._config.domain_color } : {}),
+                    ...this._getParsedCss(customization?.styles?.icon || customization?.icon_css, customization),
+                  }),
+                  activeCount > 0 ? "toggle-on" : "toggle-off",
+                  domain
+                )}
                 <span
-                  class="active-count text-small ${activeCount > 0
-            ? "on"
-            : "off"}"
+                  class="active-count text-small ${activeCount > 0 ? "on" : "off"}"
                 >
                   ${activeCount}
                 </span>
@@ -1049,10 +809,8 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     entitiesByDomain: { [domain: string]: HassEntity[] },
     groupedEntities: Map<string, Map<string, HassEntity[]>>,
     area: any,
-    customizationSensorMap: Map<string, any>
+    customizationSensorMap: Map<string, CustomizationConfig>
   ) {
-    const excludedEntities = this._config?.excluded_entities || [];
-
     return html`
       <div 
         class="sensors"
@@ -1265,9 +1023,8 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
   private _renderClimates(
     climates: Array<{ domain: string }>,
     entitiesByDomain: { [domain: string]: HassEntity[] },
-    customizationDomainMap: Map<string, any>
+    customizationDomainMap: Map<string, CustomizationConfig>
   ) {
-    const excludedEntities = this._config?.excluded_entities || [];
     return html`
       <div class="climate text-small off">
         ${repeat(
@@ -1275,13 +1032,13 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       (item) => item.domain,
       ({ domain }) => {
         const entities = entitiesByDomain[domain] || [];
-        const customization = customizationDomainMap.get(domain) || {};
-        const displayMode = (customization as any)?.display_mode;
+        const customization = customizationDomainMap.get(domain) || ({} as CustomizationConfig);
+        const displayMode = customization?.display_mode;
         if (displayMode === "icon") {
           return nothing;
         }
 
-        if ((customization as any)?.show_set_temperature === true) {
+        if (customization?.show_set_temperature === true) {
           const tempsTemplates = entities
             .filter((entity) => {
               if (this._excludedEntitiesSet.has(entity.entity_id))
@@ -1360,12 +1117,12 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             ...(customization?.color
               ? { color: `var(--${customization.color}-color)` }
               : {}),
-            ...this._getParsedCss(
-              customization?.styles?.button ||
-              customization?.styles?.card ||
-              customization?.css,
-              customization
-            ),
+              ...this._getParsedCss(
+                customization?.styles?.button ||
+                customization?.styles?.card ||
+                customization?.css,
+                customization
+              ),
           };
 
           return html`<div
@@ -1397,7 +1154,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
             const isActive =
               !UNAVAILABLE_STATES.includes(state) &&
               !STATES_OFF.includes(state) &&
-              !excludedEntities.includes(entity.entity_id);
+              !this._excludedEntitiesSet.has(entity.entity_id);
 
             if (hvacAction !== undefined && hvacAction !== null) {
               const hvacLower = hvacAction.toString().toLowerCase();
@@ -1460,25 +1217,24 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
   private _renderBottom(
     area: any,
-    designClasses: Record<string, boolean>,
     sensors: Array<{ domain: string; deviceClass: string; index: number }>,
     entitiesByDomain: { [domain: string]: HassEntity[] },
     groupedEntities: Map<string, Map<string, HassEntity[]>>,
-    customizationSensorMap: Map<string, any>,
+    customizationSensorMap: Map<string, CustomizationConfig>,
     climates: Array<{ domain: string }>,
-    customizationDomainMap: Map<string, any>
+    customizationDomainMap: Map<string, CustomizationConfig>
   ) {
     return html`
       <div
         class="${classMap({
       bottom: true,
-      ...designClasses,
+      ...this._designClasses,
     })}"
       >
         <div
           class="${classMap({
       name: true,
-      ...designClasses,
+      ...this._designClasses,
       "text-large": true,
       on: true,
     })}"
@@ -1487,7 +1243,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
         ? { color: `var(--${this._config.area_name_color}-color)` }
         : {}),
       ...this._getParsedCss(
-        this._config?.styles?.name || this._config?.name_css,
+        (this._config?.styles as CardStyles)?.name || this._config?.name_css,
         this._config
       ),
     })}
@@ -1533,10 +1289,6 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       mirrored: this._config.mirrored === true,
     };
 
-    const designClasses = {
-      v2: this._config?.design === "V2",
-      row: this._config?.layout === "horizontal",
-    };
     let rowSize = 3;
     try {
       const root = (this.shadowRoot as any)?.host || document.documentElement;
@@ -1557,11 +1309,11 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
         ? getEntitiesIndex(this.hass.entities, this.hass.devices)
         : undefined;
 
-    const entityIds = this._getAreaEntityIds(
+    const entityIds = getAreaEntityIds(
       this._config.area,
       entitiesIndex
         ? EMPTY_SET
-        : this._devicesInArea(this._config.area, this.hass.devices),
+        : getDevicesInArea(this._config.area, this.hass.devices),
       this.hass.entities,
       this._hiddenEntitiesSet,
       this._config.label,
@@ -1585,7 +1337,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
         )
       );
     });
-    const area = this._area(this._config.area, this.hass?.areas || {});
+    const area = findArea(this._config.area, this.hass?.areas || {});
 
     const customizationDomainMap = this._customizationDomainMap;
     const customizationCoverMap = this._customizationCoverMap;
@@ -1616,8 +1368,6 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
     const cameraEntities = showCamera ? (entitiesByDomain["camera"] || []) : [];
     const hasManualCamera = showCamera && (this._config.camera_entity || this._config.camera_entity_left || this._config.camera_entity_right);
-    const hasVisual = (showCamera && (cameraEntities.length > 0 || hasManualCamera)) || (showPicture && area.picture);
-
     if (area === null) {
       return html`
         <hui-warning>
@@ -1626,11 +1376,14 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       `;
     }
 
-    const iconStyles = this._computeIconStyles(
+    const hasVisual = (showCamera && (cameraEntities.length > 0 || hasManualCamera)) || (showPicture && area.picture);
+
+    const iconStyles = computeIconStyles(
       isV2Design,
       rowSize,
       this._config?.styles?.icon || this._config?.icon_css,
-      this._config?.area_icon_color
+      this._config?.area_icon_color,
+      this._styleCache
     );
 
     const ignoreAspectRatio = this.layout === "grid" || this.layout === "panel";
@@ -1732,31 +1485,22 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
         <div
           class="${classMap({
         "icon-container": true,
-        ...designClasses,
+        ...this._designClasses,
       })}"
           style=${styleMap(iconContainerStyles)}
         >
           ${showIcon
-        ? (this._config.area_icon || area.icon || "").startsWith("M")
-          ? html`
-                  <ha-svg-icon
-                    style=${styleMap(iconStyles)}
-                    .path=${this._config.area_icon || area.icon}
-                  ></ha-svg-icon>
-                `
-          : html`
-                  <ha-icon
-                    style=${styleMap(iconStyles)}
-                    icon=${this._config.area_icon || area.icon}
-                  ></ha-icon>
-                `
+        ? this._renderIcon(
+            this._config.area_icon || area.icon,
+            styleMap(iconStyles)
+          )
         : nothing}
         </div>
 
         <div
           class="${classMap({
           content: true,
-          ...designClasses,
+          ...this._designClasses,
         })}"
           @action=${this._handleAction}
           .actionHandler=${renderActionHandler(this._config)}
@@ -1764,7 +1508,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
           ${cache(html`<div
             class="${classMap({
           right: true,
-          ...designClasses,
+          ...this._designClasses,
         })}"
             style=${styleMap(designStyles)}
           >
@@ -1788,7 +1532,6 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
           ${cache(
           this._renderBottom(
             area,
-            designClasses,
             sensors,
             entitiesByDomain,
             groupedEntitiesRaw,
@@ -1802,7 +1545,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     `;
   }
 
-  private showPopup(
+  private _showPopup(
     element: HTMLElement,
     dialogTag: string,
     dialogParams: any
@@ -1822,52 +1565,24 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
   private _showPopupForDomain(domain: string, deviceClass?: string): void {
     this.selectedDeviceClass = deviceClass || null;
-    this._openDomainPopup(domain);
+    this._openPopup({ domain });
   }
 
-  private _openDomainPopup(domain: string) {
-    const area = this._area(this._config?.area, this.hass?.areas || {});
-    const title =
-      this._config?.area_name || (area && (area as any).name) || "Details";
+  private _openPopup(options?: { domain?: string }) {
+    const area = findArea(this._config?.area, this.hass?.areas || {});
+    const title = this._config?.area_name || (area && area.name) || "Details";
 
-    const dialogTag = "area-card-plus-popup";
-    this.showPopup(this, dialogTag, {
+    this._showPopup(this, "area-card-plus-popup", {
       title,
       hass: this.hass,
-      selectedDomain: domain,
-      selectedDeviceClass: this.selectedDeviceClass || undefined,
-      selectedGroup: this.selectedGroup || undefined,
+      selectedDomain: options?.domain,
+      selectedDeviceClass: options?.domain ? (this.selectedDeviceClass || undefined) : undefined,
+      selectedGroup: options?.domain ? (this.selectedGroup || undefined) : undefined,
       opener: this,
       card: this,
-      entities: this._getAreaEntityIds(
+      entities: getAreaEntityIds(
         this._config.area,
-        this._devicesInArea(this._config.area, this.hass.devices),
-        this.hass.entities,
-        this._hiddenEntitiesSet,
-        this._config.label,
-        this.hass.entities && this.hass.devices
-          ? getEntitiesIndex(this.hass.entities, this.hass.devices)
-          : undefined
-      )
-        .map((id) => this.hass.states[id])
-        .filter((e) => e !== undefined),
-    });
-  }
-
-  private _openGeneralPopup() {
-    const area = this._area(this._config?.area, this.hass?.areas || {});
-    const title =
-      this._config?.area_name || (area && (area as any).name) || "Details";
-
-    const dialogTag = "area-card-plus-popup";
-    this.showPopup(this, dialogTag, {
-      title,
-      hass: this.hass,
-      opener: this,
-      card: this,
-      entities: this._getAreaEntityIds(
-        this._config.area,
-        this._devicesInArea(this._config.area, this.hass.devices),
+        getDevicesInArea(this._config.area, this.hass.devices),
         this.hass.entities,
         this._hiddenEntitiesSet,
         this._config.label,

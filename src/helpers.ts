@@ -10,6 +10,7 @@ import {
   OTHER_DOMAINS,
   SENSOR_DOMAINS,
   TOGGLE_DOMAINS,
+  CustomizationConfig,
 } from "./const";
 import {
   caseInsensitiveStringCompare,
@@ -104,52 +105,6 @@ export const getAreaEntityIds = memoizeOne(
       }
       return true;
     });
-  }
-);
-
-export const getEntitiesByDomain = memoizeOne(
-  (
-    entityIds: string[],
-    states: HomeAssistant["states"],
-    deviceClasses: { [key: string]: string[] }
-  ) => {
-    const entitiesByDomain: { [domain: string]: HassEntity[] } = {};
-
-    for (const entity of entityIds) {
-      const domain = computeDomain(entity);
-
-      if (
-        !TOGGLE_DOMAINS.includes(domain) &&
-        !SENSOR_DOMAINS.includes(domain) &&
-        !ALERT_DOMAINS.includes(domain) &&
-        !COVER_DOMAINS.includes(domain) &&
-        !OTHER_DOMAINS.includes(domain) &&
-        !CLIMATE_DOMAINS.includes(domain)
-      ) {
-        continue;
-      }
-
-      const stateObj: HassEntity | undefined = states[entity];
-      if (!stateObj) {
-        continue;
-      }
-
-      if (
-        (ALERT_DOMAINS.includes(domain) ||
-          SENSOR_DOMAINS.includes(domain) ||
-          COVER_DOMAINS.includes(domain)) &&
-        !deviceClasses[domain].includes(stateObj.attributes.device_class || "")
-      ) {
-        continue;
-      }
-
-      if (!(domain in entitiesByDomain)) {
-        entitiesByDomain[domain] = [];
-      }
-      entitiesByDomain[domain].push(stateObj);
-    }
-
-    return entitiesByDomain;
   }
 );
 
@@ -270,4 +225,23 @@ export const getIcon = (
   }
 
   return "";
+};
+
+export const parseCustomizationMap = (
+  items: CustomizationConfig[] | undefined,
+  parseCssFn: (css?: string) => Record<string, string>
+): Map<string, CustomizationConfig> => {
+  const map = new Map<string, CustomizationConfig>();
+  if (!items) return map;
+
+  for (const c of items) {
+    const copy: CustomizationConfig = { ...c };
+    copy.styles = { ...(c.styles || {}) };
+    if (c.css) copy.styles.card = c.css;
+    if (c.icon_css) copy.styles.icon = c.icon_css;
+    if (copy.styles?.card) copy._parsedCss = parseCssFn(copy.styles.card);
+    if (copy.styles?.icon) copy._parsedIconCss = parseCssFn(copy.styles.icon);
+    map.set(copy.type, copy);
+  }
+  return map;
 };

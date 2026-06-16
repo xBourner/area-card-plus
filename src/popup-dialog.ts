@@ -18,6 +18,7 @@ import {
 } from "./const";
 import { mdiClose } from "@mdi/js";
 import { computeLabelCallback, translateEntityState } from "./translations";
+import { findArea } from "./helpers";
 import memoizeOne from "memoize-one";
 import {
   getEntitiesIndex,
@@ -430,6 +431,25 @@ export class AreaCardPlusPopup extends LitElement {
     },
   };
 
+  private _getAreaEntitiesContext() {
+    const card: any = this.card;
+    const areaId: string = card._config?.area;
+    const devicesArr =
+      card._devices && Array.isArray(card._devices)
+        ? card._devices
+        : card.hass && card.hass.devices
+          ? card.hass.devices
+          : {};
+    const entitiesIndex =
+      this.hass && this.hass.devices && this.hass.entities
+        ? getEntitiesIndex(this.hass.entities, this.hass.devices)
+        : undefined;
+    const devicesInArea: Set<string> = entitiesIndex
+      ? EMPTY_SET
+      : getDevicesInArea(areaId, devicesArr);
+    return { areaId, devicesArr, entitiesIndex, devicesInArea };
+  }
+
   private _getCandidateEntityIds = memoizeOne(
     (
       registryEntitiesOrMap: any,
@@ -503,22 +523,7 @@ export class AreaCardPlusPopup extends LitElement {
     const card: any = this.card;
     if (!card) return false;
 
-    const areaId: string = card._config?.area;
-    const devicesArr: any =
-      card._devices && Array.isArray(card._devices)
-        ? card._devices
-        : card.hass && card.hass.devices
-          ? card.hass.devices
-          : {};
-
-    const entitiesIndex = getEntitiesIndex(
-      this.hass!.entities,
-      this.hass!.devices
-    );
-
-    const devicesInArea: Set<string> = entitiesIndex
-      ? EMPTY_SET
-      : getDevicesInArea(areaId, devicesArr);
+    const { areaId, devicesInArea, entitiesIndex } = this._getAreaEntitiesContext();
 
     const candidates = this._getCandidateEntityIds(
       this.hass!.entities,
@@ -621,28 +626,11 @@ export class AreaCardPlusPopup extends LitElement {
     if (!this.hass || !this.card) return html``;
 
     const card: any = this.card;
-    const areaId: string = card._config?.area;
-    const devicesArr: any =
-      card._devices && Array.isArray(card._devices)
-        ? card._devices
-        : card.hass && card.hass.devices
-          ? card.hass.devices
-          : {};
+    const { areaId, devicesInArea, entitiesIndex } = this._getAreaEntitiesContext();
 
-    const entitiesIndex =
-      card.hass && card.hass.devices && card.hass.entities
-        ? getEntitiesIndex(card.hass.entities, card.hass.devices)
-        : undefined;
-    const devicesInArea: Set<string> = entitiesIndex
-      ? EMPTY_SET
-      : getDevicesInArea(areaId, devicesArr);
-
-    const registryEntities: any[] = [];
     const states = this.hass.states;
     const popupDomains: string[] = card._config?.popup_domains || [];
-    const hiddenEntities: string[] = card._config?.hidden_entities || [];
     const extraEntities: string[] = card._config?.extra_entities || [];
-    const labelFilter: string[] | undefined = card._config?.label;
     const hideUnavailable: boolean | undefined = card._config?.hide_unavailable;
     const categoryFilter: string | undefined = card._config?.category_filter;
     const selectedDomain = this.selectedDomain || null;
@@ -782,7 +770,7 @@ export class AreaCardPlusPopup extends LitElement {
       `;
     }
 
-    const area = card._area?.(card._config?.area, card.hass?.areas) ?? null;
+    const area = findArea(card._config?.area, card.hass?.areas) ?? null;
 
     return html`
       <ha-adaptive-dialog

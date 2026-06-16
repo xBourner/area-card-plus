@@ -47,14 +47,3 @@ export const computeButtons = memoizeOne(
       (domain: string) => domain in entitiesByDomain
     )
 );
-
-export const computeCameraEntity = memoizeOne(
-  (
-    show_camera: boolean | undefined,
-    entitiesByDomain: { [k: string]: HassEntity[] }
-  ) => {
-    if (show_camera && "camera" in entitiesByDomain)
-      return entitiesByDomain.camera[0]?.entity_id;
-    return undefined;
-  }
-);

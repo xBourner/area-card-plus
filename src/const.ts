@@ -1,5 +1,3 @@
-export const DEFAULT_ASPECT_RATIO = "16:9";
-
 export type DomainType =
   | "light"
   | "switch"
@@ -31,7 +29,18 @@ export const TOGGLE_DOMAINS = [
 export const DEVICE_CLASSES = {
   sensor: ["temperature", "humidity"],
   binary_sensor: ["motion", "window"],
-  cover: ["garage"],
+  cover: [
+    "garage",
+    "door",
+    "gate",
+    "blind",
+    "curtain",
+    "damper",
+    "awning",
+    "shutter",
+    "shade",
+    "window",
+  ],
 };
 
 import {
@@ -306,4 +315,17 @@ export interface CustomizationConfig {
   _parsedCss?: Record<string, string>;
   _parsedIconCss?: Record<string, string>;
   styles?: Record<string, any>;
+  color?: string;
+  icon?: string;
+  invert?: boolean;
+  hide?: boolean;
+  display_mode?: "text" | "icon" | "text_icon";
+  show_set_temperature?: boolean;
+  tap_action?: any;
+  hold_action?: any;
+  double_tap_action?: any;
+  popup_card?: any;
+  popup_card_type?: string;
+  popup_card_options?: any;
+  entity?: string;
 }

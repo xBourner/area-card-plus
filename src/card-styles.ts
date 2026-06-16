@@ -274,7 +274,7 @@ export const cardStyles = css`
   .v2 .alerts {
     flex-direction: row-reverse;
   }
-  .mirrored .v2 .areas {
+  .mirrored .v2 .alerts {
     flex-direction: row;
   }
   .v2 .buttons {
