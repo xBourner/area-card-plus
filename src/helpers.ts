@@ -16,6 +16,7 @@ import {
   caseInsensitiveStringCompare,
   computeDomain,
   formatNumber,
+  getNumberFormatOptions,
   isNumericState,
   blankBeforeUnit,
 } from "./ha";
@@ -165,7 +166,8 @@ export const calculateAverage = (
   domain: string,
   deviceClass: string | undefined,
   entities: HassEntity[],
-  locale: any
+  locale: any,
+  entityRegistry?: HomeAssistant["entities"]
 ): string | undefined => {
   if (!entities || entities.length === 0) {
     return undefined;
@@ -189,14 +191,30 @@ export const calculateAverage = (
 
   const sum = values.reduce((total, entity) => total + Number(entity.state), 0);
 
+  let maxFractionDigits: number | undefined;
+  if (entityRegistry) {
+    for (const entity of values) {
+      const registryEntry = entityRegistry[entity.entity_id];
+      const options = getNumberFormatOptions(entity, registryEntry);
+      if (options?.maximumFractionDigits != null) {
+        if (maxFractionDigits == null || options.maximumFractionDigits > maxFractionDigits) {
+          maxFractionDigits = options.maximumFractionDigits;
+        }
+      }
+    }
+  }
+  if (maxFractionDigits == null) {
+    maxFractionDigits = 1;
+  }
+
+  const formatOptions: Intl.NumberFormatOptions = {
+    maximumFractionDigits: maxFractionDigits,
+  };
+
   if (deviceClass === "power") {
-    return `${formatNumber(sum, locale, {
-      maximumFractionDigits: 1,
-    })}${uom ? blankBeforeUnit(uom, locale) : ""}${uom || ""}`;
+    return `${formatNumber(sum, locale, formatOptions)}${uom ? blankBeforeUnit(uom, locale) : ""}${uom || ""}`;
   } else {
-    return `${formatNumber(sum / values.length, locale, {
-      maximumFractionDigits: 1,
-    })}${uom ? blankBeforeUnit(uom, locale) : ""}${uom || ""}`;
+    return `${formatNumber(sum / values.length, locale, formatOptions)}${uom ? blankBeforeUnit(uom, locale) : ""}${uom || ""}`;
   }
 };
 

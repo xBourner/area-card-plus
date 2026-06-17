@@ -439,7 +439,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
   private _renderIcon(
     icon: string | undefined,
-    styles: Record<string, string>,
+    styles: Record<string, string> | ReturnType<typeof styleMap>,
     className?: string,
     domain?: string
   ) {
@@ -912,7 +912,8 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                   domain,
                   deviceClass,
                   matchingEntities,
-                  this.hass.locale
+                  this.hass.locale,
+                  this.hass.entities
                 )}
                 </span>`;
             return html`<div class="sensor-row off">${icon}${value}</div>`;
@@ -1003,13 +1004,14 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
                 index > 0
                 ? " - "
                 : ""}
-                    ${areaEntity
+                  ${areaEntity
                 ? this.hass.formatEntityState(areaEntity)
                 : calculateAverage(
                   domain,
                   deviceClass,
                   matchingEntities,
-                  this.hass.locale
+                  this.hass.locale,
+                  this.hass.entities
                 )}
                   </span>`;
             return html`${icon}${value}`;
