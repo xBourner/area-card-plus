@@ -1282,10 +1282,12 @@ const Pt = ["sensor"], It = ["binary_sensor"], Tt = ["cover"], Lt = ["climate"],
   }
 
   @supports (--row-size: 1) {
-    .icon-container ha-icon {
+    .icon-container ha-icon,
+    .icon-container ha-state-icon {
       --mdc-icon-size: calc(var(--row-size, 3) * 20px);
     }
-    .icon-container.v2 ha-icon {
+    .icon-container.v2 ha-icon,
+    .icon-container.v2 ha-state-icon {
       --mdc-icon-size: calc(var(--row-size, 3) * 15px);
       border-radius: 50%;
       display: flex;
