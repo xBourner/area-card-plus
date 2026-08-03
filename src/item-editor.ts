@@ -12,7 +12,7 @@ import { HomeAssistant, LovelaceCardConfig, UiAction, Schema } from "./ha";
 
 import memoizeOne from "memoize-one";
 
-interface ItemConfig extends LovelaceCardConfig { }
+interface ItemConfig extends LovelaceCardConfig {}
 
 const ACTIONS: UiAction[] = [
   "more-info",
@@ -84,7 +84,7 @@ export class ItemEditor extends LitElement {
           selector: {
             boolean: {},
           },
-        }
+        },
       );
     }
 
@@ -171,6 +171,12 @@ export class ItemEditor extends LitElement {
       { name: "entity", selector: { entity: {} } },
       { name: "name", selector: { text: {} } },
       { name: "icon", selector: { icon: {} } },
+      { name: "use_entity_picture", selector: { boolean: {} } },
+    ];
+  });
+
+  private _schemacustombuttonConfigAfter = memoizeOne(() => {
+    return [
       { name: "activate_state_color", selector: { boolean: {} } },
       {
         name: "color",
@@ -257,6 +263,8 @@ export class ItemEditor extends LitElement {
     }
 
     const data = { ...this._config };
+    const isCustomButtonConfig = this.getSchema === "custom_button" && this._activeTab === "config";
+    const schemaAfter = isCustomButtonConfig ? this._schemacustombuttonConfigAfter() : [];
 
     return html`
       <ha-tab-group>
@@ -265,7 +273,7 @@ export class ItemEditor extends LitElement {
           @click=${() => (this._activeTab = "config")}
         >
           ${hass.localize("ui.panel.lovelace.editor.edit_card.tab_config") ??
-      "Configuration"}
+          "Configuration"}
         </ha-tab-group-tab>
         <ha-tab-group-tab
           .active=${this._activeTab === "actions"}
@@ -280,7 +288,7 @@ export class ItemEditor extends LitElement {
           Style
         </ha-tab-group-tab>
         ${this.getSchema !== "custom_button"
-        ? html`
+          ? html`
               <ha-tab-group-tab
                 .active=${this._activeTab === "popup"}
                 @click=${() => (this._activeTab = "popup")}
@@ -288,7 +296,7 @@ export class ItemEditor extends LitElement {
                 Popup Card
               </ha-tab-group-tab>
             `
-        : ""}
+          : ""}
       </ha-tab-group>
 
       ${this._activeTab === "style"
@@ -302,8 +310,8 @@ export class ItemEditor extends LitElement {
                 <li><b>button</b>: Item Container (Background, Border)</li>
                 <li><b>icon</b>: Item Icon</li>
                 ${this.getSchema === "custom_button"
-            ? html`<li><b>name</b>: Item Name (Label)</li>`
-            : nothing}
+                  ? html`<li><b>name</b>: Item Name (Label)</li>`
+                  : nothing}
               </ul>
               <p>
                 <strong>Animations:</strong> <br />
@@ -333,6 +341,127 @@ icon:
               .computeLabel=${this._computeLabelCallback}
               @value-changed=${this._valueChangedSchema}
             ></ha-form>
+            ${isCustomButtonConfig
+              ? html`
+                  <ha-selector
+                    class="manual-selector"
+                    .hass=${hass}
+                    .selector=${{
+                      select: {
+                        mode: "dropdown",
+                        options: [
+                          { value: "default", label: "Default" },
+                          { value: "top-left", label: "Top Left" },
+                          { value: "top-right", label: "Top Right" },
+                          { value: "bottom-left", label: "Bottom Left" },
+                          { value: "bottom-right", label: "Bottom Right" },
+                          { value: "custom", label: "Custom" },
+                        ],
+                      },
+                    }}
+                    .value=${this._config?.position || "default"}
+                    .label=${"Position"}
+                    @value-changed=${(e: CustomEvent) => {
+                      this._updatePositionField("position", e.detail.value);
+                    }}
+                  ></ha-selector>
+                  ${this._config?.position === "custom"
+                    ? html`
+                        <div class="position-grid">
+                          <ha-selector
+                            .hass=${hass}
+                            .selector=${{ text: { suffix: "px" } }}
+                            .value=${this._config.position_top || ""}
+                            .label=${"Top"}
+                            @value-changed=${(e: CustomEvent) => {
+                              this._updatePositionField(
+                                "position_top",
+                                e.detail.value,
+                              );
+                            }}
+                          ></ha-selector>
+                          <ha-selector
+                            .hass=${hass}
+                            .selector=${{ text: { suffix: "px" } }}
+                            .value=${this._config.position_right || ""}
+                            .label=${"Right"}
+                            @value-changed=${(e: CustomEvent) => {
+                              this._updatePositionField(
+                                "position_right",
+                                e.detail.value,
+                              );
+                            }}
+                          ></ha-selector>
+                          <ha-selector
+                            .hass=${hass}
+                            .selector=${{ text: { suffix: "px" } }}
+                            .value=${this._config.position_bottom || ""}
+                            .label=${"Bottom"}
+                            @value-changed=${(e: CustomEvent) => {
+                              this._updatePositionField(
+                                "position_bottom",
+                                e.detail.value,
+                              );
+                            }}
+                          ></ha-selector>
+                          <ha-selector
+                            .hass=${hass}
+                            .selector=${{ text: { suffix: "px" } }}
+                            .value=${this._config.position_left || ""}
+                            .label=${"Left"}
+                            @value-changed=${(e: CustomEvent) => {
+                              this._updatePositionField(
+                                "position_left",
+                                e.detail.value,
+                              );
+                            }}
+                          ></ha-selector>
+                        </div>
+                      `
+                    : nothing}
+                  ${this._config?.entity
+                    ? html`
+                        <div class="state-grid">
+                          <ha-selector
+                            .hass=${hass}
+                            .selector=${{
+                              select: {
+                                mode: "dropdown",
+                                options: [
+                                  { value: "equal", label: "State equal" },
+                                  { value: "not_equal", label: "State not equal" },
+                                ],
+                              },
+                            }}
+                            .value=${this._config?.state_mode || ""}
+                            .label=${"Invert State"}
+                            @value-changed=${(e: CustomEvent) => {
+                              this._updatePositionField("state_mode", e.detail.value);
+                            }}
+                          ></ha-selector>
+                          <ha-selector
+                            .hass=${hass}
+                            .selector=${{
+                              state: { entity_id: this._config.entity },
+                            }}
+                            .value=${this._config?.state_value || ""}
+                            .label=${"State"}
+                            @value-changed=${(e: CustomEvent) => {
+                              this._updatePositionField("state_value", e.detail.value);
+                            }}
+                          ></ha-selector>
+                        </div>
+                      `
+                    : nothing}
+                  <ha-form
+                    .hass=${hass}
+                    .data=${data}
+                    .schema=${schemaAfter}
+                    .computeLabel=${this._computeLabelCallback}
+                    @value-changed=${this._valueChangedSchema}
+                  ></ha-form>
+                `
+              : nothing}
           `}
     `;
   }
@@ -358,8 +487,8 @@ icon:
           <h3>
             Popup
             ${this.hass!.localize(
-      "ui.panel.lovelace.editor.edit_card.tab_config"
-    )}
+              "ui.panel.lovelace.editor.edit_card.tab_config",
+            )}
           </h3>
           <ha-button
             class="warning"
@@ -400,7 +529,7 @@ icon:
     this.dispatchEvent(
       new CustomEvent("config-changed", {
         detail: updatedConfig,
-      })
+      }),
     );
   }
 
@@ -411,13 +540,36 @@ icon:
 
     this.dispatchEvent(
       new CustomEvent("config-changed", {
-        detail: this._config,
-      })
+        detail: updatedConfig,
+      }),
+    );
+  }
+
+  private _updatePositionField(field: string, value: string): void {
+    if (!this.config) return;
+    const updatedConfig = { ...this.config, [field]: value };
+    this._config = updatedConfig;
+    this.dispatchEvent(
+      new CustomEvent("config-changed", { detail: updatedConfig }),
     );
   }
 
   private _computeLabelCallback = (schema: Schema): string => {
     switch (schema.name) {
+      case "use_entity_picture":
+        return this.hass!.localize(
+          `ui.panel.lovelace.editor.badge.entity.show_entity_picture`,
+        );
+      case "position":
+        return "Position";
+      case "position_top":
+        return "Top";
+      case "position_right":
+        return "Right";
+      case "position_bottom":
+        return "Bottom";
+      case "position_left":
+        return "Left";
       case "color":
         return this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
       case "enable_popup_view":
@@ -425,7 +577,7 @@ icon:
           this.hass!.localize("ui.common.enable") +
           " " +
           this.hass!.localize(
-            "ui.panel.lovelace.editor.action-editor.actions.more-info"
+            "ui.panel.lovelace.editor.action-editor.actions.more-info",
           )
         );
       case "disable_toggle_action":
@@ -433,7 +585,7 @@ icon:
           this.hass!.localize("ui.common.disable") +
           " " +
           this.hass!.localize(
-            "ui.panel.lovelace.editor.card.generic.tap_action"
+            "ui.panel.lovelace.editor.card.generic.tap_action",
           )
         );
       case "styles":
@@ -447,12 +599,12 @@ icon:
       case "hold_action":
       case "double_tap_action":
         return this.hass!.localize(
-          `ui.panel.lovelace.editor.card.generic.${schema.name}`
+          `ui.panel.lovelace.editor.card.generic.${schema.name}`,
         );
       case "invert":
       case "invert_state":
         return this.hass!.localize(
-          "ui.dialogs.entity_registry.editor.invert.label"
+          "ui.dialogs.entity_registry.editor.invert.label",
         );
       case "name":
         return this.hass!.localize(`ui.common.name`);
@@ -460,13 +612,13 @@ icon:
         return this.hass!.localize(`ui.common.entity`);
       case "activate_state_color":
         return this.hass!.localize(
-          `ui.panel.lovelace.editor.card.generic.state_color`
+          `ui.panel.lovelace.editor.card.generic.state_color`,
         );
       case "show_set_temperature":
         return "Show Set Temperature";
       default:
         return this.hass!.localize(
-          `ui.panel.lovelace.editor.card.area.${schema.name}`
+          `ui.panel.lovelace.editor.card.area.${schema.name}`,
         );
     }
   };
@@ -486,7 +638,7 @@ icon:
     this.dispatchEvent(
       new CustomEvent("config-changed", {
         detail: updatedConfig,
-      })
+      }),
     );
   }
 
@@ -535,6 +687,27 @@ icon:
       ha-tab-group-tab::part(base) {
         width: 100%;
         justify-content: center;
+      }
+      .position-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 8px;
+      }
+      .position-grid ha-selector {
+        width: 100%;
+      }
+      .state-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px 8px;
+        margin-bottom: 16px;
+      }
+      .state-grid ha-selector {
+        width: 100%;
+      }
+      .manual-selector {
+        display: block;
+        margin-bottom: 16px;
       }
     `;
   }

@@ -3,22 +3,22 @@ import { HomeAssistant, Schema } from "./ha";
 export function translateEntityState(
   hass: HomeAssistant,
   state: string,
-  domain: string
+  domain: string,
 ): string {
   const localized = hass.localize(
-    `component.${domain}.entity_component._.state.${state}`
+    `component.${domain}.entity_component._.state.${state}`,
   );
   return localized || state;
 }
 
 export function computeLabelCallback(
   hass: HomeAssistant,
-  schema: Schema
+  schema: Schema,
 ): string {
   switch (schema.name) {
     case "theme":
       return `${hass!.localize(
-        "ui.panel.lovelace.editor.card.generic.theme"
+        "ui.panel.lovelace.editor.card.generic.theme",
       )} (${hass!.localize("ui.panel.lovelace.editor.card.config.optional")})`;
     case "area_name":
       return (
@@ -134,7 +134,7 @@ export function computeLabelCallback(
     case "wrap_sensor_icons":
       return (
         hass!.localize(
-          "ui.panel.lovelace.editor.edit_view_header.settings.badges_wrap_options.wrap"
+          "ui.panel.lovelace.editor.edit_view_header.settings.badges_wrap_options.wrap",
         ) +
         " " +
         hass!.localize("ui.panel.lovelace.editor.card.sensor.name")
@@ -165,30 +165,33 @@ export function computeLabelCallback(
     case "double_tap_action":
     case "camera_view":
       return hass!.localize(
-        `ui.panel.lovelace.editor.card.generic.${schema.name}`
+        `ui.panel.lovelace.editor.card.generic.${schema.name}`,
       );
     case "camera_mode":
       return "Camera Mode";
     case "camera_entity":
       return (
-        hass!.localize(`ui.panel.lovelace.editor.card.area.display_type_options.camera`) ||
-        "Camera"
+        hass!.localize(
+          `ui.panel.lovelace.editor.card.area.display_type_options.camera`,
+        ) || "Camera"
       );
     case "camera_entity_left":
       return (
-        (hass!.localize(`ui.panel.lovelace.editor.card.area.display_type_options.camera`) ||
-          "Camera") + " (Left)"
+        (hass!.localize(
+          `ui.panel.lovelace.editor.card.area.display_type_options.camera`,
+        ) || "Camera") + " (Left)"
       );
     case "camera_entity_right":
       return (
-        (hass!.localize(`ui.panel.lovelace.editor.card.area.display_type_options.camera`) ||
-          "Camera") + " (Right)"
+        (hass!.localize(
+          `ui.panel.lovelace.editor.card.area.display_type_options.camera`,
+        ) || "Camera") + " (Right)"
       );
     case "camera_auto_interval":
       return "Interval (Seconds)";
     default:
       return hass!.localize(
-        `ui.panel.lovelace.editor.card.area.${schema.name}`
+        `ui.panel.lovelace.editor.card.area.${schema.name}`,
       );
   }
 }

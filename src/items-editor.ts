@@ -259,6 +259,15 @@ export class CustomButtonsEditor extends LitElement {
             <div class="row">
               <div class="item">
                 ${(() => {
+                  if (button.use_entity_picture && button.entity) {
+                    const entity = this.hass?.states[button.entity];
+                    if (entity?.attributes?.entity_picture) {
+                      return html`<img
+                        class="entity-picture-preview"
+                        src=${entity.attributes.entity_picture}
+                      />`;
+                    }
+                  }
                   const icon = button.icon;
                   if (icon?.startsWith("M")) {
                     return html`<ha-svg-icon .path=${icon}></ha-svg-icon>`;
@@ -330,6 +339,12 @@ export class CustomButtonsEditor extends LitElement {
     }
     ha-icon {
       color: var(--secondary-text-color);
+    }
+    .entity-picture-preview {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
     }
     .add-button-container {
       padding: 8px 0;

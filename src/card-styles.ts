@@ -234,6 +234,32 @@ export const cardStyles = css`
   .icon-with-count > * {
     pointer-events: none;
   }
+  .entity-picture {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .positioned-button {
+    position: absolute;
+    z-index: 2;
+  }
+  .positioned-button.top-left {
+    top: 8px;
+    left: 8px;
+  }
+  .positioned-button.top-right {
+    top: 8px;
+    right: 8px;
+  }
+  .positioned-button.bottom-left {
+    bottom: 8px;
+    left: 8px;
+  }
+  .positioned-button.bottom-right {
+    bottom: 8px;
+    right: 8px;
+  }
 
   .toggle-on {
     color: var(--primary-text-color);

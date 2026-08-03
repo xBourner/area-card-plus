@@ -545,6 +545,108 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
     return this._renderEntityGroup("alert", alerts, groupedEntities, customizationAlertMap);
   }
 
+  private _renderSingleCustomButton(
+    btn: CustomButtonConfig,
+    entitiesByDomain: { [domain: string]: HassEntity[] }
+  ) {
+    if (btn.conditional) {
+      const domain = btn.entity ? computeDomain(btn.entity) : null;
+      if (domain && domain in entitiesByDomain) {
+        const entity = entitiesByDomain[domain].find(
+          (e) => e.entity_id === btn.entity
+        );
+        if (
+          !entity ||
+          UNAVAILABLE_STATES.includes(entity.state) ||
+          STATES_OFF.includes(entity.state)
+        ) {
+          return nothing;
+        }
+      }
+    }
+
+    if (btn.state_mode && btn.entity && btn.state_value) {
+      const entity = this.hass.states[btn.entity];
+      if (!entity) return nothing;
+      const match = entity.state === btn.state_value;
+      if ((btn.state_mode === "equal" && !match) || (btn.state_mode === "not_equal" && match)) {
+        return nothing;
+      }
+    }
+
+    let entity: HassEntity | undefined;
+    if (btn.entity) {
+      entity = this.hass.states[btn.entity];
+    }
+
+    let stateColor: string | undefined;
+    if (btn.activate_state_color && entity && (!btn.color || btn.color === "state")) {
+      stateColor = computeEntityColor(entity);
+    }
+
+    const colorStyle = stateColor
+      ? { color: stateColor }
+      : btn.color
+        ? { color: `var(--${btn.color}-color, ${btn.color})` }
+        : {};
+
+    let icon = btn.icon;
+    if (!icon && entity) {
+      icon = entity.attributes.icon;
+      if (!icon) {
+        const domain = computeDomain(entity.entity_id);
+        const on = !UNAVAILABLE_STATES.includes(entity.state) && !STATES_OFF.includes(entity.state);
+        icon = getIcon(domain as DomainType, on, entity.attributes.device_class);
+      }
+    }
+
+    const showName = !!btn.name;
+
+    return html`
+      <div
+        class="icon-with-count hover"
+        style=${styleMap(
+          this._getParsedCss(
+            btn.styles?.button || btn.styles?.card || btn.css,
+            btn
+          )
+        )}
+        @action=${makeActionHandler(
+          this,
+          "custom_button",
+          "",
+          undefined,
+          btn
+        )}
+        .actionHandler=${renderActionHandler(btn)}
+      >
+        ${btn.use_entity_picture && entity?.attributes?.entity_picture
+          ? html`<img
+                    class="entity-picture"
+                    src=${entity.attributes.entity_picture}
+                    style=${styleMap({
+                      ...this._getParsedCss(btn.styles?.icon || btn.icon_css, btn),
+                    })}
+                  />`
+          : icon ? this._renderIcon(
+                icon,
+                styleMap({
+                  ...colorStyle,
+                  ...this._getParsedCss(btn.styles?.icon || btn.icon_css, btn),
+                })
+              ) : nothing}
+        ${showName
+          ? html`<span class="custom-button-label" style=${styleMap({
+            ...colorStyle,
+            ...this._getParsedCss(btn.styles?.name, btn),
+          })}"
+                    >${btn.name}</span
+                  >`
+          : nothing}
+      </div>
+    `;
+  }
+
   private renderCustomButtons(entitiesByDomain: {
     [domain: string]: HassEntity[];
   }) {
@@ -555,95 +657,67 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       return nothing;
     }
 
+    const normalButtons = this._config.custom_buttons.filter(
+      (btn) => !btn.position || btn.position === "default"
+    );
+
+    if (normalButtons.length === 0) {
+      return nothing;
+    }
+
     return html`
       <div
         class="${classMap({
-      custom_buttons: true,
-      ...this._designClasses,
-    })}"
+          custom_buttons: true,
+          ...this._designClasses,
+        })}"
       >
-        ${this._config.custom_buttons.map((btn: CustomButtonConfig) => {
-      if (btn.conditional) {
-        const domain = btn.entity ? computeDomain(btn.entity) : null;
-        if (domain && domain in entitiesByDomain) {
-          const entity = entitiesByDomain[domain].find(
-            (e) => e.entity_id === btn.entity
-          );
-          if (
-            !entity ||
-            UNAVAILABLE_STATES.includes(entity.state) ||
-            STATES_OFF.includes(entity.state)
-          ) {
-            return nothing;
-          }
-        }
-      }
-
-      let entity: HassEntity | undefined;
-      if (btn.entity) {
-        entity = this.hass.states[btn.entity];
-      }
-
-      let stateColor: string | undefined;
-      if (btn.activate_state_color && entity && (!btn.color || btn.color === "state")) {
-        stateColor = computeEntityColor(entity);
-      }
-
-      const colorStyle = stateColor
-        ? { color: stateColor }
-        : btn.color
-          ? { color: `var(--${btn.color}-color, ${btn.color})` }
-          : {};
-
-      let icon = btn.icon;
-      if (!icon && entity) {
-        icon = entity.attributes.icon;
-        if (!icon) {
-          const domain = computeDomain(entity.entity_id);
-          const on = !UNAVAILABLE_STATES.includes(entity.state) && !STATES_OFF.includes(entity.state);
-          icon = getIcon(domain as DomainType, on, entity.attributes.device_class);
-        }
-      }
-
-      const showName = !!btn.name;
-
-      return html`
-            <div
-              class="icon-with-count hover"
-              style=${styleMap(
-        this._getParsedCss(
-          btn.styles?.button || btn.styles?.card || btn.css,
-          btn
-        )
-      )}
-              @action=${makeActionHandler(
-        this,
-        "custom_button",
-        "",
-        undefined,
-        btn
-      )}
-              .actionHandler=${renderActionHandler(btn)}
-            >
-              ${icon ? this._renderIcon(
-                icon,
-                styleMap({
-                  ...colorStyle,
-                  ...this._getParsedCss(btn.styles?.icon || btn.icon_css, btn),
-                })
-              ) : nothing}
-              ${showName
-          ? html`<span class="custom-button-label" style=${styleMap({
-            ...colorStyle,
-            ...this._getParsedCss(btn.styles?.name, btn),
-          })}"
-                    >${btn.name}</span
-                  >`
-          : nothing}
-            </div>
-          `;
-    })}
+        ${normalButtons.map((btn) => this._renderSingleCustomButton(btn, entitiesByDomain))}
       </div>
+    `;
+  }
+
+  private renderPositionedCustomButtons(entitiesByDomain: {
+    [domain: string]: HassEntity[];
+  }) {
+    if (
+      !this._config?.custom_buttons ||
+      this._config.custom_buttons.length === 0
+    ) {
+      return nothing;
+    }
+
+    const positionedButtons = this._config.custom_buttons.filter(
+      (btn) => btn.position && btn.position !== "default"
+    );
+
+    if (positionedButtons.length === 0) {
+      return nothing;
+    }
+
+    return html`
+      ${positionedButtons.map((btn) => {
+        const addUnit = (v?: string) => v && !/[^0-9]/.test(v) ? `${v}px` : v;
+        const positionStyles = btn.position === "custom"
+          ? {
+              ...(btn.position_top ? { top: addUnit(btn.position_top) } : {}),
+              ...(btn.position_right ? { right: addUnit(btn.position_right) } : {}),
+              ...(btn.position_bottom ? { bottom: addUnit(btn.position_bottom) } : {}),
+              ...(btn.position_left ? { left: addUnit(btn.position_left) } : {}),
+            }
+          : {};
+        return html`
+          <div
+            class="positioned-button ${btn.position !== "custom" ? btn.position : ""}"
+            style=${styleMap({
+              ...positionStyles,
+              ...this._getParsedCss(btn.styles?.button || btn.styles?.card || btn.css, btn),
+            })}
+          >
+            ${this._renderSingleCustomButton(btn, entitiesByDomain)}
+          </div>
+        `;
+      })}
     `;
   }
 
@@ -1543,6 +1617,7 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
           )
         )}
         </div>
+        ${this.renderPositionedCustomButtons(entitiesByDomain)}
       </ha-card>
     `;
   }

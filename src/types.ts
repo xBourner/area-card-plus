@@ -30,6 +30,14 @@ export interface CustomButtonConfig {
     icon?: string;
     name?: string;
   };
+  use_entity_picture?: boolean;
+  position?: "default" | "top-left" | "top-right" | "bottom-left" | "bottom-right" | "custom";
+  position_top?: string;
+  position_right?: string;
+  position_bottom?: string;
+  position_left?: string;
+  state_mode?: "default" | "equal" | "not_equal";
+  state_value?: string;
   tap_action?: any;
   hold_action?: any;
   double_tap_action?: any;
