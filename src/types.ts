@@ -36,6 +36,8 @@ export interface CustomButtonConfig {
   position_right?: string;
   position_bottom?: string;
   position_left?: string;
+  position_group?: string;
+  position_direction?: "row" | "column";
   state_mode?: "default" | "equal" | "not_equal";
   state_value?: string;
   tap_action?: any;

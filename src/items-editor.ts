@@ -341,8 +341,8 @@ export class CustomButtonsEditor extends LitElement {
       color: var(--secondary-text-color);
     }
     .entity-picture-preview {
-      width: 24px;
-      height: 24px;
+      width: 28px;
+      height: 28px;
       border-radius: 50%;
       object-fit: cover;
     }

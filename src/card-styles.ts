@@ -3,18 +3,21 @@ import { css } from "lit";
 
 export const parseCss = (
   css?: string | Record<string, any>,
-  styleCache?: Map<string, Record<string, string>>
+  styleCache?: Map<string, Record<string, string>>,
 ): Record<string, string> => {
   if (!css) return {};
 
   if (typeof css === "object") {
-    return Object.entries(css).reduce((acc, [key, value]) => {
-      const finalKey = key.startsWith("--")
-        ? key
-        : key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-      acc[finalKey] = String(value);
-      return acc;
-    }, {} as Record<string, string>);
+    return Object.entries(css).reduce(
+      (acc, [key, value]) => {
+        const finalKey = key.startsWith("--")
+          ? key
+          : key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+        acc[finalKey] = String(value);
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
   }
 
   const key = css.trim();
@@ -26,20 +29,23 @@ export const parseCss = (
     .split(";")
     .map((s) => s.trim())
     .filter((s) => s && s.includes(":"))
-    .reduce((acc: Record<string, string>, rule: string) => {
-      const parts = rule.split(":");
-      const keyPart = parts[0];
-      const valuePart = parts.slice(1).join(":");
+    .reduce(
+      (acc: Record<string, string>, rule: string) => {
+        const parts = rule.split(":");
+        const keyPart = parts[0];
+        const valuePart = parts.slice(1).join(":");
 
-      if (keyPart && valuePart !== undefined) {
-        const trimmed = keyPart.trim();
-        const finalKey = trimmed.startsWith("--")
-          ? trimmed
-          : trimmed.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-        acc[finalKey] = valuePart.trim();
-      }
-      return acc;
-    }, {} as Record<string, string>);
+        if (keyPart && valuePart !== undefined) {
+          const trimmed = keyPart.trim();
+          const finalKey = trimmed.startsWith("--")
+            ? trimmed
+            : trimmed.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+          acc[finalKey] = valuePart.trim();
+        }
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
 
   if (styleCache) {
     styleCache.set(key, obj);
@@ -50,7 +56,7 @@ export const parseCss = (
 export const getParsedCss = (
   source?: string | Record<string, any>,
   customization?: any,
-  styleCache?: Map<string, Record<string, string>>
+  styleCache?: Map<string, Record<string, string>>,
 ): Record<string, string> => {
   if (customization && customization._parsedCss)
     return customization._parsedCss;
@@ -64,7 +70,7 @@ export const computeIconStyles = memoizeOne(
     rowSize: number,
     icon_css: string | Record<string, any> | undefined,
     area_icon_color: string | undefined,
-    styleCache?: Map<string, Record<string, string>>
+    styleCache?: Map<string, Record<string, string>>,
   ) => {
     const base = {
       ...(isV2Design && rowSize === 1 ? { "--mdc-icon-size": "20px" } : {}),
@@ -76,7 +82,7 @@ export const computeIconStyles = memoizeOne(
     const cssRules = getParsedCss(icon_css, undefined, styleCache);
 
     return { ...base, ...cssRules };
-  }
+  },
 );
 
 export const cardStyles = css`
@@ -240,25 +246,30 @@ export const cardStyles = css`
     border-radius: 50%;
     object-fit: cover;
   }
-  .positioned-button {
+  .positioned-button-group {
     position: absolute;
     z-index: 2;
+    display: flex;
+    gap: 4px;
   }
-  .positioned-button.top-left {
+  .positioned-button-group.top-left {
     top: 8px;
     left: 8px;
   }
-  .positioned-button.top-right {
+  .positioned-button-group.top-right {
     top: 8px;
     right: 8px;
   }
-  .positioned-button.bottom-left {
+  .positioned-button-group.bottom-left {
     bottom: 8px;
     left: 8px;
   }
-  .positioned-button.bottom-right {
+  .positioned-button-group.bottom-right {
     bottom: 8px;
     right: 8px;
+  }
+  .positioned-button {
+    z-index: 2;
   }
 
   .toggle-on {

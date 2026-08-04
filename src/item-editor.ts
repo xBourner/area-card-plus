@@ -365,6 +365,41 @@ icon:
                       this._updatePositionField("position", e.detail.value);
                     }}
                   ></ha-selector>
+                  ${this._config?.position && this._config.position !== "default"
+                    ? html`
+                        <div class="position-grid">
+                          <ha-selector
+                            .hass=${hass}
+                            .selector=${{ text: {} }}
+                            .value=${this._config?.position_group || ""}
+                            .label=${"Group"}
+                            @value-changed=${(e: CustomEvent) => {
+                              this._updatePositionField("position_group", e.detail.value);
+                            }}
+                          ></ha-selector>
+                          <ha-selector
+                            .hass=${hass}
+                            .selector=${{
+                              select: {
+                                mode: "dropdown",
+                                options: [
+                                  { value: "row", label: "Row" },
+                                  { value: "column", label: "Column" },
+                                ],
+                              },
+                            }}
+                            .value=${this._config?.position_direction || "row"}
+                            .label=${"Direction"}
+                            @value-changed=${(e: CustomEvent) => {
+                              this._updatePositionField("position_direction", e.detail.value);
+                            }}
+                          ></ha-selector>
+                        </div>
+                        <span class="position-group-hint">
+                          Same group name = buttons are grouped together. Leave empty for default grouping.
+                        </span>
+                      `
+                    : nothing}
                   ${this._config?.position === "custom"
                     ? html`
                         <div class="position-grid">
@@ -570,6 +605,10 @@ icon:
         return "Bottom";
       case "position_left":
         return "Left";
+      case "position_group":
+        return "Group";
+      case "position_direction":
+        return "Direction";
       case "color":
         return this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
       case "enable_popup_view":
@@ -707,6 +746,13 @@ icon:
       }
       .manual-selector {
         display: block;
+        margin-bottom: 16px;
+      }
+      .position-group-hint {
+        display: block;
+        font-size: 12px;
+        color: var(--secondary-text-color);
+        margin-top: -8px;
         margin-bottom: 16px;
       }
     `;

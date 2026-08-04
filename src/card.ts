@@ -695,26 +695,57 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
       return nothing;
     }
 
+    const addUnit = (v?: string) => v && !/[^0-9]/.test(v) ? `${v}px` : v;
+
+    // Buttons with position_group: group by position_group
+    const explicitGroups = new Map<string, typeof positionedButtons>();
+    // Buttons without position_group: group by position (default behavior)
+    const defaultGroups = new Map<string, typeof positionedButtons>();
+
+    for (const btn of positionedButtons) {
+      if (btn.position_group) {
+        const key = btn.position_group;
+        if (!explicitGroups.has(key)) explicitGroups.set(key, []);
+        explicitGroups.get(key)!.push(btn);
+      } else {
+        const key = btn.position || "custom";
+        if (!defaultGroups.has(key)) defaultGroups.set(key, []);
+        defaultGroups.get(key)!.push(btn);
+      }
+    }
+
+    const allGroups = [...Array.from(defaultGroups.entries()).map(([pos, btns]) => ({ position: pos, buttons: btns, direction: btns[0]?.position_direction })),
+      ...Array.from(explicitGroups.entries()).map(([group, btns]) => ({ position: btns[0]?.position || "custom", buttons: btns, direction: btns[0]?.position_direction }))];
+
     return html`
-      ${positionedButtons.map((btn) => {
-        const addUnit = (v?: string) => v && !/[^0-9]/.test(v) ? `${v}px` : v;
-        const positionStyles = btn.position === "custom"
-          ? {
-              ...(btn.position_top ? { top: addUnit(btn.position_top) } : {}),
-              ...(btn.position_right ? { right: addUnit(btn.position_right) } : {}),
-              ...(btn.position_bottom ? { bottom: addUnit(btn.position_bottom) } : {}),
-              ...(btn.position_left ? { left: addUnit(btn.position_left) } : {}),
-            }
+      ${allGroups.map(({ position, buttons, direction }) => {
+        const positionStyles = position === "custom"
+          ? (() => {
+              const first = buttons[0];
+              return {
+                ...(first.position_top ? { top: addUnit(first.position_top) } : {}),
+                ...(first.position_right ? { right: addUnit(first.position_right) } : {}),
+                ...(first.position_bottom ? { bottom: addUnit(first.position_bottom) } : {}),
+                ...(first.position_left ? { left: addUnit(first.position_left) } : {}),
+              };
+            })()
           : {};
+        const flexDir = direction === "column" ? "column" : "row";
         return html`
           <div
-            class="positioned-button ${btn.position !== "custom" ? btn.position : ""}"
-            style=${styleMap({
-              ...positionStyles,
-              ...this._getParsedCss(btn.styles?.button || btn.styles?.card || btn.css, btn),
-            })}
+            class="positioned-button-group ${position !== "custom" ? position : ""}"
+            style=${styleMap({ ...positionStyles, flexDirection: flexDir })}
           >
-            ${this._renderSingleCustomButton(btn, entitiesByDomain)}
+            ${buttons.map((btn) => html`
+              <div
+                class="positioned-button"
+                style=${styleMap(
+                  this._getParsedCss(btn.styles?.button || btn.styles?.card || btn.css, btn)
+                )}
+              >
+                ${this._renderSingleCustomButton(btn, entitiesByDomain)}
+              </div>
+            `)}
           </div>
         `;
       })}
