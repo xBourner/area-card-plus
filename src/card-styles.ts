@@ -365,6 +365,17 @@ export const cardStyles = css`
     }
   }
 
+  ha-svg-icon, ha-state-icon {
+    display: var(--ha-icon-display, inline-flex);
+    vertical-align: middle;
+    fill: var(--icon-primary-color, currentcolor);
+    width: var(--mdc-icon-size, 24px);
+    height: var(--mdc-icon-size, 24px);
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+
   @media (max-width: 768px) {
     .name {
       font-weight: bold;

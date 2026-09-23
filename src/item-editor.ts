@@ -11,6 +11,7 @@ import { customElement, property, state } from "lit/decorators.js";
 import { HomeAssistant, LovelaceCardConfig, UiAction, Schema } from "./ha";
 
 import memoizeOne from "memoize-one";
+import { getTranslation, TranslationKey } from "./translations-data";
 
 interface ItemConfig extends LovelaceCardConfig {}
 
@@ -55,7 +56,7 @@ export class ItemEditor extends LitElement {
     }
   }
 
-  private _schemadomainConfig = memoizeOne(() => {
+  private _schemadomainConfig = memoizeOne((language: string) => {
     const base: Schema[] = [
       { name: "icon", selector: { icon: {} } },
       {
@@ -72,9 +73,18 @@ export class ItemEditor extends LitElement {
             select: {
               mode: "dropdown",
               options: [
-                { value: "text", label: "Text" },
-                { value: "icon", label: "Icon" },
-                { value: "text_icon", label: "Text + Icon" },
+                {
+                  value: "text",
+                  label: getTranslation("display_mode_text", language),
+                },
+                {
+                  value: "icon",
+                  label: getTranslation("display_mode_icon", language),
+                },
+                {
+                  value: "text_icon",
+                  label: getTranslation("display_mode_text_icon", language),
+                },
               ],
             },
           },
@@ -220,6 +230,8 @@ export class ItemEditor extends LitElement {
     }
 
     const hass = this.hass;
+    const translate = (key: TranslationKey): string =>
+      getTranslation(key, hass.locale.language);
 
     if (!this._config) {
       this._config = { ...this.config, area: this.config.area || "" };
@@ -232,7 +244,7 @@ export class ItemEditor extends LitElement {
           schema = this._schemasensorConfig();
           break;
         case "domain":
-          schema = this._schemadomainConfig();
+          schema = this._schemadomainConfig(hass.locale.language);
           break;
         case "alert":
         case "cover":
@@ -350,17 +362,33 @@ icon:
                       select: {
                         mode: "dropdown",
                         options: [
-                          { value: "default", label: "Default" },
-                          { value: "top-left", label: "Top Left" },
-                          { value: "top-right", label: "Top Right" },
-                          { value: "bottom-left", label: "Bottom Left" },
-                          { value: "bottom-right", label: "Bottom Right" },
-                          { value: "custom", label: "Custom" },
+                          {
+                            value: "default",
+                            label: translate("position_default"),
+                          },
+                          {
+                            value: "top-left",
+                            label: translate("position_top_left"),
+                          },
+                          {
+                            value: "top-right",
+                            label: translate("position_top_right"),
+                          },
+                          {
+                            value: "bottom-left",
+                            label: translate("position_bottom_left"),
+                          },
+                          {
+                            value: "bottom-right",
+                            label: translate("position_bottom_right"),
+                          },
+                          { value: "custom", label: translate("position_custom") },
                         ],
                       },
                     }}
                     .value=${this._config?.position || "default"}
-                    .label=${"Position"}
+                    .label=${translate("position")}
+                    .required=${false}
                     @value-changed=${(e: CustomEvent) => {
                       this._updatePositionField("position", e.detail.value);
                     }}
@@ -372,7 +400,7 @@ icon:
                             .hass=${hass}
                             .selector=${{ text: {} }}
                             .value=${this._config?.position_group || ""}
-                            .label=${"Group"}
+                            .label=${translate("position_group")}
                             @value-changed=${(e: CustomEvent) => {
                               this._updatePositionField("position_group", e.detail.value);
                             }}
@@ -383,20 +411,23 @@ icon:
                               select: {
                                 mode: "dropdown",
                                 options: [
-                                  { value: "row", label: "Row" },
-                                  { value: "column", label: "Column" },
+                                  { value: "row", label: translate("position_row") },
+                                  {
+                                    value: "column",
+                                    label: translate("position_column"),
+                                  },
                                 ],
                               },
                             }}
                             .value=${this._config?.position_direction || "row"}
-                            .label=${"Direction"}
+                            .label=${translate("position_direction")}
                             @value-changed=${(e: CustomEvent) => {
                               this._updatePositionField("position_direction", e.detail.value);
                             }}
                           ></ha-selector>
                         </div>
                         <span class="position-group-hint">
-                          Same group name = buttons are grouped together. Leave empty for default grouping.
+                          ${translate("position_group_hint")}
                         </span>
                       `
                     : nothing}
@@ -407,7 +438,7 @@ icon:
                             .hass=${hass}
                             .selector=${{ text: { suffix: "px" } }}
                             .value=${this._config.position_top || ""}
-                            .label=${"Top"}
+                            .label=${translate("position_top")}
                             @value-changed=${(e: CustomEvent) => {
                               this._updatePositionField(
                                 "position_top",
@@ -419,7 +450,7 @@ icon:
                             .hass=${hass}
                             .selector=${{ text: { suffix: "px" } }}
                             .value=${this._config.position_right || ""}
-                            .label=${"Right"}
+                            .label=${translate("position_right")}
                             @value-changed=${(e: CustomEvent) => {
                               this._updatePositionField(
                                 "position_right",
@@ -431,7 +462,7 @@ icon:
                             .hass=${hass}
                             .selector=${{ text: { suffix: "px" } }}
                             .value=${this._config.position_bottom || ""}
-                            .label=${"Bottom"}
+                            .label=${translate("position_bottom")}
                             @value-changed=${(e: CustomEvent) => {
                               this._updatePositionField(
                                 "position_bottom",
@@ -443,7 +474,7 @@ icon:
                             .hass=${hass}
                             .selector=${{ text: { suffix: "px" } }}
                             .value=${this._config.position_left || ""}
-                            .label=${"Left"}
+                            .label=${translate("position_left")}
                             @value-changed=${(e: CustomEvent) => {
                               this._updatePositionField(
                                 "position_left",
@@ -463,13 +494,25 @@ icon:
                               select: {
                                 mode: "dropdown",
                                 options: [
-                                  { value: "equal", label: "State equal" },
-                                  { value: "not_equal", label: "State not equal" },
+                                  {
+                                    value: "equal",
+                                    label:
+                                      hass.localize(
+                                        "ui.panel.lovelace.editor.condition-editor.condition.state.state_equal",
+                                      ),
+                                  },
+                                  {
+                                    value: "not_equal",
+                                    label:
+                                      hass.localize(
+                                        "ui.panel.lovelace.editor.condition-editor.condition.state.state_not_equal",
+                                      ),
+                                  },
                                 ],
                               },
                             }}
                             .value=${this._config?.state_mode || ""}
-                            .label=${"Invert State"}
+                            .label=${hass.localize("ui.dialogs.entity_registry.editor.invert.label") || "Invert State"}
                             @value-changed=${(e: CustomEvent) => {
                               this._updatePositionField("state_mode", e.detail.value);
                             }}
@@ -480,7 +523,7 @@ icon:
                               state: { entity_id: this._config.entity },
                             }}
                             .value=${this._config?.state_value || ""}
-                            .label=${"State"}
+                            .label=${hass.localize("ui.components.entity.entity-state-picker.state") || "State"}
                             @value-changed=${(e: CustomEvent) => {
                               this._updatePositionField("state_value", e.detail.value);
                             }}
@@ -571,6 +614,10 @@ icon:
   private _removePopupCard(): void {
     if (!this._config) return;
     const { popup_card, ...rest } = this._config;
+    const updatedConfig = {
+      ...this._config,
+      popup_card,
+    };
     this._config = rest as LovelaceCardConfig;
 
     this.dispatchEvent(
@@ -595,20 +642,6 @@ icon:
         return this.hass!.localize(
           `ui.panel.lovelace.editor.badge.entity.show_entity_picture`,
         );
-      case "position":
-        return "Position";
-      case "position_top":
-        return "Top";
-      case "position_right":
-        return "Right";
-      case "position_bottom":
-        return "Bottom";
-      case "position_left":
-        return "Left";
-      case "position_group":
-        return "Group";
-      case "position_direction":
-        return "Direction";
       case "color":
         return this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
       case "enable_popup_view":
@@ -630,9 +663,9 @@ icon:
       case "styles":
         return "Styles";
       case "display_mode":
-        return "Display Mode";
+        return getTranslation("display_mode", this.hass!.locale.language);
       case "popup_card":
-        return "Change Popup Card Type";
+        return getTranslation("popup_card", this.hass!.locale.language);
       case "icon":
       case "tap_action":
       case "hold_action":
@@ -642,9 +675,7 @@ icon:
         );
       case "invert":
       case "invert_state":
-        return this.hass!.localize(
-          "ui.dialogs.entity_registry.editor.invert.label",
-        );
+        return this.hass!.localize("ui.dialogs.entity_registry.editor.invert.label");
       case "name":
         return this.hass!.localize(`ui.common.name`);
       case "entity":
@@ -654,7 +685,7 @@ icon:
           `ui.panel.lovelace.editor.card.generic.state_color`,
         );
       case "show_set_temperature":
-        return "Show Set Temperature";
+        return getTranslation("show_set_temperature", this.hass!.locale.language);
       default:
         return this.hass!.localize(
           `ui.panel.lovelace.editor.card.area.${schema.name}`,

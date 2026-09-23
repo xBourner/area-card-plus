@@ -1,4 +1,5 @@
 import { HomeAssistant, Schema } from "./ha";
+import { getTranslation, TranslationKey } from "./translations-data";
 
 export function translateEntityState(
   hass: HomeAssistant,
@@ -11,43 +12,46 @@ export function translateEntityState(
   return localized || state;
 }
 
+const compositeKeys: string[] = [
+  "area_name",
+  "area_icon",
+  "area_name_color",
+  "area_icon_color",
+  "hide_unavailable",
+  "show_active",
+  "extra_entities",
+  "hidden_entities",
+  "edit_filters",
+  "label_filter",
+  "ungroup_areas",
+  "popup_domains",
+  "wrap_sensor_icons",
+  "category_filter",
+  "mirrored",
+  "popup_sort",
+  "camera_mode",
+  "camera_auto_interval",
+  "add_custom_button",
+  "color",
+  "edit_content",
+];
+
 export function computeLabelCallback(
   hass: HomeAssistant,
   schema: Schema,
 ): string {
+  if (compositeKeys.includes(schema.name)) {
+    return getTranslation(
+      schema.name as TranslationKey,
+      hass.locale.language,
+    );
+  }
+
   switch (schema.name) {
     case "theme":
       return `${hass!.localize(
         "ui.panel.lovelace.editor.card.generic.theme",
       )} (${hass!.localize("ui.panel.lovelace.editor.card.config.optional")})`;
-    case "area_name":
-      return (
-        hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.card.generic.name`)
-      );
-    case "area_icon":
-      return (
-        hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.card.generic.icon`)
-      );
-    case "area_name_color":
-      return (
-        hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.card.generic.name`) +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.card.tile.color`)
-      );
-    case "area_icon_color":
-      return (
-        hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.card.generic.icon`) +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.card.tile.color`)
-      );
     case "v2_color":
       return hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
     case "css":
@@ -62,12 +66,6 @@ export function computeLabelCallback(
       return "Icon CSS";
     case "name_css":
       return "Name CSS";
-    case "mirrored":
-      return "Mirror Card Layout";
-    case "alert_color":
-    case "sensor_color":
-    case "domain_color":
-      return hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
     case "columns":
       return hass!.localize(`ui.components.grid-size-picker.columns`);
     case "appearance":
@@ -79,86 +77,24 @@ export function computeLabelCallback(
       return hass!.localize(`ui.panel.lovelace.editor.cardpicker.domain`);
     case "popup":
       return "Popup";
-    case "popup_domains":
-      return (
-        "Popup" +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.cardpicker.domain`)
-      );
-    case "extra_entities":
-      return (
-        hass!.localize(`ui.common.add`) +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.card.generic.entities`) +
-        ":"
-      );
-    case "hidden_entities":
-      return (
-        hass!.localize(`ui.common.hide`) +
-        " " +
-        hass!.localize(`ui.panel.lovelace.editor.card.generic.entities`) +
-        ":"
-      );
-    case "hide_unavailable":
-      return (
-        hass!.localize(`ui.common.hide`) +
-        " " +
-        hass!.localize(`state.default.unavailable`)
-      );
-    case "show_active":
-      return (
-        hass!.localize(`ui.common.hide`) +
-        " " +
-        hass!.localize(`ui.components.entity.entity-state-picker.state`) +
-        " " +
-        hass!.localize(`component.binary_sensor.entity_component._.state.off`)
-      );
-    case "edit_filters":
-      return (
-        hass!.localize(`ui.panel.lovelace.editor.common.edit`) +
-        " " +
-        hass!.localize(`ui.components.subpage-data-table.filters`)
-      );
-    case "label_filter":
-      return (
-        hass!.localize("ui.components.label-picker.label") +
-        " " +
-        hass!.localize("ui.components.related-filter-menu.filter")
-      );
     case "cover_classes":
       return hass!.localize(`component.cover.entity_component._.name`);
+    case "alert_color":
+      return `${hass!.localize(`ui.panel.lovelace.editor.card.area.alert_classes`) || "Alert"} ${getTranslation("color", hass.locale.language)}`;
+    case "sensor_color":
+      return `${hass!.localize(`ui.panel.lovelace.editor.card.area.sensor_classes`) || "Sensor"} ${getTranslation("color", hass.locale.language)}`;
+    case "domain_color":
+      return `${hass!.localize(`ui.panel.lovelace.editor.cardpicker.domain`) || "Domain"} ${getTranslation("color", hass.locale.language)}`;
+    case "cover_color":
+      return `${hass!.localize(`component.cover.entity_component._.name`) || "Cover"} ${getTranslation("color", hass.locale.language)}`;
     case "label":
       return hass!.localize("ui.components.label-picker.label");
     case "show_sensor_icons":
       return hass!.localize("ui.panel.lovelace.editor.card.generic.show_icon");
-    case "wrap_sensor_icons":
-      return (
-        hass!.localize(
-          "ui.panel.lovelace.editor.edit_view_header.settings.badges_wrap_options.wrap",
-        ) +
-        " " +
-        hass!.localize("ui.panel.lovelace.editor.card.sensor.name")
-      );
-    case "category_filter":
-      return (
-        hass!.localize("ui.components.category-picker.category") +
-        " " +
-        hass!.localize("ui.components.related-filter-menu.filter")
-      );
     case "name":
       return hass!.localize("ui.common.name");
     case "state":
       return hass!.localize("ui.components.entity.entity-state-picker.state");
-    case "ungroup_areas":
-      return (
-        hass!.localize("ui.common.disable") +
-        " " +
-        hass!.localize("ui.panel.lovelace.editor.card.area.name") +
-        " " +
-        hass!.localize("component.group.entity_component._.name")
-      );
-    case "popup_sort":
-      return "Popup Sort";
     case "show_icon":
     case "tap_action":
     case "hold_action":
@@ -167,28 +103,22 @@ export function computeLabelCallback(
       return hass!.localize(
         `ui.panel.lovelace.editor.card.generic.${schema.name}`,
       );
-    case "camera_mode":
-      return "Camera Mode";
     case "camera_entity":
-      return (
-        hass!.localize(
+      return hass!.localize(
           `ui.panel.lovelace.editor.card.area.display_type_options.camera`,
-        ) || "Camera"
-      );
+        );
     case "camera_entity_left":
-      return (
-        (hass!.localize(
+      return ( hass!.localize(
           `ui.panel.lovelace.editor.card.area.display_type_options.camera`,
-        ) || "Camera") + " (Left)"
+        )  +
+        ` (${getTranslation("position_left", hass.locale.language)})`
       );
     case "camera_entity_right":
-      return (
-        (hass!.localize(
+      return ( hass!.localize(
           `ui.panel.lovelace.editor.card.area.display_type_options.camera`,
-        ) || "Camera") + " (Right)"
+        )  +
+        ` (${getTranslation("position_right", hass.locale.language)})`
       );
-    case "camera_auto_interval":
-      return "Interval (Seconds)";
     default:
       return hass!.localize(
         `ui.panel.lovelace.editor.card.area.${schema.name}`,

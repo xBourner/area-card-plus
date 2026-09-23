@@ -81,6 +81,7 @@ interface EntityRegistryDisplayEntry {
   translation_key?: string;
   platform?: string;
   display_precision?: number;
+  labels?: string[];
 }
 
 export interface DeviceRegistryEntry {
@@ -99,6 +100,7 @@ export interface DeviceRegistryEntry {
   entry_type: "service" | null;
   disabled_by: "user" | "integration" | "config_entry" | null;
   configuration_url: string | null;
+  labels?: string[];
 }
 
 export interface AreaRegistryEntry {

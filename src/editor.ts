@@ -716,14 +716,17 @@ export class AreaCardPlusEditor
     return html`
       <div class="header">
         <div class="back-title">
-          <mwc-icon-button @click=${this._goBackCustomButton}>
-            <ha-svg-icon .path=${mdiChevronLeft}></ha-svg-icon>
-          </mwc-icon-button>
-          <span slot="title"
-            >${this.hass.localize(
-              "ui.panel.lovelace.editor.card.generic.edit_button"
-            )}</span
-          >
+          <ha-icon-button
+            slot="trigger"
+            .label=${this.hass.localize("ui.common.back")}
+            .path=${mdiChevronLeft}
+            @click=${this._goBackCustomButton}
+          ></ha-icon-button>
+                <span>${
+      buttonConfig?.name ||
+        `Button ${index + 1}`
+      }</span>
+
         </div>
       </div>
       <item-editor
@@ -791,41 +794,28 @@ export class AreaCardPlusEditor
       (this[editorKeyCapitalized] as SubElementEditorConfig)?.index ?? 0;
     const rawType = subConfigs?.[idx]?.type ?? "unknown";
 
-    const match = rawType.match(/^(.+?)\s*-\s*(.+)$/);
-    let localizedType: string;
+    const options =
+      editorKey === "domain"
+        ? this.toggleSelectOptions
+        : editorKey === "alert"
+        ? this.binarySelectOptions
+        : editorKey === "cover"
+        ? this.coverSelectOptions
+        : this.sensorSelectOptions;
 
-    if (match) {
-      const domainKey = match[1].toLowerCase().replace(" ", "_");
-      const devClassKey = match[2].toLowerCase();
-
-      const domainName =
-        this.hass!.localize(`component.${domainKey}.entity_component._.name`) ||
-        match[1];
-
-      let deviceClassName =
-        this.hass!.localize(
-          `ui.dialogs.entity_registry.editor.device_classes.${domainKey}.${devClassKey}`
-        ) || match[2];
-
-      deviceClassName =
-        deviceClassName.charAt(0).toUpperCase() + deviceClassName.slice(1);
-
-      localizedType = `${domainName} – ${deviceClassName}`;
-    } else {
-      let only =
-        this.hass!.localize(`component.${rawType}.entity_component._.name`) ||
-        rawType;
-
-      only = only.charAt(0).toUpperCase() + only.slice(1);
-      localizedType = only;
-    }
+    const localizedType =
+      options.find((option) => option.value === rawType)?.label ||
+      this._localizeLegacyType(rawType);
 
     return html`
       <div class="header">
         <div class="back-title">
-          <mwc-icon-button @click=${goBackHandler}>
-            <ha-svg-icon .path=${mdiChevronLeft}></ha-svg-icon>
-          </mwc-icon-button>
+          <ha-icon-button
+            slot="trigger"
+            .label=${this.hass.localize("ui.common.back")}
+            .path=${mdiChevronLeft}
+            @click=${goBackHandler}
+          ></ha-icon-button>
           <span slot="title">${localizedType}</span>
         </div>
       </div>
@@ -848,6 +838,36 @@ export class AreaCardPlusEditor
       (ev: CustomEvent<LovelaceCardConfig>) =>
         this._itemChangedByKey(ev, editorKey)
     );
+  }
+
+  private _localizeLegacyType(rawType: string): string {
+    const match = rawType.match(/^(.+?)\s*-\s*(.+)$/);
+
+    if (match) {
+      const domainKey = match[1].toLowerCase().replace(" ", "_");
+      const devClassKey = match[2].toLowerCase();
+
+      const domainName =
+        this.hass!.localize(`component.${domainKey}.entity_component._.name`) ||
+        match[1];
+
+      let deviceClassName =
+        this.hass!.localize(
+          `ui.dialogs.entity_registry.editor.device_classes.${domainKey}.${devClassKey}`
+        ) || match[2];
+
+      deviceClassName =
+        deviceClassName.charAt(0).toUpperCase() + deviceClassName.slice(1);
+
+      return `${domainName} – ${deviceClassName}`;
+    }
+
+    let only =
+      this.hass!.localize(`component.${rawType}.entity_component._.name`) ||
+      rawType;
+
+    only = only.charAt(0).toUpperCase() + only.slice(1);
+    return only;
   }
 
   private _goBackByKey(editorKey: "domain" | "alert" | "cover" | "sensor") {

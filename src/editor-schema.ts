@@ -1,6 +1,7 @@
 import memoizeOne from "memoize-one";
 import { AreaCardDisplayType } from "./editor";
 import { Schema, SelectOption, UiAction, HomeAssistant } from "./ha";
+import { getTranslation, TranslationKey } from "./translations-data";
 
 export const getConfigSchema = memoizeOne(() => {
   return [{ name: "area", selector: { area: {} } }];
@@ -15,6 +16,9 @@ export const getAppearanceSchema = memoizeOne(
     hass: HomeAssistant
   ) => {
     const localize = (key: string) => hass.localize(key) || key;
+
+    const cameraModeLabel = (key: TranslationKey): string =>
+      getTranslation(key, hass.locale.language);
 
     const cameraSchema: Schema[] = [
       {
@@ -36,9 +40,12 @@ export const getAppearanceSchema = memoizeOne(
         selector: {
           select: {
             options: [
-              { value: "single", label: "Single Camera" },
-              { value: "auto", label: "Auto Rotation" },
-              { value: "split", label: "Split View (50/50)" },
+              {
+                value: "single",
+                label: cameraModeLabel("camera_mode_single"),
+              },
+              { value: "auto", label: cameraModeLabel("camera_mode_auto") },
+              { value: "split", label: cameraModeLabel("camera_mode_split") },
             ],
             mode: "dropdown",
           },

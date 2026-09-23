@@ -10,6 +10,7 @@ import { customElement, property } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import { css, CSSResult, nothing } from "lit";
 import { mdiClose, mdiPencil, mdiGestureTapButton } from "@mdi/js";
+import { getTranslation, TranslationKey } from "./translations-data";
 
 interface HTMLElementValue extends HTMLElement {
   value: string;
@@ -52,11 +53,10 @@ abstract class BaseItemsEditor extends LitElement {
             <div class="customize-item">
               <ha-selector
                 .hass=${this.hass}
-                .label=${this.hass!.localize(
-                  "ui.panel.lovelace.editor.features.edit"
-                )}
+                .label=${getTranslation("edit_content", this.hass?.locale.language ?? "en")}  
                 .selector=${{ select: { options: this.SelectOptions, mode: 'dropdown' } }}
                 .value=${conf.type}
+                .required=${false}
                 .index=${index}
                 @value-changed=${this._valueChanged}
               ></ha-selector>
@@ -83,15 +83,10 @@ abstract class BaseItemsEditor extends LitElement {
         <div class="add-item row">
           <ha-selector
             .hass=${this.hass}
-            .label=${this.hass!.localize(
-              "ui.panel.lovelace.editor.common.edit"
-            ) +
-            " " +
-            this.hass!.localize(
-              "ui.panel.lovelace.editor.card.markdown.content"
-            )}
+            .label=${getTranslation("edit_content", this.hass?.locale.language ?? "en")}
             .selector=${{ select: { options: availableOptions, mode: 'dropdown' } }}
             .value=${""}
+            .required=${false}
             class="add-customization"
             @value-changed=${this._addRow}
           ></ha-selector>
@@ -300,7 +295,7 @@ export class CustomButtonsEditor extends LitElement {
         )}
         <div class="add-button-container">
           <mwc-button @click=${this._addRow} class="add-btn" outlined>
-            Add Custom Button
+            ${getTranslation("add_custom_button", this.hass?.locale.language ?? "en")}
           </mwc-button>
         </div>
       </div>
