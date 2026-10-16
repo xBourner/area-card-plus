@@ -10,11 +10,7 @@ import { customElement, property } from "lit/decorators.js";
 import { repeat } from "lit/directives/repeat.js";
 import { css, CSSResult, nothing } from "lit";
 import { mdiClose, mdiPencil, mdiGestureTapButton } from "@mdi/js";
-import { getTranslation, TranslationKey } from "./translations-data";
-
-interface HTMLElementValue extends HTMLElement {
-  value: string;
-}
+import { getTranslation } from "./translations-data";
 
 abstract class BaseItemsEditor extends LitElement {
   @property({ attribute: false }) hass?: HomeAssistant;
@@ -152,8 +148,7 @@ abstract class BaseItemsEditor extends LitElement {
         display: flex;
         align-items: center;
       }
-      .add-customization,
-      .select-customization {
+      .add-customization {
         width: 100%;
         margin-top: 8px;
       }
@@ -200,14 +195,6 @@ export class SensorItemsEditor extends BaseItemsEditor {
   @property({ attribute: false }) customization_sensor?: LovelaceCardConfig[];
   protected get customization() {
     return this.customization_sensor;
-  }
-}
-
-@customElement("popup-items-editor")
-export class PopupItemsEditor extends BaseItemsEditor {
-  @property({ attribute: false }) customization_popup?: LovelaceCardConfig[];
-  protected get customization() {
-    return this.customization_popup;
   }
 }
 
@@ -294,9 +281,9 @@ export class CustomButtonsEditor extends LitElement {
           `
         )}
         <div class="add-button-container">
-          <mwc-button @click=${this._addRow} class="add-btn" outlined>
+          <ha-button @click=${this._addRow}>
             ${getTranslation("add_custom_button", this.hass?.locale.language ?? "en")}
-          </mwc-button>
+          </ha-button>
         </div>
       </div>
     `;
@@ -319,18 +306,6 @@ export class CustomButtonsEditor extends LitElement {
       overflow: hidden;
       white-space: nowrap;
       font-size: 16px;
-    }
-    .add-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      background-color: var(--primary-color);
-      color: white;
-      font-weight: 500;
-      -webkit-align-self: flex-start;
-      -ms-flex-item-align: flex-start;
-      align-self: flex-start;
     }
     ha-icon {
       color: var(--secondary-text-color);

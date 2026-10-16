@@ -2,41 +2,23 @@ import { HassEntity } from "home-assistant-js-websocket";
 import memoizeOne from "memoize-one";
 import { ALERT_DOMAINS, COVER_DOMAINS, SENSOR_DOMAINS } from "./const";
 
-export const computeCovers = memoizeOne(
-  (entitiesByDomain: { [k: string]: HassEntity[] }, deviceClasses: any) =>
-    COVER_DOMAINS.flatMap((domain) => {
-      if (!(domain in entitiesByDomain)) return [] as any[];
-      return deviceClasses[domain].map((deviceClass: string) => ({
-        domain,
-        deviceClass,
-      }));
-    })
-);
+/** One { domain, deviceClass } item per configured device class of the domains present in the area. */
+const deviceClassItems = (domains: string[]) =>
+  memoizeOne(
+    (
+      entitiesByDomain: { [k: string]: HassEntity[] },
+      deviceClasses: { [domain: string]: string[] }
+    ): Array<{ domain: string; deviceClass: string }> =>
+      domains.flatMap((domain) =>
+        domain in entitiesByDomain
+          ? deviceClasses[domain].map((deviceClass) => ({ domain, deviceClass }))
+          : []
+      )
+  );
 
-export const computeAlerts = memoizeOne(
-  (entitiesByDomain: { [k: string]: HassEntity[] }, deviceClasses: any) =>
-    ALERT_DOMAINS.flatMap((domain) => {
-      if (!(domain in entitiesByDomain)) return [] as any[];
-      return deviceClasses[domain].map((deviceClass: string) => ({
-        domain,
-        deviceClass,
-      }));
-    })
-);
-
-export const computeSensors = memoizeOne(
-  (entitiesByDomain: { [k: string]: HassEntity[] }, deviceClasses: any) =>
-    SENSOR_DOMAINS.flatMap((domain) => {
-      if (!(domain in entitiesByDomain)) return [] as any[];
-      return deviceClasses[domain].map(
-        (deviceClass: string, index: number) => ({
-          domain,
-          deviceClass,
-          index,
-        })
-      );
-    })
-);
+export const computeCovers = deviceClassItems(COVER_DOMAINS);
+export const computeAlerts = deviceClassItems(ALERT_DOMAINS);
+export const computeSensors = deviceClassItems(SENSOR_DOMAINS);
 
 export const computeButtons = memoizeOne(
   (

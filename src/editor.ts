@@ -58,7 +58,7 @@ const EMPTY_SET = new Set<string>();
 export type AreaCardDisplayType =
   | "icon"
   | "picture"
-  | "icon + picture"
+  | "icon & picture"
   | "camera"
   | "camera & icon";
 
@@ -102,7 +102,7 @@ export class AreaCardPlusEditor
       displayType: AreaCardDisplayType,
       cameraMode: string | undefined,
       cameraOptions: SelectOption[],
-      language: string
+      _language: string // cache key: labels are localized
     ) => {
       switch (tab) {
         case "appearance":
@@ -141,7 +141,7 @@ export class AreaCardPlusEditor
   );
 
   private _popupschema = memoizeOne(
-    (allDomains: SelectOption[], allEntities: SelectOption[]) => {
+    (allDomains: SelectOption[]) => {
       const name = this.computeLabel({ name: "name" });
       const state = this.computeLabel({ name: "state" });
       return [
@@ -307,7 +307,7 @@ export class AreaCardPlusEditor
       entitiesIndex
     );
 
-    const extraEntities = this._config?.extra_entities || [];
+    const extraEntities: string[] = this._config?.extra_entities || [];
 
     const entities = candidateIds
       .map((id) => this.hass.states[id])
@@ -524,14 +524,16 @@ export class AreaCardPlusEditor
         this.requestUpdate();
       }
 
-      if (extraEntitiesChanged) {
+      // empty popup_domains means "all domains", so there is nothing to add
+      if (extraEntitiesChanged && this._config.popup_domains?.length) {
+        const popupDomains = [...(this._config.popup_domains || [])];
         for (const entity of currentExtraEntities) {
           const domain = computeDomain(entity);
-          if (!this._config.popup_domains.includes(domain)) {
-            this._config.popup_domains.push(domain);
-          }
+          if (!popupDomains.includes(domain)) popupDomains.push(domain);
         }
-        this.requestUpdate();
+        if (popupDomains.length !== (this._config.popup_domains || []).length) {
+          this._config = { ...this._config, popup_domains: popupDomains };
+        }
       }
 
       if (popupDomainsChanged) {
@@ -590,11 +592,7 @@ export class AreaCardPlusEditor
 
   private _valueChanged(event: CustomEvent) {
     this._config = event.detail.value;
-    this.dispatchEvent(
-      new CustomEvent("config-changed", {
-        detail: { config: this._config },
-      })
-    );
+    fireEvent(this, "config-changed", { config: this._config! });
   }
 
   private _isHiddenEntity(entity_id: string): boolean {
@@ -1127,21 +1125,14 @@ export class AreaCardPlusEditor
 
     const entitiesReg = this.hass?.entities || {};
     const devices = this.hass?.devices || {};
-    const areasArrAll = this.hass?.areas ? Object.values(this.hass.areas) : [];
 
     const areaFilter = this._config?.area;
-    const floorFilter = this._config?.floor;
     const labelFilter = this._config?.label;
 
     const areasSel = areaFilter
       ? Array.isArray(areaFilter)
         ? areaFilter
         : [areaFilter]
-      : [];
-    const floorsSel = floorFilter
-      ? Array.isArray(floorFilter)
-        ? floorFilter
-        : [floorFilter]
       : [];
     const labelsSel = labelFilter
       ? Array.isArray(labelFilter)
@@ -1173,31 +1164,35 @@ export class AreaCardPlusEditor
         if (!ok) continue;
       }
 
-      if (floorsSel.length) {
-        const regAreaOk =
-          reg?.area_id &&
-          areasArrAll.some(
-            (a) =>
-              a.area_id === reg.area_id &&
-              a.floor_id &&
-              floorsSel.includes(a.floor_id)
-          );
-        const devAreaOk =
-          dev?.area_id &&
-          areasArrAll.some(
-            (a) =>
-              a.area_id === dev.area_id &&
-              a.floor_id &&
-              floorsSel.includes(a.floor_id)
-          );
-        if (!regAreaOk && !devAreaOk) continue;
-      }
-
       if (!res[domain]) res[domain] = [];
       res[domain].push(id);
     }
 
     return res;
+  }
+
+  private _renderEntityRow(id: string) {
+    const hidden = this._isHiddenEntity(id);
+    const excluded = this._isExcludedEntity(id);
+    return html`
+      <div class="entity-row">
+        <span class="entity-name">
+          ${this.hass.states[id]?.attributes?.friendly_name || id}
+        </span>
+        <ha-icon-button
+          .path=${hidden ? mdiEyeOff : mdiEye}
+          .label=${hidden
+            ? this.hass.localize("ui.common.show") ?? "Show"
+            : this.hass.localize("ui.common.hide") ?? "Hide"}
+          @click=${() => this._toggleEntityHidden(id)}
+        ></ha-icon-button>
+        <ha-icon-button
+          .path=${excluded ? mdiEyeOffOutline : mdiEyeOutline}
+          .label=${excluded ? "Include" : "Exclude"}
+          @click=${() => this._toggleEntityExcluded(id)}
+        ></ha-icon-button>
+      </div>
+    `;
   }
 
   protected render() {
@@ -1251,10 +1246,7 @@ export class AreaCardPlusEditor
 
     const toggleschema = this._toggleschema(this.toggleSelectOptions);
 
-    const popupschema = this._popupschema(
-      this.AllSelectOptions,
-      this.entityOptions
-    );
+    const popupschema = this._popupschema(this.AllSelectOptions);
 
     const data = {
       alert_classes: possibleAlertClasses,
@@ -1554,45 +1546,7 @@ image:
                                       <div class="content">
                                         ${sub.entities.map(
                                           (id) => html`
-                                            <div class="entity-row">
-                                              <span class="entity-name">
-                                                ${this.hass.states[id]
-                                                  ?.attributes?.friendly_name ||
-                                                id}
-                                              </span>
-                                              <ha-icon-button
-                                                .path=${this._isHiddenEntity(id)
-                                                  ? mdiEyeOff
-                                                  : mdiEye}
-                                                .label=${this._isHiddenEntity(
-                                                  id
-                                                )
-                                                  ? this.hass.localize(
-                                                      "ui.common.show"
-                                                    ) ?? "Show"
-                                                  : this.hass.localize(
-                                                      "ui.common.hide"
-                                                    ) ?? "Hide"}
-                                                @click=${() =>
-                                                  this._toggleEntityHidden(id)}
-                                              ></ha-icon-button>
-                                              <ha-icon-button
-                                                .path=${this._isExcludedEntity(
-                                                  id
-                                                )
-                                                  ? mdiEyeOffOutline
-                                                  : mdiEyeOutline}
-                                                .label=${this._isExcludedEntity(
-                                                  id
-                                                )
-                                                  ? "Include"
-                                                  : "Exclude"}
-                                                @click=${() =>
-                                                  this._toggleEntityExcluded(
-                                                    id
-                                                  )}
-                                              ></ha-icon-button>
-                                            </div>
+                                            ${this._renderEntityRow(id)}
                                           `
                                         )}
                                       </div>
@@ -1601,36 +1555,7 @@ image:
                                 )
                               : group.entities.map(
                                   (id) => html`
-                                    <div class="entity-row">
-                                      <span class="entity-name">
-                                        ${this.hass.states[id]?.attributes
-                                          ?.friendly_name || id}
-                                      </span>
-                                      <ha-icon-button
-                                        .path=${this._isHiddenEntity(id)
-                                          ? mdiEyeOff
-                                          : mdiEye}
-                                        .label=${this._isHiddenEntity(id)
-                                          ? this.hass.localize(
-                                              "ui.common.show"
-                                            ) ?? "Show"
-                                          : this.hass.localize(
-                                              "ui.common.hide"
-                                            ) ?? "Hide"}
-                                        @click=${() =>
-                                          this._toggleEntityHidden(id)}
-                                      ></ha-icon-button>
-                                      <ha-icon-button
-                                        .path=${this._isExcludedEntity(id)
-                                          ? mdiEyeOffOutline
-                                          : mdiEyeOutline}
-                                        .label=${this._isExcludedEntity(id)
-                                          ? "Include"
-                                          : "Exclude"}
-                                        @click=${() =>
-                                          this._toggleEntityExcluded(id)}
-                                      ></ha-icon-button>
-                                    </div>
+                                    ${this._renderEntityRow(id)}
                                   `
                                 )}
                           </div>
@@ -1650,10 +1575,6 @@ image:
     :host {
       display: block;
     }
-    select {
-      padding: 5px;
-      font-size: 14px;
-    }
     ha-svg-icon {
       color: var(--secondary-text-color);
     }
@@ -1661,9 +1582,6 @@ image:
       --ha-card-border-radius: 6px;
       border-radius: 6px;
       margin-top: 16px;
-    }
-    ha-svg-icon {
-      color: var(--secondary-text-color);
     }
     .content {
       padding: 12px 4px;
@@ -1719,16 +1637,10 @@ image:
       align-items: center;
       gap: 8px;
     }
-    .domain-header ha-icon {
-      --mdc-icon-size: 20px;
-    }
     .dc-header {
       display: flex;
       align-items: center;
       gap: 8px;
-    }
-    .dc-header ha-icon {
-      --mdc-icon-size: 20px;
     }
   `;
 }

@@ -1,20 +1,9 @@
 import memoizeOne from "memoize-one";
 import { HomeAssistant } from "./ha";
 import { HassEntity } from "home-assistant-js-websocket";
-import {
-  ALERT_DOMAINS,
-  CLIMATE_DOMAINS,
-  COVER_DOMAINS,
-  DOMAIN_ICONS,
-  DomainType,
-  OTHER_DOMAINS,
-  SENSOR_DOMAINS,
-  TOGGLE_DOMAINS,
-  CustomizationConfig,
-} from "./const";
+import { DOMAIN_ICONS, DomainType, CustomizationConfig } from "./const";
 import {
   caseInsensitiveStringCompare,
-  computeDomain,
   formatNumber,
   getNumberFormatOptions,
   isNumericState,
@@ -163,7 +152,6 @@ export const filterByCategory = (
 };
 
 export const calculateAverage = (
-  domain: string,
   deviceClass: string | undefined,
   entities: HassEntity[],
   locale: any,
@@ -245,21 +233,16 @@ export const getIcon = (
   return "";
 };
 
+/** Maps customizations by type and moves the legacy css/icon_css keys into styles. */
 export const parseCustomizationMap = (
-  items: CustomizationConfig[] | undefined,
-  parseCssFn: (css?: string) => Record<string, string>
+  items: CustomizationConfig[] | undefined
 ): Map<string, CustomizationConfig> => {
   const map = new Map<string, CustomizationConfig>();
-  if (!items) return map;
-
-  for (const c of items) {
-    const copy: CustomizationConfig = { ...c };
-    copy.styles = { ...(c.styles || {}) };
-    if (c.css) copy.styles.card = c.css;
-    if (c.icon_css) copy.styles.icon = c.icon_css;
-    if (copy.styles?.card) copy._parsedCss = parseCssFn(copy.styles.card);
-    if (copy.styles?.icon) copy._parsedIconCss = parseCssFn(copy.styles.icon);
-    map.set(copy.type, copy);
+  for (const c of items || []) {
+    const styles = { ...(c.styles || {}) };
+    if (c.css) styles.card = c.css;
+    if (c.icon_css) styles.icon = c.icon_css;
+    map.set(c.type, { ...c, styles });
   }
   return map;
 };

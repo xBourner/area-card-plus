@@ -53,17 +53,6 @@ export const parseCss = (
   return obj;
 };
 
-export const getParsedCss = (
-  source?: string | Record<string, any>,
-  customization?: any,
-  styleCache?: Map<string, Record<string, string>>,
-): Record<string, string> => {
-  if (customization && customization._parsedCss)
-    return customization._parsedCss;
-  if (!source) return {};
-  return parseCss(source, styleCache);
-};
-
 export const computeIconStyles = memoizeOne(
   (
     isV2Design: boolean,
@@ -79,7 +68,7 @@ export const computeIconStyles = memoizeOne(
 
     if (!icon_css) return base;
 
-    const cssRules = getParsedCss(icon_css, undefined, styleCache);
+    const cssRules = parseCss(icon_css, styleCache);
 
     return { ...base, ...cssRules };
   },
@@ -112,6 +101,9 @@ export const cardStyles = css`
   }
   .sensor-value {
     vertical-align: middle;
+  }
+  .dashed .sensor-value + .sensor-value::before {
+    content: " - ";
   }
   .sensor-row {
     display: flex;
@@ -280,9 +272,6 @@ export const cardStyles = css`
   }
   .off {
     color: var(--secondary-text-color);
-  }
-  .navigate {
-    cursor: pointer;
   }
   .hover:hover {
     background-color: rgba(var(--rgb-primary-text-color), 0.15);

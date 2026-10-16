@@ -1,9 +1,9 @@
-import packageJson from "../package.json";
+import { version } from "../package.json";
 import "./card";
 import "./editor";
 
 console.info(
-  `%c AREA-CARD %c ${packageJson.version} `,
+  `%c AREA-CARD-PLUS %c v${version} `,
   "color: steelblue; background: black; font-weight: bold;",
   "color: white ; background: dimgray; font-weight: bold;"
 );

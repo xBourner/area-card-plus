@@ -50,13 +50,6 @@ export const formatNumber = (
     ? numberFormatToLocale(localeOptions)
     : undefined;
 
-  // Polyfill for Number.isNaN, which is more reliable than the global isNaN()
-  Number.isNaN =
-    Number.isNaN ||
-    function isNaN(input) {
-      return typeof input === "number" && isNaN(input);
-    };
-
   if (
     localeOptions?.number_format !== NumberFormat.none &&
     !Number.isNaN(Number(num)) &&

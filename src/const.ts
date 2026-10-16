@@ -312,8 +312,6 @@ export interface CustomizationConfig {
   type: string;
   css?: string | Record<string, any>;
   icon_css?: string | Record<string, any>;
-  _parsedCss?: Record<string, string>;
-  _parsedIconCss?: Record<string, string>;
   styles?: Record<string, any>;
   color?: string;
   icon?: string;
