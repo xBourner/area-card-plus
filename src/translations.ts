@@ -1,5 +1,5 @@
 import { HomeAssistant, Schema } from "./ha";
-import { getTranslation, TranslationKey } from "./translations-data";
+import { getTranslation, translations, TranslationKey } from "./translations-data";
 
 export function translateEntityState(
   hass: HomeAssistant,
@@ -12,35 +12,11 @@ export function translateEntityState(
   return localized || state;
 }
 
-const compositeKeys: string[] = [
-  "area_name",
-  "area_icon",
-  "area_name_color",
-  "area_icon_color",
-  "hide_unavailable",
-  "show_active",
-  "extra_entities",
-  "hidden_entities",
-  "edit_filters",
-  "label_filter",
-  "ungroup_areas",
-  "popup_domains",
-  "wrap_sensor_icons",
-  "category_filter",
-  "mirrored",
-  "popup_sort",
-  "camera_mode",
-  "camera_auto_interval",
-  "add_custom_button",
-  "color",
-  "edit_content",
-];
-
 export function computeLabelCallback(
   hass: HomeAssistant,
   schema: Schema,
 ): string {
-  if (compositeKeys.includes(schema.name)) {
+  if (Object.prototype.hasOwnProperty.call(translations, schema.name)) {
     return getTranslation(
       schema.name as TranslationKey,
       hass.locale.language,

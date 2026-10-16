@@ -1,68 +1,42 @@
-import { handleAction, hasAction } from "./ha";
-import { actionHandler } from "./ha";
+import { handleAction, hasAction, actionHandler } from "./ha";
 
-export const handleDomainAction = (
-  card: any,
-  domain: string
-): ((ev: CustomEvent) => void) => {
-  const key = `domain|${domain}`;
-  if (!card._actionHandlerCache.has(key)) {
-    card._actionHandlerCache.set(
-      key,
-      makeActionHandler(card, "domain", domain)
-    );
-  }
-  return card._actionHandlerCache.get(key)!;
+type ActionKind = "domain" | "alert" | "cover" | "sensor";
+
+/** [service when something is on, service when all are off]; default turn_off/turn_on. */
+const TOGGLE_SERVICES: Record<string, [string, string]> = {
+  media_player: ["media_pause", "media_play"],
+  lock: ["lock", "unlock"],
+  vacuum: ["stop", "start"],
 };
 
-export const handleAlertAction = (
+const cachedActionHandler = (
   card: any,
+  kind: ActionKind,
   domain: string,
-  deviceClass: string
+  deviceClass?: string
 ): ((ev: CustomEvent) => void) => {
-  const key = `alert|${domain}|${deviceClass}`;
+  const key = deviceClass ? `${kind}|${domain}|${deviceClass}` : `${kind}|${domain}`;
   if (!card._actionHandlerCache.has(key)) {
-    card._actionHandlerCache.set(
-      key,
-      makeActionHandler(card, "alert", domain, deviceClass)
-    );
+    card._actionHandlerCache.set(key, makeActionHandler(card, kind, domain, deviceClass));
   }
   return card._actionHandlerCache.get(key)!;
 };
 
-export const handleCoverAction = (
-  card: any,
-  domain: string,
-  deviceClass: string
-): ((ev: CustomEvent) => void) => {
-  const key = `cover|${domain}|${deviceClass}`;
-  if (!card._actionHandlerCache.has(key)) {
-    card._actionHandlerCache.set(
-      key,
-      makeActionHandler(card, "cover", domain, deviceClass)
-    );
-  }
-  return card._actionHandlerCache.get(key)!;
-};
+export const handleDomainAction = (card: any, domain: string) =>
+  cachedActionHandler(card, "domain", domain);
 
-export const handleSensorAction = (
-  card: any,
-  domain: string,
-  deviceClass: string
-): ((ev: CustomEvent) => void) => {
-  const key = `sensor|${domain}|${deviceClass}`;
-  if (!card._actionHandlerCache.has(key)) {
-    card._actionHandlerCache.set(
-      key,
-      makeActionHandler(card, "sensor", domain, deviceClass)
-    );
-  }
-  return card._actionHandlerCache.get(key)!;
-};
+export const handleAlertAction = (card: any, domain: string, deviceClass: string) =>
+  cachedActionHandler(card, "alert", domain, deviceClass);
+
+export const handleCoverAction = (card: any, domain: string, deviceClass: string) =>
+  cachedActionHandler(card, "cover", domain, deviceClass);
+
+export const handleSensorAction = (card: any, domain: string, deviceClass: string) =>
+  cachedActionHandler(card, "sensor", domain, deviceClass);
 
 export const makeActionHandler = (
   card: any,
-  kind: "domain" | "alert" | "cover" | "sensor" | "custom_button",
+  kind: ActionKind | "custom_button",
   domain: string,
   deviceClass?: string,
   customButton?: any
@@ -99,43 +73,21 @@ export const makeActionHandler = (
         actionConfig === "more-info" || actionConfig?.action === "more-info";
 
       if (isToggle) {
-        if (domain === "media_player") {
-          card.hass.callService(
-            domain,
-            card._isOn(domain) ? "media_pause" : "media_play",
-            undefined,
-            { area_id: card._config!.area }
-          );
-        } else if (domain === "lock") {
-          card.hass.callService(
-            domain,
-            card._isOn(domain) ? "lock" : "unlock",
-            undefined,
-            { area_id: card._config!.area }
-          );
-        } else if (domain === "vacuum") {
-          card.hass.callService(
-            domain,
-            card._isOn(domain) ? "stop" : "start",
-            undefined,
-            { area_id: card._config!.area }
-          );
-        } else {
-          card.hass.callService(
-            domain,
-            card._isOn(domain) ? "turn_off" : "turn_on",
-            undefined,
-            { area_id: card._config!.area }
-          );
-        }
+        const [offService, onService] = TOGGLE_SERVICES[domain] ?? [
+          "turn_off",
+          "turn_on",
+        ];
+        card.hass.callService(
+          domain,
+          card._isOn(domain) ? offService : onService,
+          undefined,
+          { area_id: card._config!.area }
+        );
         return;
       } else if (isMoreInfo || actionConfig === undefined) {
         if (domain !== "binary_sensor" && domain !== "sensor") {
           if (domain === "climate") {
-            const climateCustomization = card._config?.customization_domain?.find(
-              (item: { type: string }) => item.type === "climate"
-            );
-            const displayMode = climateCustomization?.display_mode;
+            const displayMode = customization?.display_mode;
             if (displayMode === "icon" || displayMode === "text_icon") {
               card._showPopupForDomain(domain);
             }

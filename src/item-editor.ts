@@ -24,27 +24,22 @@ const ACTIONS: UiAction[] = [
   "none",
 ];
 
-const ACTIONS_ALERT: UiAction[] = [
-  "more-info",
-  "navigate",
-  "url",
-  "perform-action",
-  "none",
-];
+// alerts, covers and sensors have no toggle action
+const ACTIONS_NO_TOGGLE: UiAction[] = ACTIONS.filter((a) => a !== "toggle");
 
-const ACTIONS_SENSOR: UiAction[] = [
-  "more-info",
-  "navigate",
-  "url",
-  "perform-action",
-  "none",
-];
+const actionsSchema = (actions: UiAction[]) =>
+  ["tap_action", "double_tap_action", "hold_action"].map((name) => ({
+    name,
+    selector: { ui_action: { actions } },
+  }));
+
+const DOMAIN_ACTIONS_SCHEMA = actionsSchema(ACTIONS);
+const NO_TOGGLE_ACTIONS_SCHEMA = actionsSchema(ACTIONS_NO_TOGGLE);
 
 @customElement("item-editor")
 export class ItemEditor extends LitElement {
   @property({ attribute: false }) config?: LovelaceCardConfig;
   @property({ attribute: false }) hass?: HomeAssistant;
-  @property({ type: Boolean }) useSensorSchema: boolean = false;
   @property({ attribute: false }) lovelace?: unknown;
   @state() private getSchema?: string;
   @state() private _config?: ItemConfig;
@@ -101,24 +96,6 @@ export class ItemEditor extends LitElement {
     return base;
   });
 
-  private _schemadomainActions = memoizeOne(() => {
-    const actions = ACTIONS;
-    return [
-      {
-        name: "tap_action",
-        selector: { ui_action: { actions } },
-      },
-      {
-        name: "double_tap_action",
-        selector: { ui_action: { actions } },
-      },
-      {
-        name: "hold_action",
-        selector: { ui_action: { actions } },
-      },
-    ];
-  });
-
   private _schemaalertConfig = memoizeOne(() => {
     return [
       { name: "invert", selector: { boolean: {} } },
@@ -130,48 +107,12 @@ export class ItemEditor extends LitElement {
     ];
   });
 
-  private _schemaalertActions = memoizeOne(() => {
-    const actions = ACTIONS_ALERT;
-    return [
-      {
-        name: "tap_action",
-        selector: { ui_action: { actions } },
-      },
-      {
-        name: "double_tap_action",
-        selector: { ui_action: { actions } },
-      },
-      {
-        name: "hold_action",
-        selector: { ui_action: { actions } },
-      },
-    ];
-  });
-
   private _schemasensorConfig = memoizeOne(() => {
     return [
       { name: "invert", selector: { boolean: {} } },
       {
         name: "color",
         selector: { ui_color: { default_color: "state", include_state: true } },
-      },
-    ];
-  });
-
-  private _schemasensorActions = memoizeOne(() => {
-    const actions = ACTIONS_SENSOR;
-    return [
-      {
-        name: "tap_action",
-        selector: { ui_action: { actions } },
-      },
-      {
-        name: "double_tap_action",
-        selector: { ui_action: { actions } },
-      },
-      {
-        name: "hold_action",
-        selector: { ui_action: { actions } },
       },
     ];
   });
@@ -191,24 +132,6 @@ export class ItemEditor extends LitElement {
       {
         name: "color",
         selector: { ui_color: { default_color: "state", include_state: true } },
-      },
-    ];
-  });
-
-  private _schemacustombuttonActions = memoizeOne(() => {
-    const actions = ACTIONS;
-    return [
-      {
-        name: "tap_action",
-        selector: { ui_action: { actions } },
-      },
-      {
-        name: "double_tap_action",
-        selector: { ui_action: { actions } },
-      },
-      {
-        name: "hold_action",
-        selector: { ui_action: { actions } },
       },
     ];
   });
@@ -234,7 +157,7 @@ export class ItemEditor extends LitElement {
       getTranslation(key, hass.locale.language);
 
     if (!this._config) {
-      this._config = { ...this.config, area: this.config.area || "" };
+      this._config = { ...this.config };
     }
 
     let schema: Schema[] | undefined;
@@ -256,18 +179,14 @@ export class ItemEditor extends LitElement {
       }
     } else if (this._activeTab === "actions") {
       switch (this.getSchema) {
-        case "sensor":
-          schema = this._schemasensorActions();
-          break;
         case "domain":
-          schema = this._schemadomainActions();
+        case "custom_button":
+          schema = DOMAIN_ACTIONS_SCHEMA;
           break;
+        case "sensor":
         case "alert":
         case "cover":
-          schema = this._schemaalertActions();
-          break;
-        case "custom_button":
-          schema = this._schemacustombuttonActions();
+          schema = NO_TOGGLE_ACTIONS_SCHEMA;
           break;
       }
     } else if (this._activeTab === "style") {
@@ -613,18 +532,9 @@ icon:
 
   private _removePopupCard(): void {
     if (!this._config) return;
-    const { popup_card, ...rest } = this._config;
-    const updatedConfig = {
-      ...this._config,
-      popup_card,
-    };
+    const { popup_card: _removed, ...rest } = this._config;
     this._config = rest as LovelaceCardConfig;
-
-    this.dispatchEvent(
-      new CustomEvent("config-changed", {
-        detail: updatedConfig,
-      }),
-    );
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: rest }));
   }
 
   private _updatePositionField(field: string, value: string): void {
@@ -644,28 +554,10 @@ icon:
         );
       case "color":
         return this.hass!.localize(`ui.panel.lovelace.editor.card.tile.color`);
-      case "enable_popup_view":
-        return (
-          this.hass!.localize("ui.common.enable") +
-          " " +
-          this.hass!.localize(
-            "ui.panel.lovelace.editor.action-editor.actions.more-info",
-          )
-        );
-      case "disable_toggle_action":
-        return (
-          this.hass!.localize("ui.common.disable") +
-          " " +
-          this.hass!.localize(
-            "ui.panel.lovelace.editor.card.generic.tap_action",
-          )
-        );
       case "styles":
         return "Styles";
       case "display_mode":
         return getTranslation("display_mode", this.hass!.locale.language);
-      case "popup_card":
-        return getTranslation("popup_card", this.hass!.locale.language);
       case "icon":
       case "tap_action":
       case "hold_action":
@@ -674,7 +566,6 @@ icon:
           `ui.panel.lovelace.editor.card.generic.${schema.name}`,
         );
       case "invert":
-      case "invert_state":
         return this.hass!.localize("ui.dialogs.entity_registry.editor.invert.label");
       case "name":
         return this.hass!.localize(`ui.common.name`);
@@ -714,37 +605,14 @@ icon:
 
   static get styles(): CSSResult {
     return css`
-      .checkbox {
-        display: flex;
-        align-items: center;
-        padding: 8px 0;
-      }
-      .checkbox input {
-        height: 20px;
-        width: 20px;
-        margin-left: 0;
-        margin-right: 8px;
-      }
       h3 {
         margin-bottom: 0.5em;
-      }
-      .row {
-        margin-bottom: 12px;
-        margin-top: 12px;
-        display: block;
       }
       ha-form {
         display: block;
       }
       ha-selector {
         width: 100%;
-      }
-      .side-by-side {
-        display: flex;
-      }
-      .side-by-side > * {
-        flex: 1 1 0%;
-        padding-right: 4px;
       }
       ha-tab-group {
         display: block;
@@ -763,17 +631,11 @@ icon:
         grid-template-columns: 1fr 1fr;
         gap: 4px 8px;
       }
-      .position-grid ha-selector {
-        width: 100%;
-      }
       .state-grid {
         display: grid !important;
         grid-template-columns: 1fr 1fr;
         gap: 4px 8px;
         margin-bottom: 16px;
-      }
-      .state-grid ha-selector {
-        width: 100%;
       }
       .manual-selector {
         display: block;

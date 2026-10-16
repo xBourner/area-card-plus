@@ -34,19 +34,6 @@ declare global {
   var __SUPERVISOR__: boolean;
   /* eslint-enable no-var, no-redeclare */
 
-  interface Window {
-    // Custom panel entry point url
-    customPanelJS: string;
-    ShadyCSS: {
-      nativeCss: boolean;
-      nativeShadow: boolean;
-      prepareTemplate(templateElement, elementName, elementExtension);
-      styleElement(element);
-      styleSubtree(element, overrideProperties);
-      styleDocument(overrideProperties);
-      getComputedStyleValue(element, propertyName);
-    };
-  }
   // for fire event
   interface HASSDomEvents {
     "value-changed": {
@@ -225,7 +212,7 @@ export interface HomeAssistant {
   defaultPanel: string;
   moreInfoEntityId: string | null;
   user?: CurrentUser;
-  hassUrl(path?): string;
+  hassUrl(path?: string): string;
   callService(
     domain: ServiceCallRequest["domain"],
     service: ServiceCallRequest["service"],

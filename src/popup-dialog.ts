@@ -1,13 +1,12 @@
 import { repeat } from "lit/directives/repeat.js";
 import { LitElement, html, css, PropertyValues } from "lit";
-import { property, state } from "lit/decorators.js";
+import { property } from "lit/decorators.js";
 import {
   LovelaceCard,
   HomeAssistant,
   computeDomain,
   UNAVAILABLE_STATES,
   STATES_OFF,
-  Schema,
 } from "./ha";
 import { HassEntity } from "home-assistant-js-websocket";
 import {
@@ -17,8 +16,7 @@ import {
   DOMAIN_ICONS,
 } from "./const";
 import { mdiClose } from "@mdi/js";
-import { computeLabelCallback, translateEntityState } from "./translations";
-import { findArea } from "./helpers";
+import { translateEntityState } from "./translations";
 import memoizeOne from "memoize-one";
 import {
   getEntitiesIndex,
@@ -30,7 +28,7 @@ import {
 
 const EMPTY_SET = new Set<string>();
 
-const OFF_STATES = [UNAVAILABLE_STATES, STATES_OFF];
+const OFF_STATES = [...UNAVAILABLE_STATES, ...STATES_OFF];
 
 export class AreaCardPlusPopup extends LitElement {
   connectedCallback(): void {
@@ -44,7 +42,7 @@ export class AreaCardPlusPopup extends LitElement {
     this._cardEls.clear();
   }
 
-  private _onPopState = (ev: PopStateEvent) => {
+  private _onPopState = () => {
     if (this.open && !window.history.state?.areaCardPlusPopup) {
       this.open = false;
     }
@@ -56,21 +54,8 @@ export class AreaCardPlusPopup extends LitElement {
   @property({ type: String }) public content = "";
   @property({ type: Array }) public entities: HassEntity[] = [];
   @property({ attribute: false }) public hass?: HomeAssistant;
-  @property({ attribute: false }) public card!: LovelaceCard & {
-    areas?: any[];
-    entities?: any[];
-    devices?: any[];
-    _config?: any;
-    selectedGroup?: number | null;
-    selectedDomain?: string | null;
-    getCustomizationForType?: (type: string) => any;
-    _totalEntities?: (...args: any[]) => HassEntity[];
-    _isOn?: (...args: any[]) => HassEntity[];
-    _shouldShowTotalEntities?: (...args: any[]) => boolean;
-    list_mode?: boolean;
-  };
+  @property({ attribute: false }) public card!: LovelaceCard & { _config?: any };
 
-  @state() public selectedGroup?: number;
   private _opener: HTMLElement | null = null;
   private _cardEls: Map<string, HTMLElement> = new Map();
 
@@ -82,7 +67,6 @@ export class AreaCardPlusPopup extends LitElement {
     content?: string;
     selectedDomain?: string;
     selectedDeviceClass?: string;
-    selectedGroup?: number;
     card?: unknown;
   }): Promise<void> {
     this.title = params.title ?? this.title;
@@ -92,8 +76,7 @@ export class AreaCardPlusPopup extends LitElement {
     if (params.content !== undefined) this.content = params.content;
     this.selectedDomain = params.selectedDomain;
     this.selectedDeviceClass = params.selectedDeviceClass;
-    this.selectedGroup = params.selectedGroup;
-    this.card = params.card as LovelaceCard & { areas?: any[] };
+    this.card = params.card as LovelaceCard & { _config?: any };
     this._cardEls.clear();
     this.open = true;
     window.history.pushState({ areaCardPlusPopup: true }, "");
@@ -434,12 +417,7 @@ export class AreaCardPlusPopup extends LitElement {
   private _getAreaEntitiesContext() {
     const card: any = this.card;
     const areaId: string = card._config?.area;
-    const devicesArr =
-      card._devices && Array.isArray(card._devices)
-        ? card._devices
-        : card.hass && card.hass.devices
-          ? card.hass.devices
-          : {};
+    const devicesArr = card.hass?.devices || {};
     const entitiesIndex =
       this.hass && this.hass.devices && this.hass.entities
         ? getEntitiesIndex(this.hass.entities, this.hass.devices)
@@ -500,7 +478,6 @@ export class AreaCardPlusPopup extends LitElement {
     if (
       changedProps.has("selectedDomain") ||
       changedProps.has("selectedDeviceClass") ||
-      changedProps.has("selectedGroup") ||
       changedProps.has("entities") ||
       changedProps.has("content")
     ) {
@@ -580,14 +557,8 @@ export class AreaCardPlusPopup extends LitElement {
     return placeholder;
   }
 
-  public computeLabel = memoizeOne(
-    (schema: Schema, domain?: string, deviceClass?: string): string => {
-      return computeLabelCallback(this.hass!, schema);
-    }
-  );
-
   private _isActive(e: HassEntity): boolean {
-    return !OFF_STATES.flat().includes(e.state);
+    return !OFF_STATES.includes(e.state);
   }
 
   private sortEntitiesForPopup(entities: HassEntity[]): HassEntity[] {
@@ -770,8 +741,6 @@ export class AreaCardPlusPopup extends LitElement {
       `;
     }
 
-    const area = findArea(card._config?.area, card.hass?.areas) ?? null;
-
     return html`
       <ha-adaptive-dialog
         .hass=${this.hass}
@@ -785,9 +754,7 @@ export class AreaCardPlusPopup extends LitElement {
           @click=${this._close}
           .label=${this.hass!.localize("ui.common.close")}
         ></ha-icon-button>
-        <span slot="headerTitle">
-          ${card._config?.area_name || (area && (area as any).name)}
-        </span>
+        <span slot="headerTitle">${this.title}</span>
         <div class="dialog-content scrollable ha-scrollbar" @hass-more-info=${this._handleMoreInfo}>
           ${!ungroupAreas
         ? html`${repeat(
@@ -796,14 +763,7 @@ export class AreaCardPlusPopup extends LitElement {
           ([dom, list]) => html`
                     <div class="cards-wrapper">
                       <h4>
-                        ${dom === "binary_sensor" ||
-              dom === "sensor" ||
-              dom === "cover"
-              ? this._getDomainName(
-                dom,
-                selectedDeviceClass || undefined
-              )
-              : this._getDomainName(dom)}
+                        ${this._getDomainName(dom, selectedDeviceClass || undefined)}
                       </h4>
                       <div class="entity-cards">
                         ${repeat(
@@ -842,15 +802,12 @@ export class AreaCardPlusPopup extends LitElement {
     if (!this.hass) return domain;
     if (domain === "scene") return "Scene";
     if (
-      domain === "binary_sensor" ||
-      domain === "sensor" ||
-      domain === "cover"
+      deviceClass &&
+      (domain === "binary_sensor" || domain === "sensor" || domain === "cover")
     ) {
-      return deviceClass
-        ? this.hass.localize(
-          `component.${domain}.entity_component.${deviceClass}.name`
-        )
-        : this.hass.localize(`component.${domain}.entity_component._.name`);
+      return this.hass.localize(
+        `component.${domain}.entity_component.${deviceClass}.name`
+      );
     }
     return this.hass.localize(`component.${domain}.entity_component._.name`);
   }
@@ -921,11 +878,7 @@ export class AreaCardPlusPopup extends LitElement {
         --ha-dialog-width-md: calc((var(--responsive-columns) * 44.5vw) + 3vw) !important;
       }
       h4 {
-        width: 100%;
-        font-size: 1.2em;
-        margin: 0.6em 0;
         padding: 0 1em;
-        box-sizing: border-box;
       }
     }
 
@@ -937,11 +890,7 @@ export class AreaCardPlusPopup extends LitElement {
         --ha-dialog-width-md: calc((var(--responsive-columns) * 29.5vw) + 3vw) !important;
       }
       h4 {
-        width: 100%;
-        font-size: 1.2em;
-        margin: 0.6em 0;
         padding: 0 1em;
-        box-sizing: border-box;
       }
     }
 
@@ -963,11 +912,7 @@ export class AreaCardPlusPopup extends LitElement {
         width: 100%;
       }
       h4 {
-        width: 100%;
-        font-size: 1.2em;
-        margin: 0.6em 0;
         padding: 0 0.3em;
-        box-sizing: border-box;
       }
     }
   `;
