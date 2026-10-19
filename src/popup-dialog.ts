@@ -24,9 +24,11 @@ import {
   filterByCategory,
   getAreaEntityIds,
   getDevicesInArea,
+  popupShowsDomain,
 } from "./helpers";
 
 const EMPTY_SET = new Set<string>();
+
 
 const OFF_STATES = [...UNAVAILABLE_STATES, ...STATES_OFF];
 
@@ -434,8 +436,7 @@ export class AreaCardPlusPopup extends LitElement {
       cardConfig: any,
       areaId: string,
       devicesInArea: Set<string>,
-      popupDomains: string[],
-      selectedDomain?: string | null,
+      selectedDomain: string | null,
       index?: Map<string, Set<string>>
     ): string[] => {
       const hiddenEntitiesSet = new Set<string>(
@@ -457,11 +458,7 @@ export class AreaCardPlusPopup extends LitElement {
 
       return candidates.filter((entityId) => {
         if (!filterByCategoryFn(entityId)) return false;
-        const domain = computeDomain(entityId);
-        if (popupDomains.length > 0 && !popupDomains.includes(domain))
-          return false;
-        if (selectedDomain && domain !== selectedDomain) return false;
-        return true;
+        return popupShowsDomain(cardConfig, computeDomain(entityId), selectedDomain);
       });
     }
   );
@@ -507,7 +504,6 @@ export class AreaCardPlusPopup extends LitElement {
       card._config,
       areaId,
       devicesInArea,
-      card._config?.popup_domains || [],
       this.selectedDomain || null,
       entitiesIndex
     );
@@ -616,10 +612,8 @@ export class AreaCardPlusPopup extends LitElement {
         const entityId = entity.entity_id;
         if (!filterByCategoryFn(entityId)) return acc;
 
-        const domain = computeDomain(entityId);
-        if (popupDomains.length > 0 && !popupDomains.includes(domain))
+        if (!popupShowsDomain(card._config, computeDomain(entityId), selectedDomain))
           return acc;
-        if (selectedDomain && domain !== selectedDomain) return acc;
 
         acc.push(entityId);
         return acc;
@@ -630,7 +624,6 @@ export class AreaCardPlusPopup extends LitElement {
         card._config,
         areaId,
         devicesInArea,
-        popupDomains,
         selectedDomain,
         entitiesIndex
       );
@@ -657,11 +650,11 @@ export class AreaCardPlusPopup extends LitElement {
     }
 
     for (const extra of extraEntities) {
-      const domain = computeDomain(extra);
       const st = states[extra];
       if (!st) continue;
-      if (popupDomains.length > 0 && !popupDomains.includes(domain)) continue;
-      if (selectedDomain && domain !== selectedDomain) continue;
+      if (hideUnavailable && UNAVAILABLE_STATES.includes(st.state)) continue;
+      if (!popupShowsDomain(card._config, computeDomain(extra), selectedDomain))
+        continue;
       if (
         selectedDeviceClass &&
         (st.attributes as any).device_class !== selectedDeviceClass

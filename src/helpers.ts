@@ -246,3 +246,37 @@ export const parseCustomizationMap = (
   }
   return map;
 };
+
+/**
+ * The selected domains plus present domains that are new to the selection
+ * (neither selected nor deliberately deselected). Without a `deselected` list
+ * (configs saved before it existed) the selection is used as is.
+ */
+export const withNewDomains = (
+  selected: string[],
+  deselected: string[] | undefined,
+  present: string[]
+): string[] =>
+  deselected
+    ? [
+        ...selected,
+        ...present.filter((d) => !selected.includes(d) && !deselected.includes(d)),
+      ]
+    : selected;
+
+/** A domain popup shows its whole domain; popup_domains only narrows it with sync_popup_domains. */
+export const popupShowsDomain = (
+  config: any,
+  domain: string,
+  selectedDomain: string | null
+): boolean => {
+  if (selectedDomain) {
+    if (domain !== selectedDomain) return false;
+    if (!config?.sync_popup_domains) return true;
+  }
+  const popupDomains: string[] = config?.popup_domains || [];
+  return (
+    !popupDomains.length ||
+    withNewDomains(popupDomains, config?.hidden_popup_domains, [domain]).includes(domain)
+  );
+};

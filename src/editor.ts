@@ -10,6 +10,7 @@ import {
   SelectOption,
   Schema,
   SubElementEditorConfig,
+  UNAVAILABLE_STATES,
 } from "./ha";
 import {
   compareByFriendlyName,
@@ -17,7 +18,10 @@ import {
   getAreaEntityIds,
   getDevicesInArea,
   getFriendlyName,
+  withNewDomains,
+  filterByCategory,
 } from "./helpers";
+import { AUTO_TOGGLE_DOMAINS } from "./card-items";
 import memoizeOne from "memoize-one";
 import {
   DEVICE_CLASSES,
@@ -182,6 +186,7 @@ export class AreaCardPlusEditor
             },
           },
         },
+        { name: "sync_popup_domains", selector: { boolean: {} } },
         {
           name: "edit_filters",
           flatten: true,
@@ -239,22 +244,40 @@ export class AreaCardPlusEditor
       )
   );
 
-  private _toggleDomainsForArea = memoizeOne(
+  private _toggleDomainsForArea(
+    area: string,
+    entities: HomeAssistant["entities"],
+    devices: HomeAssistant["devices"]
+  ): string[] {
+    return this._toggleDomainsMemo(area, entities, devices, this._config?.category_filter);
+  }
+
+  private _toggleDomainsMemo = memoizeOne(
     (
       area: string,
       entities: HomeAssistant["entities"],
-      devices: HomeAssistant["devices"]
+      devices: HomeAssistant["devices"],
+      categoryFilter?: string
     ): string[] =>
-      this._classesForArea(area, "toggle", undefined, entities, devices)
+      this._classesForArea(area, "toggle", undefined, entities, devices, categoryFilter)
   );
 
-  private _allDomainsForArea = memoizeOne(
+  private _allDomainsForArea(
+    area: string,
+    entities: HomeAssistant["entities"],
+    devices: HomeAssistant["devices"]
+  ): string[] {
+    return this._allDomainsMemo(area, entities, devices, this._config?.category_filter);
+  }
+
+  private _allDomainsMemo = memoizeOne(
     (
       area: string,
       entities: HomeAssistant["entities"],
-      devices: HomeAssistant["devices"]
+      devices: HomeAssistant["devices"],
+      categoryFilter?: string
     ): string[] =>
-      this._classesForArea(area, "all", undefined, entities, devices)
+      this._classesForArea(area, "all", undefined, entities, devices, categoryFilter)
   );
 
   private _cameraOptionsForArea = memoizeOne(
@@ -291,7 +314,8 @@ export class AreaCardPlusEditor
     domain: "sensor" | "binary_sensor" | "cover" | "toggle" | "all",
     numericDeviceClasses: string[] | undefined,
     entitiesRegistry: HomeAssistant["entities"],
-    devicesRegistry: HomeAssistant["devices"]
+    devicesRegistry: HomeAssistant["devices"],
+    categoryFilter?: string
   ): string[] {
     const entitiesIndex = getEntitiesIndex(entitiesRegistry, devicesRegistry);
     const devicesInArea = entitiesIndex
@@ -314,7 +338,12 @@ export class AreaCardPlusEditor
       .filter((e) => e !== undefined);
 
     if (domain === "toggle") {
+      // same rule as the card: category-filtered and unavailable entities don't make a domain present
       const filtered = entities.filter(
+        (e) =>
+          !UNAVAILABLE_STATES.includes(e.state) &&
+          filterByCategory(e.entity_id, entitiesRegistry, categoryFilter)
+      ).filter(
         (e) =>
           TOGGLE_DOMAINS.includes(computeDomain(e.entity_id)) ||
           CLIMATE_DOMAINS.includes(computeDomain(e.entity_id))
@@ -327,7 +356,12 @@ export class AreaCardPlusEditor
         .map((entityId: string) => this.hass!.states[entityId])
         .filter((stateObj) => stateObj !== undefined);
 
-      const all = [...entities, ...extraEntityObjects];
+      const all = [
+        ...entities.filter((e) =>
+          filterByCategory(e.entity_id, entitiesRegistry, categoryFilter)
+        ),
+        ...extraEntityObjects,
+      ];
       return [...new Set(all.map((e) => computeDomain(e.entity_id)))];
     }
 
@@ -380,7 +414,11 @@ export class AreaCardPlusEditor
     possibleClasses: string[],
     currentClasses: string[]
   ): SelectOption[] {
-    const allClasses = [...new Set([...possibleClasses, ...currentClasses])];
+    // a domain is only offered while the area has an entity of it
+    const allClasses =
+      type === "toggle" || type === "all"
+        ? possibleClasses
+        : [...new Set([...possibleClasses, ...currentClasses])];
 
     const options = allClasses.map((domain) => ({
       value: domain,
@@ -499,6 +537,8 @@ export class AreaCardPlusEditor
         this._config.alert_classes = [...possibleAlertClasses];
         this._config.cover_classes = [...possibleCoverClasses];
         this._config.popup_domains = [...sortedDomains];
+        this._config.hidden_toggle_domains = [];
+        this._config.hidden_popup_domains = [];
         this._config.customization_domain = [];
         this._config.customization_alert = [];
         this._config.customization_cover = [];
@@ -587,12 +627,47 @@ export class AreaCardPlusEditor
     );
     this._entityOptions.sort((a, b) => cmp(a.value, b.value));
 
-    this._valueChanged({ detail: { value: this._config } } as CustomEvent);
+    fireEvent(this, "config-changed", { config: this._config });
   }
 
   private _valueChanged(event: CustomEvent) {
-    this._config = event.detail.value;
+    const config = { ...event.detail.value };
+    const shown = this._shownDomains(this._config!);
+    const area = config.area || "";
+    const present = {
+      toggle_domains: this._toggleDomainsForArea(area, this.hass.entities, this.hass.devices),
+      popup_domains: this._allDomainsForArea(area, this.hass.entities, this.hass.devices),
+    };
+    for (const key of ["toggle_domains", "popup_domains"] as const) {
+      const selected = config[key];
+      const hiddenKey = `hidden_${key}`;
+      // empty popup_domains means all domains, nothing to remember
+      if (!Array.isArray(selected) || (key === "popup_domains" && !selected.length))
+        continue;
+      if (config[hiddenKey] && selected.join() === (shown[key] || []).join()) continue;
+      // remember deselected domains, so the card can tell them apart from new ones
+      config[hiddenKey] = [
+        ...new Set([...(config[hiddenKey] || []), ...present[key]]),
+      ].filter((d: string) => !selected.includes(d));
+    }
+    this._config = config;
     fireEvent(this, "config-changed", { config: this._config! });
+  }
+
+  /** The domain lists as the card shows them: new domains of the area are appended. */
+  private _shownDomains(config: LovelaceCardConfig) {
+    const area = config.area || "";
+    const toggles = this._toggleDomainsForArea(area, this.hass.entities, this.hass.devices);
+    const autoToggles = AUTO_TOGGLE_DOMAINS.filter((d) => toggles.includes(d));
+    const all = this._allDomainsForArea(area, this.hass.entities, this.hass.devices);
+    return {
+      toggle_domains: config.toggle_domains
+        ? withNewDomains(config.toggle_domains, config.hidden_toggle_domains, autoToggles)
+        : autoToggles,
+      popup_domains: config.popup_domains?.length
+        ? withNewDomains(config.popup_domains, config.hidden_popup_domains, all)
+        : (config.popup_domains ?? all),
+    };
   }
 
   private _isHiddenEntity(entity_id: string): boolean {
@@ -1200,24 +1275,12 @@ export class AreaCardPlusEditor
       return nothing;
     }
 
-    const possibleToggleDomains = this._toggleDomainsForArea(
-      this._config.area || "",
-      this.hass.entities,
-      this.hass.devices
-    );
-
     const possibleAlertClasses = this._binaryClassesForArea(
       this._config.area || "",
       this.hass.entities,
       this.hass.devices
     );
     const possibleCoverClasses = this._coverClassesForArea(
-      this._config.area || "",
-      this.hass.entities,
-      this.hass.devices
-    );
-
-    const possibleDomains = this._allDomainsForArea(
       this._config.area || "",
       this.hass.entities,
       this.hass.devices
@@ -1252,9 +1315,8 @@ export class AreaCardPlusEditor
       alert_classes: possibleAlertClasses,
       cover_classes: possibleCoverClasses,
       sensor_classes: DEVICE_CLASSES.sensor,
-      toggle_domains: possibleToggleDomains,
-      popup_domains: possibleDomains,
       ...this._config,
+      ...this._shownDomains(this._config),
     };
 
     if (this._subElementEditorDomain)

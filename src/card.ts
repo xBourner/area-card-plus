@@ -56,6 +56,7 @@ import {
   getIcon,
   getEntitiesIndex,
   parseCustomizationMap,
+  popupShowsDomain,
 } from "./helpers";
 
 const EMPTY_SET = new Set<string>();
@@ -1195,13 +1196,15 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
     const entitiesByDomain: { [domain: string]: HassEntity[] } = {};
     Object.entries(entitiesByDomainRaw).forEach(([domain, entities]) => {
-      entitiesByDomain[domain] = entities.filter((entity) =>
+      const filtered = entities.filter((entity) =>
         filterByCategory(
           entity.entity_id,
           this.hass.entities,
           this._config?.category_filter
         )
       );
+      // a domain without entities must not render an icon
+      if (filtered.length) entitiesByDomain[domain] = filtered;
     });
     const area = findArea(this._config.area, this.hass?.areas || {});
 
@@ -1214,18 +1217,18 @@ export class AreaCardPlus extends LitElement implements LovelaceCard {
 
     const alerts = computeAlerts(entitiesByDomain, this._deviceClasses);
 
+    // with sync_popup_domains a domain outside the popup has nothing to open, so no icon
     const buttons = computeButtons(
       this._config.toggle_domains,
+      this._config.hidden_toggle_domains,
       entitiesByDomain
-    );
+    ).filter((d) => popupShowsDomain(this._config, d, null));
 
     const sensors = computeSensors(entitiesByDomain, this._deviceClasses);
 
-    const climates = (
-      this._config?.toggle_domains?.includes("climate") ? CLIMATE_DOMAINS : []
-    )
-      .filter((domain) => domain in entitiesByDomain)
-      .map((domain) => ({ domain }));
+    const climates = CLIMATE_DOMAINS.filter((domain) =>
+      buttons.includes(domain)
+    ).map((domain) => ({ domain }));
     const display = (this._config?.display_type || "").toString().toLowerCase();
     const showCamera = display.includes("camera");
     const showPicture =
